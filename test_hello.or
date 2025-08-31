@@ -1,4 +1,1 @@
-fn main() {
-    out("Hello from C++ compiled Orion!")
-    out("Direct machine code execution!")
-}
+main() -> int { out("Hello, Orion!"); return 0; }
