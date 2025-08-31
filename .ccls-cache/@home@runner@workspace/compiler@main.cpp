@@ -42,6 +42,32 @@ extern "C" {
             variables[name] = value;
         }
         
+        std::string getDataType(const std::string& value) {
+            // Check if it's a boolean literal
+            if (value == "True" || value == "False") {
+                return "bool";
+            }
+            // Check if it's a string literal
+            if (value.front() == '"' && value.back() == '"') {
+                return "string";
+            }
+            // Check if it's an integer
+            if (std::all_of(value.begin(), value.end(), ::isdigit) || 
+                (value[0] == '-' && std::all_of(value.begin() + 1, value.end(), ::isdigit))) {
+                return "int";
+            }
+            // Check if it's a float
+            if (value.find('.') != std::string::npos && std::count(value.begin(), value.end(), '.') == 1) {
+                return "float";
+            }
+            // If it's a variable reference, get its type
+            auto it = variables.find(value);
+            if (it != variables.end()) {
+                return getDataType(it->second);
+            }
+            return "undefined";
+        }
+        
         std::string getVariable(const std::string& name) {
             auto it = variables.find(name);
             return (it != variables.end()) ? it->second : "";
@@ -180,6 +206,48 @@ extern "C" {
                     }
                 }
                 
+                // Check for dtype() function calls  
+                size_t dtypePos = line.find("dtype(");
+                if (dtypePos != std::string::npos) {
+                    size_t startParen = line.find('(', dtypePos);
+                    size_t endParen = line.find(')', startParen);
+                    
+                    if (startParen != std::string::npos && endParen != std::string::npos) {
+                        std::string arg = line.substr(startParen + 1, endParen - startParen - 1);
+                        
+                        // Remove whitespace
+                        arg.erase(0, arg.find_first_not_of(" \t"));
+                        arg.erase(arg.find_last_not_of(" \t") + 1);
+                        
+                        if (arg == "True" || arg == "False") {
+                            // Direct boolean literals
+                            interpreter.outputValue("bool");
+                        } else if (arg.front() == '"' && arg.back() == '"') {
+                            // Direct string literal
+                            interpreter.outputValue("string");
+                        } else {
+                            // Variable reference - check if it's defined and get its type
+                            std::string value = interpreter.getVariable(arg);
+                            if (!value.empty()) {
+                                std::string dataType = interpreter.getDataType(value);
+                                interpreter.outputValue(dataType);
+                            } else {
+                                // Variable is undefined - this is an error!
+                                result->success = false;
+                                std::string errorMsg = "Compilation failed:\n  Line " + std::to_string(lineNumber) + ": Undefined variable '" + arg + "' in dtype() call\n" +
+                                                     "  At: " + line + "\n";
+                                result->error = new char[errorMsg.length() + 1];
+                                strcpy(result->error, errorMsg.c_str());
+                                
+                                result->output = new char[1];
+                                result->output[0] = '\0';
+                                result->execution_time = 0;
+                                return result;
+                            }
+                        }
+                    }
+                }
+                
                 // Check for out() function calls
                 size_t outPos = line.find("out(");
                 if (outPos != std::string::npos) {
@@ -203,6 +271,46 @@ extern "C" {
                         } else if (arg == "False") {
                             // Boolean literal False
                             interpreter.outputValue("False");
+                        } else if (arg.find("dtype(") != std::string::npos) {
+                            // Handle dtype() function call inside out()
+                            size_t dtypeStart = arg.find("dtype(");
+                            size_t dtypeArgStart = arg.find('(', dtypeStart);
+                            size_t dtypeArgEnd = arg.find(')', dtypeArgStart);
+                            
+                            if (dtypeArgStart != std::string::npos && dtypeArgEnd != std::string::npos) {
+                                std::string dtypeArg = arg.substr(dtypeArgStart + 1, dtypeArgEnd - dtypeArgStart - 1);
+                                
+                                // Remove whitespace from dtype argument
+                                dtypeArg.erase(0, dtypeArg.find_first_not_of(" \t"));
+                                dtypeArg.erase(dtypeArg.find_last_not_of(" \t") + 1);
+                                
+                                if (dtypeArg == "True" || dtypeArg == "False") {
+                                    // Direct boolean literals
+                                    interpreter.outputValue("bool");
+                                } else if (dtypeArg.front() == '"' && dtypeArg.back() == '"') {
+                                    // Direct string literal
+                                    interpreter.outputValue("string");
+                                } else {
+                                    // Variable reference
+                                    std::string value = interpreter.getVariable(dtypeArg);
+                                    if (!value.empty()) {
+                                        std::string dataType = interpreter.getDataType(value);
+                                        interpreter.outputValue(dataType);
+                                    } else {
+                                        // Variable is undefined - this is an error!
+                                        result->success = false;
+                                        std::string errorMsg = "Compilation failed:\n  Line " + std::to_string(lineNumber) + ": Undefined variable '" + dtypeArg + "' in dtype() call\n" +
+                                                             "  At: " + line + "\n";
+                                        result->error = new char[errorMsg.length() + 1];
+                                        strcpy(result->error, errorMsg.c_str());
+                                        
+                                        result->output = new char[1];
+                                        result->output[0] = '\0';
+                                        result->execution_time = 0;
+                                        return result;
+                                    }
+                                }
+                            }
                         } else {
                             // Variable reference - check if it's defined
                             std::string value = interpreter.getVariable(arg);

@@ -226,23 +226,30 @@ extern "C" {
                             // Direct string literal
                             interpreter.outputValue("string");
                         } else {
-                            // Variable reference - check if it's defined and get its type
-                            std::string value = interpreter.getVariable(arg);
-                            if (!value.empty()) {
-                                std::string dataType = interpreter.getDataType(value);
+                            // First check if it's a literal value
+                            std::string dataType = interpreter.getDataType(arg);
+                            if (dataType != "undefined") {
+                                // It's a literal value, return its type directly
                                 interpreter.outputValue(dataType);
                             } else {
-                                // Variable is undefined - this is an error!
-                                result->success = false;
-                                std::string errorMsg = "Compilation failed:\n  Line " + std::to_string(lineNumber) + ": Undefined variable '" + arg + "' in dtype() call\n" +
-                                                     "  At: " + line + "\n";
-                                result->error = new char[errorMsg.length() + 1];
-                                strcpy(result->error, errorMsg.c_str());
-                                
-                                result->output = new char[1];
-                                result->output[0] = '\0';
-                                result->execution_time = 0;
-                                return result;
+                                // Variable reference - check if it's defined and get its type
+                                std::string value = interpreter.getVariable(arg);
+                                if (!value.empty()) {
+                                    std::string varDataType = interpreter.getDataType(value);
+                                    interpreter.outputValue(varDataType);
+                                } else {
+                                    // Variable is undefined - this is an error!
+                                    result->success = false;
+                                    std::string errorMsg = "Compilation failed:\n  Line " + std::to_string(lineNumber) + ": Undefined variable '" + arg + "' in dtype() call\n" +
+                                                         "  At: " + line + "\n";
+                                    result->error = new char[errorMsg.length() + 1];
+                                    strcpy(result->error, errorMsg.c_str());
+                                    
+                                    result->output = new char[1];
+                                    result->output[0] = '\0';
+                                    result->execution_time = 0;
+                                    return result;
+                                }
                             }
                         }
                     }
