@@ -171,8 +171,8 @@ public:
         }
         
         assembly << "\n.section .text\n";
-        assembly << ".global _start\n";
-        assembly << "\n_start:\n";
+        assembly << ".global main\n";
+        assembly << "\nmain:\n";
         
         // Generate code for each statement
         stringCounter = 0;
@@ -190,11 +190,10 @@ public:
             }
         }
         
-        // Exit program
-        assembly << "\n    # Exit program\n";
-        assembly << "    mov $60, %rax\n";   // sys_exit
-        assembly << "    mov $0, %rdi\n";    // exit status
-        assembly << "    syscall\n";
+        // Return from main
+        assembly << "\n    # Return from main\n";
+        assembly << "    mov $0, %rax\n";   // return 0
+        assembly << "    ret\n";
         
         return assembly.str();
     }
@@ -395,8 +394,8 @@ extern "C" {
             }
             pclose(execPipe);
             
-            // Clean up
-            remove(tempAsmFile.c_str());
+            // Keep assembly file for demonstration, clean up executable
+            // remove(tempAsmFile.c_str());  // Keep assembly file to prove compilation
             remove(tempExeFile.c_str());
             
             // Success
