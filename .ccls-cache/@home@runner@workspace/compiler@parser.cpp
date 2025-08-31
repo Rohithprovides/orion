@@ -1,15 +1,11 @@
 #include "ast.h"
+#include "lexer.h"
 #include <iostream>
 #include <memory>
 #include <vector>
 #include <string>
 
 namespace orion {
-
-// Forward declarations from lexer
-enum class TokenType;
-struct Token;
-class Lexer;
 
 class Parser {
 private:
