@@ -195,21 +195,37 @@ extern "C" {
                             return result;
                         }
                         
-                        // Check all right-side variables exist
+                        // Check all right-side variables/literals exist and get their values
                         std::vector<std::string> rightValues;
                         for (const auto& rightVar : rightVarList) {
-                            std::string value = interpreter.getVariable(rightVar);
-                            if (value.empty()) {
-                                result->success = false;
-                                std::string errorMsg = "Compilation failed:\n  Line " + std::to_string(lineNumber) + ": Undefined variable '" + rightVar + "' in tuple assignment\n" +
-                                                     "  At: " + line + "\n";
-                                result->error = new char[errorMsg.length() + 1];
-                                strcpy(result->error, errorMsg.c_str());
-                                
-                                result->output = new char[1];
-                                result->output[0] = '\0';
-                                result->execution_time = 0;
-                                return result;
+                            std::string value;
+                            
+                            // Check if it's a literal value first
+                            if (rightVar == "True" || rightVar == "False") {
+                                // Valid boolean literals
+                                value = rightVar;
+                            } else if (!rightVar.empty() && rightVar.front() == '"' && rightVar.back() == '"') {
+                                // String literal
+                                value = rightVar;
+                            } else if (!rightVar.empty() && (std::all_of(rightVar.begin(), rightVar.end(), ::isdigit) || 
+                                       (rightVar.find('.') != std::string::npos && std::count(rightVar.begin(), rightVar.end(), '.') == 1))) {
+                                // Integer or float literal
+                                value = rightVar;
+                            } else {
+                                // Must be a variable reference
+                                value = interpreter.getVariable(rightVar);
+                                if (value.empty()) {
+                                    result->success = false;
+                                    std::string errorMsg = "Compilation failed:\n  Line " + std::to_string(lineNumber) + ": Undefined variable '" + rightVar + "' in tuple assignment\n" +
+                                                         "  At: " + line + "\n";
+                                    result->error = new char[errorMsg.length() + 1];
+                                    strcpy(result->error, errorMsg.c_str());
+                                    
+                                    result->output = new char[1];
+                                    result->output[0] = '\0';
+                                    result->execution_time = 0;
+                                    return result;
+                                }
                             }
                             rightValues.push_back(value);
                         }

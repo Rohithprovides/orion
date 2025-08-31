@@ -144,6 +144,101 @@ extern "C" {
                 line.erase(0, line.find_first_not_of(" \t"));
                 line.erase(line.find_last_not_of(" \t") + 1);
                 
+                // Check for tuple assignment first (a,b) = (b,a)
+                if (line.find('(') != std::string::npos && line.find(')') != std::string::npos && line.find('=') != std::string::npos) {
+                    size_t firstOpenParen = line.find('(');
+                    size_t firstCloseParen = line.find(')', firstOpenParen);
+                    size_t equalPos = line.find('=', firstCloseParen);
+                    size_t secondOpenParen = line.find('(', equalPos);
+                    size_t secondCloseParen = line.find(')', secondOpenParen);
+                    
+                    if (firstOpenParen != std::string::npos && firstCloseParen != std::string::npos && 
+                        equalPos != std::string::npos && secondOpenParen != std::string::npos && 
+                        secondCloseParen != std::string::npos) {
+                        
+                        // Extract variables from left side (a,b)
+                        std::string leftVars = line.substr(firstOpenParen + 1, firstCloseParen - firstOpenParen - 1);
+                        // Extract variables from right side (b,a)
+                        std::string rightVars = line.substr(secondOpenParen + 1, secondCloseParen - secondOpenParen - 1);
+                        
+                        // Parse left side variables
+                        std::vector<std::string> leftVarList;
+                        std::stringstream leftStream(leftVars);
+                        std::string leftVar;
+                        while (std::getline(leftStream, leftVar, ',')) {
+                            leftVar.erase(0, leftVar.find_first_not_of(" \t"));
+                            leftVar.erase(leftVar.find_last_not_of(" \t") + 1);
+                            leftVarList.push_back(leftVar);
+                        }
+                        
+                        // Parse right side variables
+                        std::vector<std::string> rightVarList;
+                        std::stringstream rightStream(rightVars);
+                        std::string rightVar;
+                        while (std::getline(rightStream, rightVar, ',')) {
+                            rightVar.erase(0, rightVar.find_first_not_of(" \t"));
+                            rightVar.erase(rightVar.find_last_not_of(" \t") + 1);
+                            rightVarList.push_back(rightVar);
+                        }
+                        
+                        // Verify all variables exist and same number on both sides
+                        if (leftVarList.size() != rightVarList.size()) {
+                            result->success = false;
+                            std::string errorMsg = "Compilation failed:\n  Line " + std::to_string(lineNumber) + ": Mismatched number of variables in tuple assignment\n" +
+                                                 "  At: " + line + "\n";
+                            result->error = new char[errorMsg.length() + 1];
+                            strcpy(result->error, errorMsg.c_str());
+                            
+                            result->output = new char[1];
+                            result->output[0] = '\0';
+                            result->execution_time = 0;
+                            return result;
+                        }
+                        
+                        // Check all right-side variables/literals exist and get their values
+                        std::vector<std::string> rightValues;
+                        for (const auto& rightVar : rightVarList) {
+                            std::string value;
+                            
+                            // Check if it's a literal value first
+                            if (rightVar == "True" || rightVar == "False") {
+                                // Valid boolean literals
+                                value = rightVar;
+                            } else if (rightVar.front() == '"' && rightVar.back() == '"') {
+                                // String literal
+                                value = rightVar;
+                            } else if (std::all_of(rightVar.begin(), rightVar.end(), ::isdigit) || 
+                                       (rightVar.find('.') != std::string::npos && std::count(rightVar.begin(), rightVar.end(), '.') == 1)) {
+                                // Integer or float literal
+                                value = rightVar;
+                            } else {
+                                // Must be a variable reference
+                                value = interpreter.getVariable(rightVar);
+                                if (value.empty()) {
+                                    result->success = false;
+                                    std::string errorMsg = "Compilation failed:\n  Line " + std::to_string(lineNumber) + ": Undefined variable '" + rightVar + "' in tuple assignment\n" +
+                                                         "  At: " + line + "\n";
+                                    result->error = new char[errorMsg.length() + 1];
+                                    strcpy(result->error, errorMsg.c_str());
+                                    
+                                    result->output = new char[1];
+                                    result->output[0] = '\0';
+                                    result->execution_time = 0;
+                                    return result;
+                                }
+                            }
+                            rightValues.push_back(value);
+                        }
+                        
+                        // Perform the swap/assignment
+                        for (size_t i = 0; i < leftVarList.size(); i++) {
+                            interpreter.setVariable(leftVarList[i], rightValues[i]);
+                        }
+                        
+                        continue; // Skip regular assignment processing
+                    }
+                }
+                
                 // Check for variable assignment (a = 5 or a=5)
                 size_t assignPos = line.find('=');
                 if (assignPos != std::string::npos) {
