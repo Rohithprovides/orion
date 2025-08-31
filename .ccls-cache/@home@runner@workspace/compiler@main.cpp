@@ -224,19 +224,19 @@ extern "C" {
                             interpreter.outputValue("datatype : bool");
                         } else if (arg.front() == '"' && arg.back() == '"') {
                             // Direct string literal
-                            interpreter.outputValue("string");
+                            interpreter.outputValue("datatype : string");
                         } else {
                             // First check if it's a literal value
                             std::string dataType = interpreter.getDataType(arg);
                             if (dataType != "undefined") {
                                 // It's a literal value, return its type directly
-                                interpreter.outputValue(dataType);
+                                interpreter.outputValue("datatype : " + dataType);
                             } else {
                                 // Variable reference - check if it's defined and get its type
                                 std::string value = interpreter.getVariable(arg);
                                 if (!value.empty()) {
                                     std::string varDataType = interpreter.getDataType(value);
-                                    interpreter.outputValue(varDataType);
+                                    interpreter.outputValue("datatype : " + varDataType);
                                 } else {
                                     // Variable is undefined - this is an error!
                                     result->success = false;
