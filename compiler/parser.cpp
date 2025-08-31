@@ -468,7 +468,7 @@ private:
     
     std::unique_ptr<Expression> parsePrimary() {
         if (match({TokenType::TRUE, TokenType::FALSE})) {
-            return std::make_unique<BoolLiteral>(previous().value == "true");
+            return std::make_unique<BoolLiteral>(previous().value == "True");
         }
         
         if (match({TokenType::INTEGER})) {

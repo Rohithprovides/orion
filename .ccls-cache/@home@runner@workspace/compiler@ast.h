@@ -110,7 +110,7 @@ public:
     BoolLiteral(bool val) : value(val) {}
     void accept(ASTVisitor& visitor) override;
     std::string toString(int indent = 0) const override {
-        return std::string(indent, ' ') + "BoolLiteral(" + (value ? "true" : "false") + ")";
+        return std::string(indent, ' ') + "BoolLiteral(" + (value ? "True" : "False") + ")";
     }
 };
 
