@@ -310,6 +310,12 @@ document.getElementById('codeEditor').addEventListener('input', function() {
     }
 });
 
+// Show features modal
+function showFeatures() {
+    const modal = new bootstrap.Modal(document.getElementById('helpModal'));
+    modal.show();
+}
+
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
     loadExample('hello');
