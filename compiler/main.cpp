@@ -357,80 +357,115 @@ extern "C" {
                     size_t endParen = line.find(')', startParen);
                     
                     if (startParen != std::string::npos && endParen != std::string::npos) {
-                        std::string arg = line.substr(startParen + 1, endParen - startParen - 1);
+                        std::string args = line.substr(startParen + 1, endParen - startParen - 1);
                         
-                        // Remove whitespace
-                        arg.erase(0, arg.find_first_not_of(" \t"));
-                        arg.erase(arg.find_last_not_of(" \t") + 1);
+                        // Parse multiple comma-separated arguments
+                        std::vector<std::string> argList;
+                        std::stringstream argStream(args);
+                        std::string singleArg;
                         
-                        if (arg.front() == '"' && arg.back() == '"') {
-                            // String literal
-                            std::string content = arg.substr(1, arg.length() - 2);
-                            interpreter.outputValue(content);
-                        } else if (arg == "True") {
-                            // Boolean literal True
-                            interpreter.outputValue("True");
-                        } else if (arg == "False") {
-                            // Boolean literal False
-                            interpreter.outputValue("False");
-                        } else if (arg.find("dtype(") != std::string::npos) {
-                            // Handle dtype() function call inside out()
-                            size_t dtypeStart = arg.find("dtype(");
-                            size_t dtypeArgStart = arg.find('(', dtypeStart);
-                            size_t dtypeArgEnd = arg.find(')', dtypeArgStart);
-                            
-                            if (dtypeArgStart != std::string::npos && dtypeArgEnd != std::string::npos) {
-                                std::string dtypeArg = arg.substr(dtypeArgStart + 1, dtypeArgEnd - dtypeArgStart - 1);
+                        while (std::getline(argStream, singleArg, ',')) {
+                            // Remove whitespace from each argument
+                            singleArg.erase(0, singleArg.find_first_not_of(" \t"));
+                            singleArg.erase(singleArg.find_last_not_of(" \t") + 1);
+                            if (!singleArg.empty()) {
+                                argList.push_back(singleArg);
+                            }
+                        }
+                        
+                        // Process each argument and collect output values
+                        std::vector<std::string> outputValues;
+                        for (const auto& arg : argList) {
+                            if (!arg.empty() && arg.front() == '"' && arg.back() == '"') {
+                                // String literal
+                                std::string content = arg.substr(1, arg.length() - 2);
+                                outputValues.push_back(content);
+                            } else if (arg == "True") {
+                                // Boolean literal True
+                                outputValues.push_back("True");
+                            } else if (arg == "False") {
+                                // Boolean literal False
+                                outputValues.push_back("False");
+                            } else if (arg.find("dtype(") != std::string::npos) {
+                                // Handle dtype() function call inside out()
+                                size_t dtypeStart = arg.find("dtype(");
+                                size_t dtypeArgStart = arg.find('(', dtypeStart);
+                                size_t dtypeArgEnd = arg.find(')', dtypeArgStart);
                                 
-                                // Remove whitespace from dtype argument
-                                dtypeArg.erase(0, dtypeArg.find_first_not_of(" \t"));
-                                dtypeArg.erase(dtypeArg.find_last_not_of(" \t") + 1);
-                                
-                                if (dtypeArg == "True" || dtypeArg == "False") {
-                                    // Direct boolean literals
-                                    interpreter.outputValue("bool");
-                                } else if (dtypeArg.front() == '"' && dtypeArg.back() == '"') {
-                                    // Direct string literal
-                                    interpreter.outputValue("string");
-                                } else {
-                                    // Variable reference
-                                    std::string value = interpreter.getVariable(dtypeArg);
-                                    if (!value.empty()) {
-                                        std::string dataType = interpreter.getDataType(value);
-                                        interpreter.outputValue(dataType);
+                                if (dtypeArgStart != std::string::npos && dtypeArgEnd != std::string::npos) {
+                                    std::string dtypeArg = arg.substr(dtypeArgStart + 1, dtypeArgEnd - dtypeArgStart - 1);
+                                    
+                                    // Remove whitespace from dtype argument
+                                    dtypeArg.erase(0, dtypeArg.find_first_not_of(" \t"));
+                                    dtypeArg.erase(dtypeArg.find_last_not_of(" \t") + 1);
+                                    
+                                    if (dtypeArg == "True" || dtypeArg == "False") {
+                                        // Direct boolean literals
+                                        outputValues.push_back("datatype : bool");
+                                    } else if (!dtypeArg.empty() && dtypeArg.front() == '"' && dtypeArg.back() == '"') {
+                                        // Direct string literal
+                                        outputValues.push_back("datatype : string");
                                     } else {
-                                        // Variable is undefined - this is an error!
-                                        result->success = false;
-                                        std::string errorMsg = "Compilation failed:\n  Line " + std::to_string(lineNumber) + ": Undefined variable '" + dtypeArg + "' in dtype() call\n" +
-                                                             "  At: " + line + "\n";
-                                        result->error = new char[errorMsg.length() + 1];
-                                        strcpy(result->error, errorMsg.c_str());
-                                        
-                                        result->output = new char[1];
-                                        result->output[0] = '\0';
-                                        result->execution_time = 0;
-                                        return result;
+                                        // Check if it's a literal value first
+                                        std::string dataType = interpreter.getDataType(dtypeArg);
+                                        if (dataType != "undefined") {
+                                            // It's a literal value, return its type directly
+                                            outputValues.push_back("datatype : " + dataType);
+                                        } else {
+                                            // Variable reference
+                                            std::string value = interpreter.getVariable(dtypeArg);
+                                            if (!value.empty()) {
+                                                std::string varDataType = interpreter.getDataType(value);
+                                                outputValues.push_back("datatype : " + varDataType);
+                                            } else {
+                                                // Variable is undefined - this is an error!
+                                                result->success = false;
+                                                std::string errorMsg = "Compilation failed:\n  Line " + std::to_string(lineNumber) + ": Undefined variable '" + dtypeArg + "' in dtype() call\n" +
+                                                                     "  At: " + line + "\n";
+                                                result->error = new char[errorMsg.length() + 1];
+                                                strcpy(result->error, errorMsg.c_str());
+                                                
+                                                result->output = new char[1];
+                                                result->output[0] = '\0';
+                                                result->execution_time = 0;
+                                                return result;
+                                            }
+                                        }
                                     }
                                 }
-                            }
-                        } else {
-                            // Variable reference - check if it's defined
-                            std::string value = interpreter.getVariable(arg);
-                            if (!value.empty()) {
-                                interpreter.outputValue(value);
+                            } else if (!arg.empty() && (std::all_of(arg.begin(), arg.end(), ::isdigit) || 
+                                       (arg.find('.') != std::string::npos && std::count(arg.begin(), arg.end(), '.') == 1))) {
+                                // Integer or float literal
+                                outputValues.push_back(arg);
                             } else {
-                                // Variable is undefined - this is an error!
-                                result->success = false;
-                                std::string errorMsg = "Compilation failed:\n  Line " + std::to_string(lineNumber) + ": Undefined variable '" + arg + "' in out() call\n" +
-                                                     "  At: " + line + "\n";
-                                result->error = new char[errorMsg.length() + 1];
-                                strcpy(result->error, errorMsg.c_str());
-                                
-                                result->output = new char[1];
-                                result->output[0] = '\0';
-                                result->execution_time = 0;
-                                return result;
+                                // Variable reference - check if it's defined
+                                std::string value = interpreter.getVariable(arg);
+                                if (!value.empty()) {
+                                    outputValues.push_back(value);
+                                } else {
+                                    // Variable is undefined - this is an error!
+                                    result->success = false;
+                                    std::string errorMsg = "Compilation failed:\n  Line " + std::to_string(lineNumber) + ": Undefined variable '" + arg + "' in out() call\n" +
+                                                         "  At: " + line + "\n";
+                                    result->error = new char[errorMsg.length() + 1];
+                                    strcpy(result->error, errorMsg.c_str());
+                                    
+                                    result->output = new char[1];
+                                    result->output[0] = '\0';
+                                    result->execution_time = 0;
+                                    return result;
+                                }
                             }
+                        }
+                        
+                        // Output all values separated by spaces
+                        if (!outputValues.empty()) {
+                            std::string combinedOutput;
+                            for (size_t i = 0; i < outputValues.size(); i++) {
+                                if (i > 0) combinedOutput += " ";
+                                combinedOutput += outputValues[i];
+                            }
+                            interpreter.outputValue(combinedOutput);
                         }
                     }
                 }

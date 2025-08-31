@@ -204,11 +204,11 @@ extern "C" {
                             if (rightVar == "True" || rightVar == "False") {
                                 // Valid boolean literals
                                 value = rightVar;
-                            } else if (rightVar.front() == '"' && rightVar.back() == '"') {
+                            } else if (!rightVar.empty() && rightVar.front() == '"' && rightVar.back() == '"') {
                                 // String literal
                                 value = rightVar;
-                            } else if (std::all_of(rightVar.begin(), rightVar.end(), ::isdigit) || 
-                                       (rightVar.find('.') != std::string::npos && std::count(rightVar.begin(), rightVar.end(), '.') == 1)) {
+                            } else if (!rightVar.empty() && (std::all_of(rightVar.begin(), rightVar.end(), ::isdigit) || 
+                                       (rightVar.find('.') != std::string::npos && std::count(rightVar.begin(), rightVar.end(), '.') == 1))) {
                                 // Integer or float literal
                                 value = rightVar;
                             } else {
