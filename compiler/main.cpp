@@ -76,14 +76,25 @@ public:
                 size_t end = line.find(')', start);
                 std::string args = line.substr(start, end - start);
                 
-                // Split arguments by comma
-                std::stringstream argStream(args);
-                std::string arg;
-                while (std::getline(argStream, arg, ',')) {
-                    arg.erase(0, arg.find_first_not_of(" \t"));
-                    arg.erase(arg.find_last_not_of(" \t") + 1);
-                    if (!arg.empty()) {
-                        stmt.args.push_back(arg);
+                // Handle dtype() calls inside out()
+                if (args.find("dtype(") != std::string::npos) {
+                    stmt.type = ParsedStatement::DTYPE_CALL;
+                    size_t dtypeStart = args.find("dtype(") + 6;
+                    size_t dtypeEnd = args.find(')', dtypeStart);
+                    std::string dtypeArg = args.substr(dtypeStart, dtypeEnd - dtypeStart);
+                    dtypeArg.erase(0, dtypeArg.find_first_not_of(" \t"));
+                    dtypeArg.erase(dtypeArg.find_last_not_of(" \t") + 1);
+                    stmt.args.push_back(dtypeArg);
+                } else {
+                    // Split arguments by comma
+                    std::stringstream argStream(args);
+                    std::string arg;
+                    while (std::getline(argStream, arg, ',')) {
+                        arg.erase(0, arg.find_first_not_of(" \t"));
+                        arg.erase(arg.find_last_not_of(" \t") + 1);
+                        if (!arg.empty()) {
+                            stmt.args.push_back(arg);
+                        }
                     }
                 }
                 
@@ -209,14 +220,20 @@ private:
             assembly << "    mov $str" << stringCounter << ", %rax\n";
             assembly << "    # Store string reference for " << stmt.variable << "\n";
             stringCounter++;
-        } else if (std::all_of(stmt.value.begin(), stmt.value.end(), ::isdigit)) {
+        } else if (std::all_of(stmt.value.begin(), stmt.value.end(), ::isdigit) || 
+                   (stmt.value[0] == '-' && std::all_of(stmt.value.begin() + 1, stmt.value.end(), ::isdigit))) {
             // Integer assignment
             assembly << "    mov $" << stmt.value << ", %rax\n";
             assembly << "    # Store integer " << stmt.value << " for " << stmt.variable << "\n";
-        } else if (stmt.value == "True") {
+        } else if (stmt.value.find('.') != std::string::npos) {
+            // Float assignment - store as string for now
+            assembly << "    mov $str" << stringCounter << ", %rax\n";
+            assembly << "    # Store float " << stmt.value << " for " << stmt.variable << "\n";
+            stringCounter++;
+        } else if (stmt.value == "True" || stmt.value == "true") {
             assembly << "    mov $1, %rax\n";
             assembly << "    # Store boolean True for " << stmt.variable << "\n";
-        } else if (stmt.value == "False") {
+        } else if (stmt.value == "False" || stmt.value == "false") {
             assembly << "    mov $0, %rax\n";
             assembly << "    # Store boolean False for " << stmt.variable << "\n";
         }

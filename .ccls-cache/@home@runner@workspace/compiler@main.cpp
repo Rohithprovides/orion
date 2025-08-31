@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <unordered_map>
 #include <regex>
+#include <chrono>
 
 #include "lexer.h"
 
@@ -310,6 +311,9 @@ extern "C" {
     CompilationResult* compile_orion(const char* source_code) {
         CompilationResult* result = new CompilationResult();
         
+        // Start timing
+        auto start_time = std::chrono::high_resolution_clock::now();
+        
         try {
             std::string code(source_code);
             
@@ -409,7 +413,11 @@ extern "C" {
             
             result->output = new char[programOutput.length() + 1];
             strcpy(result->output, programOutput.c_str());
-            result->execution_time = 100; // Actual compilation time
+            
+            // Calculate actual execution time
+            auto end_time = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+            result->execution_time = duration.count();
             
         } catch (const std::exception& e) {
             result->success = false;
