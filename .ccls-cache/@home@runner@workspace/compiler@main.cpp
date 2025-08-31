@@ -110,8 +110,10 @@ extern "C" {
             // Parse variable assignments and out() calls
             std::string line;
             std::istringstream stream(code);
+            int lineNumber = 0;
             
             while (std::getline(stream, line)) {
+                lineNumber++;
                 // Remove leading/trailing whitespace
                 line.erase(0, line.find_first_not_of(" \t"));
                 line.erase(line.find_last_not_of(" \t") + 1);
@@ -147,8 +149,9 @@ extern "C" {
                     } else if (value == "true" || value == "false") {
                         // Lowercase boolean literals are no longer valid
                         result->success = false;
-                        std::string errorMsg = "Compilation failed:\n  Undefined variable: " + value + 
-                                             "\n  Note: Use 'True' and 'False' (capitalized) for boolean literals\n";
+                        std::string errorMsg = "Compilation failed:\n  Line " + std::to_string(lineNumber) + ": Undefined variable '" + value + "'\n" +
+                                             "  Note: Use 'True' and 'False' (capitalized) for boolean literals\n" +
+                                             "  At: " + line + "\n";
                         result->error = new char[errorMsg.length() + 1];
                         strcpy(result->error, errorMsg.c_str());
                         
@@ -164,7 +167,8 @@ extern "C" {
                         } else {
                             // Undefined variable
                             result->success = false;
-                            std::string errorMsg = "Compilation failed:\n  Undefined variable: " + value + "\n";
+                            std::string errorMsg = "Compilation failed:\n  Line " + std::to_string(lineNumber) + ": Undefined variable '" + value + "'\n" +
+                                                 "  At: " + line + "\n";
                             result->error = new char[errorMsg.length() + 1];
                             strcpy(result->error, errorMsg.c_str());
                             
@@ -207,7 +211,8 @@ extern "C" {
                             } else {
                                 // Variable is undefined - this is an error!
                                 result->success = false;
-                                std::string errorMsg = "Compilation failed:\n  Undefined variable: " + arg + "\n";
+                                std::string errorMsg = "Compilation failed:\n  Line " + std::to_string(lineNumber) + ": Undefined variable '" + arg + "' in out() call\n" +
+                                                     "  At: " + line + "\n";
                                 result->error = new char[errorMsg.length() + 1];
                                 strcpy(result->error, errorMsg.c_str());
                                 
