@@ -409,6 +409,53 @@ function showFeatures() {
     modal.show();
 }
 
+// Examples dropdown functionality
+function toggleExamplesDropdown() {
+    const dropdown = document.getElementById('examplesDropdown');
+    const toggle = dropdown.previousElementSibling;
+    const isOpen = dropdown.classList.contains('show');
+    
+    if (isOpen) {
+        closeExamplesDropdown();
+    } else {
+        openExamplesDropdown();
+    }
+}
+
+function openExamplesDropdown() {
+    const dropdown = document.getElementById('examplesDropdown');
+    const toggle = dropdown.previousElementSibling;
+    
+    dropdown.classList.add('show');
+    toggle.classList.add('active');
+    
+    // Add backdrop to close on outside click
+    const backdrop = document.createElement('div');
+    backdrop.className = 'dropdown-backdrop';
+    backdrop.onclick = closeExamplesDropdown;
+    document.body.appendChild(backdrop);
+}
+
+function closeExamplesDropdown() {
+    const dropdown = document.getElementById('examplesDropdown');
+    const toggle = dropdown.previousElementSibling;
+    const backdrop = document.querySelector('.dropdown-backdrop');
+    
+    dropdown.classList.remove('show');
+    toggle.classList.remove('active');
+    
+    if (backdrop) {
+        backdrop.remove();
+    }
+}
+
+// Close dropdown when clicking on an item
+document.addEventListener('click', function(e) {
+    if (e.target.closest('.dropdown-item')) {
+        closeExamplesDropdown();
+    }
+});
+
 // Enhanced keyboard shortcuts
 document.addEventListener('keydown', function(e) {
     if (e.ctrlKey || e.metaKey) {

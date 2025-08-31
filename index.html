@@ -34,46 +34,50 @@
         <div class="app-main">
             <!-- Toolbar -->
             <div class="toolbar">
-                <div class="toolbar-section">
-                    <div class="toolbar-group">
-                        <label class="toolbar-label">Examples</label>
-                        <div class="example-buttons">
-                            <button class="btn btn-outline-primary btn-sm" onclick="loadExample('hello')" title="Load Hello World example">
+                <div class="toolbar-left">
+                    <div class="examples-dropdown">
+                        <button class="btn btn-subtle btn-sm dropdown-toggle" onclick="toggleExamplesDropdown()" title="Load example code">
+                            <i data-feather="folder"></i>
+                            Examples
+                        </button>
+                        <div class="dropdown-menu" id="examplesDropdown">
+                            <button class="dropdown-item" onclick="loadExample('hello')">
                                 <i data-feather="file-text"></i>
-                                Hello World
+                                <div class="dropdown-item-content">
+                                    <span class="dropdown-item-title">Hello World</span>
+                                    <span class="dropdown-item-desc">Basic output example</span>
+                                </div>
                             </button>
-                            <button class="btn btn-outline-primary btn-sm" onclick="loadExample('fibonacci')" title="Load Fibonacci example">
+                            <button class="dropdown-item" onclick="loadExample('fibonacci')">
                                 <i data-feather="trending-up"></i>
-                                Fibonacci
-                            </button>
-                            <button class="btn btn-outline-secondary btn-sm" onclick="clearEditor()" title="Clear editor">
-                                <i data-feather="trash-2"></i>
-                                Clear
+                                <div class="dropdown-item-content">
+                                    <span class="dropdown-item-title">Fibonacci</span>
+                                    <span class="dropdown-item-desc">Recursive function demo</span>
+                                </div>
                             </button>
                         </div>
                     </div>
+                    
+                    <button class="btn btn-subtle btn-sm" onclick="clearEditor()" title="Clear editor">
+                        <i data-feather="file-x"></i>
+                        New
+                    </button>
                 </div>
                 
-                <div class="toolbar-section">
-                    <div class="toolbar-group">
-                        <label class="toolbar-label">Actions</label>
-                        <div class="action-buttons">
-                            <button class="btn btn-outline-info btn-sm" onclick="checkSyntax()" title="Check syntax (Ctrl+Shift+C)">
-                                <i data-feather="check-circle"></i>
-                                Syntax
-                            </button>
-                            <button class="btn btn-outline-warning btn-sm" onclick="showAST()" title="Show Abstract Syntax Tree">
-                                <i data-feather="git-branch"></i>
-                                AST
-                            </button>
-                            <div class="run-button-wrapper">
-                                <button id="compileBtn" class="btn btn-success btn-run" onclick="compileCode()" title="Compile and run (Ctrl+Enter)">
-                                    <i data-feather="play"></i>
-                                    <span class="btn-text">Compile & Run</span>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                <div class="toolbar-right">
+                    <button class="btn btn-subtle btn-sm" onclick="checkSyntax()" title="Check syntax (Ctrl+Shift+C)">
+                        <i data-feather="check-circle"></i>
+                        Check
+                    </button>
+                    <button class="btn btn-subtle btn-sm" onclick="showAST()" title="Show Abstract Syntax Tree">
+                        <i data-feather="git-branch"></i>
+                        AST
+                    </button>
+                    <div class="toolbar-divider"></div>
+                    <button id="compileBtn" class="btn btn-primary btn-run" onclick="compileCode()" title="Compile and run (Ctrl+Enter)">
+                        <i data-feather="play"></i>
+                        <span class="btn-text">Run</span>
+                    </button>
                 </div>
             </div>
             
