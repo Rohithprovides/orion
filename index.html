@@ -44,11 +44,11 @@
                 </div>
                 <div class="flex-grow-1 p-0">
                     <textarea id="codeEditor" class="form-control h-100" placeholder="Write your Orion code here...">// Welcome to Orion Programming Language!
-// Fast as C, easy to write like Python
+// A pure compiled language - fast as C, readable as Python
 
 fn main() {
     out("Hello, Orion World!")
-    out("Fast as C, readable as Python!")
+    out("Compiled to native machine code!")
 }</textarea>
                 </div>
                 <div class="editor-footer bg-light p-3 border-top">
@@ -57,16 +57,9 @@ fn main() {
                             <i data-feather="play"></i>
                             Compile & Run
                         </button>
-                        <div class="btn-group" role="group">
-                            <input type="radio" class="btn-check" name="compiler" id="interpreter" value="interpreter" checked>
-                            <label class="btn btn-outline-secondary btn-sm" for="interpreter">
-                                <i data-feather="cpu"></i> Interpreter
-                            </label>
-                            <input type="radio" class="btn-check" name="compiler" id="native" value="native">
-                            <label class="btn btn-outline-secondary btn-sm" for="native">
-                                <i data-feather="zap"></i> Native C++
-                            </label>
-                        </div>
+                        <small class="text-muted">
+                            <i data-feather="zap"></i> Native Compiled Language
+                        </small>
                         <button class="btn btn-outline-info" onclick="checkSyntax()">
                             <i data-feather="check-circle"></i>
                             Check Syntax
