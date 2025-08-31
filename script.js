@@ -48,6 +48,8 @@ function updateEditorStats() {
 // Update syntax status
 function updateSyntaxStatus(status, message) {
     const syntaxStatus = document.getElementById('syntaxStatus');
+    if (!syntaxStatus) return; // Skip if element doesn't exist
+    
     const icon = syntaxStatus.querySelector('i');
     const text = syntaxStatus.querySelector('span');
     
@@ -74,6 +76,8 @@ function updateSyntaxStatus(status, message) {
 // Update output status
 function updateOutputStatus(status, message) {
     const outputStatus = document.getElementById('outputStatus');
+    if (!outputStatus) return; // Skip if element doesn't exist
+    
     const dot = outputStatus.querySelector('.status-dot');
     const text = outputStatus.querySelector('.status-text');
     
