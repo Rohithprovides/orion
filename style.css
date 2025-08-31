@@ -402,7 +402,7 @@ html, body {
 
 .status-ready { background: #3fb950; }
 .status-running { background: #d29922; animation: pulse 1.5s infinite; }
-.status-error { background: #f85149; }
+.status-dot.status-error { background: #f85149; }
 .status-success { color: #3fb950; }
 
 @keyframes pulse {
@@ -699,6 +699,7 @@ html, body {
 
 .status-error {
     color: #f85149;
+    background: transparent !important;
 }
 
 .status-warning {
