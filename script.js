@@ -1,7 +1,85 @@
-// Initialize Feather icons
+// Initialize Feather icons and line numbers
 document.addEventListener('DOMContentLoaded', function() {
     feather.replace();
+    initializeLineNumbers();
+    updateEditorStats();
 });
+
+// Line numbers functionality
+function initializeLineNumbers() {
+    const editor = document.getElementById('codeEditor');
+    const lineNumbers = document.getElementById('lineNumbers');
+    
+    function updateLineNumbers() {
+        const lines = editor.value.split('\n');
+        const lineNumbersText = lines.map((_, index) => index + 1).join('\n');
+        lineNumbers.textContent = lineNumbersText;
+    }
+    
+    // Update line numbers on input
+    editor.addEventListener('input', updateLineNumbers);
+    editor.addEventListener('scroll', function() {
+        lineNumbers.scrollTop = editor.scrollTop;
+    });
+    
+    // Initial update
+    updateLineNumbers();
+}
+
+// Update editor statistics
+function updateEditorStats() {
+    const editor = document.getElementById('codeEditor');
+    const lineCount = document.getElementById('lineCount');
+    const charCount = document.getElementById('charCount');
+    
+    function updateStats() {
+        const text = editor.value;
+        const lines = text.split('\n').length;
+        const chars = text.length;
+        
+        lineCount.textContent = `${lines} lines`;
+        charCount.textContent = `${chars} chars`;
+    }
+    
+    editor.addEventListener('input', updateStats);
+    updateStats();
+}
+
+// Update syntax status
+function updateSyntaxStatus(status, message) {
+    const syntaxStatus = document.getElementById('syntaxStatus');
+    const icon = syntaxStatus.querySelector('i');
+    const text = syntaxStatus.querySelector('span');
+    
+    syntaxStatus.className = `syntax-status status-${status}`;
+    
+    switch(status) {
+        case 'valid':
+            icon.setAttribute('data-feather', 'check-circle');
+            break;
+        case 'invalid':
+            icon.setAttribute('data-feather', 'x-circle');
+            break;
+        case 'checking':
+            icon.setAttribute('data-feather', 'loader');
+            break;
+        default:
+            icon.setAttribute('data-feather', 'check-circle');
+    }
+    
+    text.textContent = message;
+    feather.replace();
+}
+
+// Update output status
+function updateOutputStatus(status, message) {
+    const outputStatus = document.getElementById('outputStatus');
+    const dot = outputStatus.querySelector('.status-dot');
+    const text = outputStatus.querySelector('.status-text');
+    
+    dot.className = `status-dot status-${status}`;
+    text.textContent = message;
+}
 
 // Example programs
 const examples = {
@@ -35,16 +113,24 @@ function loadExample(exampleName) {
     const editor = document.getElementById('codeEditor');
     if (examples[exampleName]) {
         editor.value = examples[exampleName];
+        initializeLineNumbers();
+        updateEditorStats();
+        updateSyntaxStatus('ready', 'Ready');
         clearOutput();
         appendOutput('Example loaded: ' + exampleName + '\n', 'info');
+        updateOutputStatus('ready', 'Ready');
     }
 }
 
 // Clear editor
 function clearEditor() {
     document.getElementById('codeEditor').value = '';
+    initializeLineNumbers();
+    updateEditorStats();
+    updateSyntaxStatus('ready', 'Ready');
     clearOutput();
     appendOutput('Editor cleared.\n', 'info');
+    updateOutputStatus('ready', 'Ready');
 }
 
 // Clear output
@@ -134,11 +220,13 @@ async function compileCode() {
     
     if (!code) {
         appendOutput('Error: No code to compile\n', 'error');
+        updateOutputStatus('error', 'Error');
         return;
     }
     
     clearOutput();
     appendOutput('Compiling Orion code...\n', 'info');
+    updateOutputStatus('running', 'Compiling...');
     setButtonLoading('compileBtn', true);
     
     try {
@@ -157,6 +245,7 @@ async function compileCode() {
         const result = await response.json();
         
         if (result.success) {
+            updateOutputStatus('success', 'Success');
             appendOutput('✓ Compilation successful!\n', 'success');
             appendOutput('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n', 'info');
             appendOutput('Program Output:\n', 'info');
@@ -164,6 +253,7 @@ async function compileCode() {
             appendOutput('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n', 'info');
             appendOutput(`✓ Execution completed (${result.execution_time}ms)\n`, 'success');
         } else {
+            updateOutputStatus('error', 'Error');
             appendOutput('✗ Compilation failed!\n', 'error');
             appendOutput('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n', 'error');
             appendOutput('Errors:\n', 'error');
@@ -172,6 +262,7 @@ async function compileCode() {
     } catch (error) {
         console.error('Compilation error:', error);
         appendOutput('✗ Network error: ' + error.message + '\n', 'error');
+        updateOutputStatus('error', 'Network Error');
     } finally {
         setButtonLoading('compileBtn', false);
     }
@@ -183,9 +274,11 @@ async function checkSyntax() {
     
     if (!code) {
         appendOutput('Error: No code to check\n', 'error');
+        updateSyntaxStatus('invalid', 'No Code');
         return;
     }
     
+    updateSyntaxStatus('checking', 'Checking...');
     clearOutput();
     appendOutput('Checking syntax...\n', 'info');
     
@@ -205,19 +298,19 @@ async function checkSyntax() {
         const result = await response.json();
         
         if (result.valid) {
+            updateSyntaxStatus('valid', 'Valid');
             appendOutput('✓ Syntax is valid!\n', 'success');
             appendOutput('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n', 'info');
-            appendOutput('Tokens found:\n', 'info');
-            result.tokens.forEach(token => {
-                appendOutput(`  ${token.type}: ${token.value}\n`, 'normal');
-            });
+            appendOutput('No syntax errors found.\n', 'info');
         } else {
+            updateSyntaxStatus('invalid', 'Invalid');
             appendOutput('✗ Syntax errors found!\n', 'error');
             appendOutput('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n', 'error');
             appendOutput(result.error + '\n', 'error');
         }
     } catch (error) {
         console.error('Syntax check error:', error);
+        updateSyntaxStatus('invalid', 'Error');
         appendOutput('✗ Error checking syntax: ' + error.message + '\n', 'error');
     }
 }
@@ -315,6 +408,28 @@ function showFeatures() {
     const modal = new bootstrap.Modal(document.getElementById('helpModal'));
     modal.show();
 }
+
+// Enhanced keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey || e.metaKey) {
+        switch(e.key) {
+            case 'Enter':
+                e.preventDefault();
+                compileCode();
+                break;
+            case 'k':
+                e.preventDefault();
+                clearOutput();
+                break;
+            case 'C':
+                if (e.shiftKey) {
+                    e.preventDefault();
+                    checkSyntax();
+                }
+                break;
+        }
+    }
+});
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
