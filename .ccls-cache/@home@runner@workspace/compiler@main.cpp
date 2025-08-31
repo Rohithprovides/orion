@@ -150,6 +150,12 @@ extern "C" {
                             // String literal
                             std::string content = arg.substr(1, arg.length() - 2);
                             interpreter.outputValue(content);
+                        } else if (arg == "True") {
+                            // Boolean literal True
+                            interpreter.outputValue("True");
+                        } else if (arg == "False") {
+                            // Boolean literal False
+                            interpreter.outputValue("False");
                         } else {
                             // Variable reference - check if it's defined
                             std::string value = interpreter.getVariable(arg);
