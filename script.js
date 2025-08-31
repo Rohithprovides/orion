@@ -214,8 +214,16 @@ function setupSyntaxHighlighting() {
     console.log('Syntax highlighting setup completed');
 }
 
+// Global flag to prevent duplicate compilation requests
+let isCompiling = false;
+
 // Compile and run code
 async function compileCode() {
+    // Prevent duplicate requests
+    if (isCompiling) {
+        return;
+    }
+    
     const code = document.getElementById('codeEditor').value.trim();
     
     if (!code) {
@@ -224,6 +232,7 @@ async function compileCode() {
         return;
     }
     
+    isCompiling = true;
     clearOutput();
     appendOutput('Compiling Orion code...\n', 'info');
     updateOutputStatus('running', 'Compiling...');
@@ -265,6 +274,7 @@ async function compileCode() {
         updateOutputStatus('error', 'Network Error');
     } finally {
         setButtonLoading('compileBtn', false);
+        isCompiling = false;
     }
 }
 
