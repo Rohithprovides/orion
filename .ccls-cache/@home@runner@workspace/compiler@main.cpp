@@ -7,6 +7,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <sstream>
+#include <algorithm>
+#include <numeric>
+#include <unordered_map>
 
 #include "lexer.h"
 
@@ -130,7 +133,47 @@ extern "C" {
                         value.pop_back();
                     }
                     
-                    interpreter.setVariable(varName, value);
+                    // Check if the value is a valid literal or variable
+                    if (value == "True" || value == "False") {
+                        // Valid boolean literals
+                        interpreter.setVariable(varName, value);
+                    } else if (value.front() == '"' && value.back() == '"') {
+                        // String literal
+                        interpreter.setVariable(varName, value);
+                    } else if (std::all_of(value.begin(), value.end(), ::isdigit) || 
+                               (value.find('.') != std::string::npos && std::count(value.begin(), value.end(), '.') == 1)) {
+                        // Integer or float literal
+                        interpreter.setVariable(varName, value);
+                    } else if (value == "true" || value == "false") {
+                        // Lowercase boolean literals are no longer valid
+                        result->success = false;
+                        std::string errorMsg = "Compilation failed:\n  Undefined variable: " + value + 
+                                             "\n  Note: Use 'True' and 'False' (capitalized) for boolean literals\n";
+                        result->error = new char[errorMsg.length() + 1];
+                        strcpy(result->error, errorMsg.c_str());
+                        
+                        result->output = new char[1];
+                        result->output[0] = '\0';
+                        result->execution_time = 0;
+                        return result;
+                    } else {
+                        // Check if it's a valid variable reference
+                        std::string varValue = interpreter.getVariable(value);
+                        if (!varValue.empty()) {
+                            interpreter.setVariable(varName, varValue);
+                        } else {
+                            // Undefined variable
+                            result->success = false;
+                            std::string errorMsg = "Compilation failed:\n  Undefined variable: " + value + "\n";
+                            result->error = new char[errorMsg.length() + 1];
+                            strcpy(result->error, errorMsg.c_str());
+                            
+                            result->output = new char[1];
+                            result->output[0] = '\0';
+                            result->execution_time = 0;
+                            return result;
+                        }
+                    }
                 }
                 
                 // Check for out() function calls
