@@ -5,7 +5,7 @@ CXXFLAGS = -std=c++17 -Wall -Wextra -O2
 LDFLAGS = 
 
 # Source files
-SOURCES = main.cpp lexer.cpp parser.cpp types.cpp codegen.cpp
+SOURCES = main.cpp lexer.cpp parser.cpp types.cpp codegen.cpp ast_impl.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 TARGET = orion
 
@@ -17,7 +17,7 @@ $(TARGET): $(OBJECTS)
 	$(CXX) $(OBJECTS) -o $(TARGET) $(LDFLAGS)
 
 # Compile individual source files
-%.o: %.cpp ast.h
+%.o: %.cpp ast.h lexer.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 # Clean build artifacts
@@ -47,10 +47,11 @@ profile: LDFLAGS += -pg
 profile: $(TARGET)
 
 # Dependencies
-main.o: main.cpp ast.h
-lexer.o: lexer.cpp ast.h
-parser.o: parser.cpp ast.h
+main.o: main.cpp ast.h lexer.h
+lexer.o: lexer.cpp lexer.h
+parser.o: parser.cpp ast.h lexer.h
 types.o: types.cpp ast.h
 codegen.o: codegen.cpp ast.h
+ast_impl.o: ast_impl.cpp ast.h
 
 .PHONY: all clean install uninstall test debug profile

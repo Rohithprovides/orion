@@ -137,8 +137,12 @@ async function compileCode() {
         return;
     }
     
+    // Get selected compiler
+    const compilerType = document.querySelector('input[name="compiler"]:checked').value;
+    const compilerLabel = compilerType === 'native' ? 'Native C++' : 'Python Interpreter';
+    
     clearOutput();
-    appendOutput('Compiling Orion code...\n', 'info');
+    appendOutput(`Compiling with ${compilerLabel}...\n`, 'info');
     setButtonLoading('compileBtn', true);
     
     try {
@@ -147,7 +151,10 @@ async function compileCode() {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ code: code })
+            body: JSON.stringify({ 
+                code: code,
+                compiler: compilerType
+            })
         });
         
         if (!response.ok) {

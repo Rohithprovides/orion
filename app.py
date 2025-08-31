@@ -9,6 +9,8 @@ import json
 import time
 import os
 import sys
+import subprocess
+import tempfile
 from orion_interpreter import execute_orion_code
 from orion_lexer import tokenize_orion_code, TokenType
 from orion_parser import parse_orion_code, ParseError
@@ -29,46 +31,101 @@ def serve_static(filename):
 
 @app.route('/compile', methods=['POST'])
 def compile_code():
-    """Compile and execute Orion code using the real interpreter."""
+    """Compile and execute Orion code using the interpreter or C++ compiler."""
     try:
         data = request.get_json()
         if not data or 'code' not in data:
             return jsonify({'success': False, 'error': 'No code provided'})
         
         code = data['code']
+        compiler_type = data.get('compiler', 'interpreter')  # 'interpreter' or 'native'
         
-        # Use the real Orion interpreter
         start_time = time.time()
         
-        try:
-            result, output = execute_orion_code(code)
-            execution_time = int((time.time() - start_time) * 1000)  # Convert to milliseconds
-            
-            if not output:
-                output = "Program executed successfully (no output)"
-            
-            return jsonify({
-                'success': True,
-                'output': output.strip(),
-                'execution_time': execution_time,
-                'return_value': str(result) if result is not None else None
-            })
-            
-        except ParseError as e:
-            return jsonify({
-                'success': False,
-                'error': f'Parse error: {e.message}' + (f' at line {e.token.line}, column {e.token.column}' if e.token else '')
-            })
-        except OrionRuntimeError as e:
-            return jsonify({
-                'success': False,
-                'error': f'Runtime error: {e.message}'
-            })
-        except Exception as e:
-            return jsonify({
-                'success': False,
-                'error': f'Execution error: {str(e)}'
-            })
+        if compiler_type == 'native':
+            # Use the C++ compiler
+            try:
+                # Create a temporary file
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.or', delete=False) as temp_file:
+                    temp_file.write(code)
+                    temp_file_path = temp_file.name
+                
+                # Run the C++ compiler
+                result = subprocess.run(
+                    ['./compiler/orion', temp_file_path],
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
+                
+                # Clean up temporary file
+                os.unlink(temp_file_path)
+                
+                execution_time = int((time.time() - start_time) * 1000)
+                
+                if result.returncode == 0:
+                    output = result.stdout.strip() if result.stdout else "Native compilation successful"
+                    return jsonify({
+                        'success': True,
+                        'output': output + "\n[Compiled with C++ native compiler]",
+                        'execution_time': execution_time,
+                        'compiler': 'native'
+                    })
+                else:
+                    error_msg = result.stderr.strip() if result.stderr else "Compilation failed"
+                    return jsonify({
+                        'success': False,
+                        'error': f'C++ Compiler error: {error_msg}',
+                        'compiler': 'native'
+                    })
+                    
+            except subprocess.TimeoutExpired:
+                return jsonify({
+                    'success': False,
+                    'error': 'Compilation timeout (C++ compiler took too long)',
+                    'compiler': 'native'
+                })
+            except Exception as e:
+                return jsonify({
+                    'success': False,
+                    'error': f'C++ Compiler error: {str(e)}',
+                    'compiler': 'native'
+                })
+        else:
+            # Use the Python interpreter (default)
+            try:
+                result, output = execute_orion_code(code)
+                execution_time = int((time.time() - start_time) * 1000)
+                
+                if not output:
+                    output = "Program executed successfully (no output)"
+                
+                return jsonify({
+                    'success': True,
+                    'output': output.strip() + "\n[Executed with Python interpreter]",
+                    'execution_time': execution_time,
+                    'return_value': str(result) if result is not None else None,
+                    'compiler': 'interpreter'
+                })
+                
+            except ParseError as e:
+                return jsonify({
+                    'success': False,
+                    'error': f'Parse error: {e.message}' + (f' at line {e.token.line}, column {e.token.column}' if e.token else ''),
+                    'compiler': 'interpreter'
+                })
+            except OrionRuntimeError as e:
+                return jsonify({
+                    'success': False,
+                    'error': f'Runtime error: {e.message}',
+                    'compiler': 'interpreter'
+                })
+            except Exception as e:
+                return jsonify({
+                    'success': False,
+                    'error': f'Execution error: {str(e)}',
+                    'compiler': 'interpreter'
+                })
             
     except Exception as e:
         return jsonify({

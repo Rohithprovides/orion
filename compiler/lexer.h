@@ -1,0 +1,81 @@
+#ifndef LEXER_H
+#define LEXER_H
+
+#include <string>
+#include <vector>
+#include <unordered_map>
+
+namespace orion {
+
+enum class TokenType {
+    // Literals
+    INTEGER, FLOAT, STRING, BOOL,
+    
+    // Identifiers and keywords
+    IDENTIFIER,
+    
+    // Keywords
+    IF, ELIF, ELSE, WHILE, FOR, RETURN,
+    STRUCT, ENUM, IMPORT, TRUE, FALSE,
+    INT, INT64, FLOAT32, FLOAT64, STRING_TYPE, BOOL_TYPE, VOID,
+    
+    // Operators
+    PLUS, MINUS, MULTIPLY, DIVIDE, MODULO,
+    ASSIGN, PLUS_ASSIGN, MINUS_ASSIGN,
+    EQ, NE, LT, LE, GT, GE,
+    AND, OR, NOT,
+    INCREMENT, DECREMENT,
+    
+    // Punctuation
+    SEMICOLON, COMMA, DOT,
+    LPAREN, RPAREN,
+    LBRACE, RBRACE,
+    LBRACKET, RBRACKET,
+    ARROW, FAT_ARROW,
+    
+    // Special
+    NEWLINE, EOF_TOKEN, INVALID
+};
+
+struct Token {
+    TokenType type;
+    std::string value;
+    int line;
+    int column;
+    
+    Token(TokenType t, const std::string& v, int l, int c)
+        : type(t), value(v), line(l), column(c) {}
+    
+    std::string typeToString() const;
+};
+
+class Lexer {
+private:
+    std::string source;
+    size_t current;
+    int line;
+    int column;
+    
+    static std::unordered_map<std::string, TokenType> keywords;
+    
+public:
+    Lexer(const std::string& src);
+    std::vector<Token> tokenize();
+    
+private:
+    bool isAtEnd() const;
+    char advance();
+    char peek() const;
+    char peekNext() const;
+    Token nextToken();
+    void skipWhitespace();
+    void skipLineComment();
+    void skipBlockComment();
+    Token number(char first, int tokenLine, int tokenColumn);
+    Token string(int tokenLine, int tokenColumn);
+    Token identifier(char first, int tokenLine, int tokenColumn);
+};
+
+} // namespace orion
+
+#endif // LEXER_H

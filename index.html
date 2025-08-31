@@ -52,11 +52,21 @@ fn main() {
 }</textarea>
                 </div>
                 <div class="editor-footer bg-light p-3 border-top">
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 align-items-center">
                         <button id="compileBtn" class="btn btn-primary" onclick="compileCode()">
                             <i data-feather="play"></i>
                             Compile & Run
                         </button>
+                        <div class="btn-group" role="group">
+                            <input type="radio" class="btn-check" name="compiler" id="interpreter" value="interpreter" checked>
+                            <label class="btn btn-outline-secondary btn-sm" for="interpreter">
+                                <i data-feather="cpu"></i> Interpreter
+                            </label>
+                            <input type="radio" class="btn-check" name="compiler" id="native" value="native">
+                            <label class="btn btn-outline-secondary btn-sm" for="native">
+                                <i data-feather="zap"></i> Native C++
+                            </label>
+                        </div>
                         <button class="btn btn-outline-info" onclick="checkSyntax()">
                             <i data-feather="check-circle"></i>
                             Check Syntax
