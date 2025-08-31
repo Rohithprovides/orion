@@ -137,6 +137,10 @@ async function compileCode() {
             body: JSON.stringify({ code: code })
         });
         
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const result = await response.json();
         
         if (result.success) {
@@ -153,6 +157,7 @@ async function compileCode() {
             appendOutput(result.error + '\n', 'error');
         }
     } catch (error) {
+        console.error('Compilation error:', error);
         appendOutput('✗ Network error: ' + error.message + '\n', 'error');
     } finally {
         setButtonLoading('compileBtn', false);
@@ -180,6 +185,10 @@ async function checkSyntax() {
             body: JSON.stringify({ code: code })
         });
         
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const result = await response.json();
         
         if (result.valid) {
@@ -195,6 +204,7 @@ async function checkSyntax() {
             appendOutput(result.error + '\n', 'error');
         }
     } catch (error) {
+        console.error('Syntax check error:', error);
         appendOutput('✗ Error checking syntax: ' + error.message + '\n', 'error');
     }
 }
@@ -220,6 +230,10 @@ async function showAST() {
             body: JSON.stringify({ code: code })
         });
         
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const result = await response.json();
         
         if (result.success) {
@@ -233,6 +247,7 @@ async function showAST() {
             appendOutput(result.error + '\n', 'error');
         }
     } catch (error) {
+        console.error('AST generation error:', error);
         appendOutput('✗ Error generating AST: ' + error.message + '\n', 'error');
     }
 }
