@@ -135,7 +135,7 @@ private:
     }
     
     std::string getDataType(const std::string& value) {
-        if (value == "True" || value == "False") return "bool";
+        if (value == "True" || value == "False" || value == "true" || value == "false") return "bool";
         if (!value.empty() && value.front() == '"' && value.back() == '"') return "string";
         if (std::all_of(value.begin(), value.end(), ::isdigit) || 
             (value[0] == '-' && std::all_of(value.begin() + 1, value.end(), ::isdigit))) return "int";
@@ -151,6 +151,41 @@ public:
         assembly.str("");
         assembly.clear();
         
+        // First pass: collect all strings and floats
+        std::vector<std::string> stringLiterals;
+        
+        for (const auto& stmt : statements) {
+            if (stmt.type == SimpleOrionParser::ParsedStatement::ASSIGNMENT) {
+                if (!stmt.value.empty() && stmt.value.front() == '"' && stmt.value.back() == '"') {
+                    std::string content = stmt.value.substr(1, stmt.value.length() - 2);
+                    stringLiterals.push_back(content);
+                } else if (stmt.value.find('.') != std::string::npos) {
+                    stringLiterals.push_back(stmt.value);  // Store float as string
+                }
+            }
+            if (stmt.type == SimpleOrionParser::ParsedStatement::OUTPUT) {
+                for (const auto& arg : stmt.args) {
+                    if (!arg.empty() && arg.front() == '"' && arg.back() == '"') {
+                        std::string content = arg.substr(1, arg.length() - 2);
+                        stringLiterals.push_back(content);
+                    } else if (arg.find('.') != std::string::npos) {
+                        stringLiterals.push_back(arg);  // Store float as string
+                    }
+                    // Also check for string variables that will need data
+                    auto it = variables.find(arg);
+                    if (it != variables.end()) {
+                        std::string varValue = it->second;
+                        if (!varValue.empty() && varValue.front() == '"' && varValue.back() == '"') {
+                            std::string content = varValue.substr(1, varValue.length() - 2);
+                            stringLiterals.push_back(content);
+                        } else if (varValue.find('.') != std::string::npos) {
+                            stringLiterals.push_back(varValue);
+                        }
+                    }
+                }
+            }
+        }
+        
         // Assembly header
         assembly << ".section .data\n";
         assembly << "format_str: .string \"%s\\n\"\n";
@@ -161,25 +196,9 @@ public:
         assembly << "type_bool: .string \"bool\"\n";
         assembly << "type_float: .string \"float\"\n";
         
-        // String literals
-        int stringCounter = 0;
-        for (const auto& stmt : statements) {
-            if (stmt.type == SimpleOrionParser::ParsedStatement::ASSIGNMENT) {
-                if (!stmt.value.empty() && stmt.value.front() == '"' && stmt.value.back() == '"') {
-                    std::string content = stmt.value.substr(1, stmt.value.length() - 2);
-                    assembly << "str" << stringCounter << ": .string \"" << content << "\"\n";
-                    stringCounter++;
-                }
-            }
-            if (stmt.type == SimpleOrionParser::ParsedStatement::OUTPUT) {
-                for (const auto& arg : stmt.args) {
-                    if (!arg.empty() && arg.front() == '"' && arg.back() == '"') {
-                        std::string content = arg.substr(1, arg.length() - 2);
-                        assembly << "str" << stringCounter << ": .string \"" << content << "\"\n";
-                        stringCounter++;
-                    }
-                }
-            }
+        // Generate string literals
+        for (size_t i = 0; i < stringLiterals.size(); i++) {
+            assembly << "str" << i << ": .string \"" << stringLiterals[i] << "\"\n";
         }
         
         assembly << "\n.section .text\n";
@@ -187,7 +206,7 @@ public:
         assembly << "\nmain:\n";
         
         // Generate code for each statement
-        stringCounter = 0;
+        int stringCounter = 0;
         for (const auto& stmt : statements) {
             switch (stmt.type) {
                 case SimpleOrionParser::ParsedStatement::ASSIGNMENT:
@@ -226,10 +245,9 @@ private:
             assembly << "    mov $" << stmt.value << ", %rax\n";
             assembly << "    # Store integer " << stmt.value << " for " << stmt.variable << "\n";
         } else if (stmt.value.find('.') != std::string::npos) {
-            // Float assignment - store as string for now
-            assembly << "    mov $str" << stringCounter << ", %rax\n";
+            // Float assignment - store as integer representation for now
+            assembly << "    mov $0, %rax  # Float " << stmt.value << " (stored as 0 for now)\n";
             assembly << "    # Store float " << stmt.value << " for " << stmt.variable << "\n";
-            stringCounter++;
         } else if (stmt.value == "True" || stmt.value == "true") {
             assembly << "    mov $1, %rax\n";
             assembly << "    # Store boolean True for " << stmt.variable << "\n";
@@ -284,12 +302,34 @@ private:
                         // String variable
                         std::string content = varValue.substr(1, varValue.length() - 2);
                         assembly << "    # Output string variable " << arg << ": \"" << content << "\"\n";
+                        assembly << "    mov $str" << stringCounter << ", %rsi\n";
                         assembly << "    mov $format_str, %rdi\n";
-                        assembly << "    mov $str_" << arg << ", %rsi\n";
+                        assembly << "    xor %rax, %rax\n";
+                        assembly << "    call printf\n";
+                        stringCounter++;
+                    } else if (varValue == "True" || varValue == "true") {
+                        // Boolean True variable
+                        assembly << "    # Output boolean variable " << arg << ": True\n";
+                        assembly << "    mov $1, %rsi\n";
+                        assembly << "    mov $format_int, %rdi\n";
+                        assembly << "    xor %rax, %rax\n";
+                        assembly << "    call printf\n";
+                    } else if (varValue == "False" || varValue == "false") {
+                        // Boolean False variable
+                        assembly << "    # Output boolean variable " << arg << ": False\n";
+                        assembly << "    mov $0, %rsi\n";
+                        assembly << "    mov $format_int, %rdi\n";
+                        assembly << "    xor %rax, %rax\n";
+                        assembly << "    call printf\n";
+                    } else if (varValue.find('.') != std::string::npos) {
+                        // Float variable - output as 0 for now
+                        assembly << "    # Output float variable " << arg << ": " << varValue << " (as 0)\n";
+                        assembly << "    mov $0, %rsi\n";
+                        assembly << "    mov $format_int, %rdi\n";
                         assembly << "    xor %rax, %rax\n";
                         assembly << "    call printf\n";
                     } else {
-                        // Numeric variable
+                        // Integer variable
                         assembly << "    # Output variable " << arg << ": " << varValue << "\n";
                         assembly << "    mov $" << varValue << ", %rsi\n";
                         assembly << "    mov $format_int, %rdi\n";
