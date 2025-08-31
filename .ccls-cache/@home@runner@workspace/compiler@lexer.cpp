@@ -1,122 +1,70 @@
+#include "lexer.h"
 #include <iostream>
-#include <string>
-#include <vector>
-#include <unordered_map>
 #include <cctype>
 #include <sstream>
 
 namespace orion {
 
-enum class TokenType {
-    // Literals
-    INTEGER, FLOAT, STRING, BOOL,
-    
-    // Identifiers and keywords
-    IDENTIFIER,
-    
-    // Keywords
-    IF, ELIF, ELSE, WHILE, FOR, RETURN,
-    STRUCT, ENUM, IMPORT, TRUE, FALSE,
-    INT, INT64, FLOAT32, FLOAT64, STRING_TYPE, BOOL_TYPE, VOID,
-    
-    // Operators
-    PLUS, MINUS, MULTIPLY, DIVIDE, MODULO,
-    ASSIGN, PLUS_ASSIGN, MINUS_ASSIGN,
-    EQ, NE, LT, LE, GT, GE,
-    AND, OR, NOT,
-    INCREMENT, DECREMENT,
-    
-    // Punctuation
-    SEMICOLON, COMMA, DOT,
-    LPAREN, RPAREN,
-    LBRACE, RBRACE,
-    LBRACKET, RBRACKET,
-    ARROW, FAT_ARROW,
-    
-    // Special
-    NEWLINE, EOF_TOKEN, INVALID
-};
-
-struct Token {
-    TokenType type;
-    std::string value;
-    int line;
-    int column;
-    
-    Token(TokenType t, const std::string& v, int l, int c)
-        : type(t), value(v), line(l), column(c) {}
-    
-    std::string typeToString() const {
-        switch (type) {
-            case TokenType::INTEGER: return "INTEGER";
-            case TokenType::FLOAT: return "FLOAT";
-            case TokenType::STRING: return "STRING";
-            case TokenType::BOOL: return "BOOL";
-            case TokenType::IDENTIFIER: return "IDENTIFIER";
-            case TokenType::IF: return "IF";
-            case TokenType::ELIF: return "ELIF";
-            case TokenType::ELSE: return "ELSE";
-            case TokenType::WHILE: return "WHILE";
-            case TokenType::FOR: return "FOR";
-            case TokenType::RETURN: return "RETURN";
-            case TokenType::STRUCT: return "STRUCT";
-            case TokenType::ENUM: return "ENUM";
-            case TokenType::IMPORT: return "IMPORT";
-            case TokenType::TRUE: return "TRUE";
-            case TokenType::FALSE: return "FALSE";
-            case TokenType::INT: return "INT";
-            case TokenType::INT64: return "INT64";
-            case TokenType::FLOAT32: return "FLOAT32";
-            case TokenType::FLOAT64: return "FLOAT64";
-            case TokenType::STRING_TYPE: return "STRING_TYPE";
-            case TokenType::BOOL_TYPE: return "BOOL_TYPE";
-            case TokenType::VOID: return "VOID";
-            case TokenType::PLUS: return "PLUS";
-            case TokenType::MINUS: return "MINUS";
-            case TokenType::MULTIPLY: return "MULTIPLY";
-            case TokenType::DIVIDE: return "DIVIDE";
-            case TokenType::MODULO: return "MODULO";
-            case TokenType::ASSIGN: return "ASSIGN";
-            case TokenType::EQ: return "EQ";
-            case TokenType::NE: return "NE";
-            case TokenType::LT: return "LT";
-            case TokenType::LE: return "LE";
-            case TokenType::GT: return "GT";
-            case TokenType::GE: return "GE";
-            case TokenType::AND: return "AND";
-            case TokenType::OR: return "OR";
-            case TokenType::NOT: return "NOT";
-            case TokenType::SEMICOLON: return "SEMICOLON";
-            case TokenType::COMMA: return "COMMA";
-            case TokenType::DOT: return "DOT";
-            case TokenType::LPAREN: return "LPAREN";
-            case TokenType::RPAREN: return "RPAREN";
-            case TokenType::LBRACE: return "LBRACE";
-            case TokenType::RBRACE: return "RBRACE";
-            case TokenType::LBRACKET: return "LBRACKET";
-            case TokenType::RBRACKET: return "RBRACKET";
-            case TokenType::ARROW: return "ARROW";
-            case TokenType::FAT_ARROW: return "FAT_ARROW";
-            case TokenType::NEWLINE: return "NEWLINE";
-            case TokenType::EOF_TOKEN: return "EOF";
-            default: return "INVALID";
-        }
+std::string Token::typeToString() const {
+    switch (type) {
+        case TokenType::INTEGER: return "INTEGER";
+        case TokenType::FLOAT: return "FLOAT";
+        case TokenType::STRING: return "STRING";
+        case TokenType::BOOL: return "BOOL";
+        case TokenType::IDENTIFIER: return "IDENTIFIER";
+        case TokenType::IF: return "IF";
+        case TokenType::ELIF: return "ELIF";
+        case TokenType::ELSE: return "ELSE";
+        case TokenType::WHILE: return "WHILE";
+        case TokenType::FOR: return "FOR";
+        case TokenType::RETURN: return "RETURN";
+        case TokenType::STRUCT: return "STRUCT";
+        case TokenType::ENUM: return "ENUM";
+        case TokenType::IMPORT: return "IMPORT";
+        case TokenType::TRUE: return "TRUE";
+        case TokenType::FALSE: return "FALSE";
+        case TokenType::INT: return "INT";
+        case TokenType::INT64: return "INT64";
+        case TokenType::FLOAT32: return "FLOAT32";
+        case TokenType::FLOAT64: return "FLOAT64";
+        case TokenType::STRING_TYPE: return "STRING_TYPE";
+        case TokenType::BOOL_TYPE: return "BOOL_TYPE";
+        case TokenType::VOID: return "VOID";
+        case TokenType::PLUS: return "PLUS";
+        case TokenType::MINUS: return "MINUS";
+        case TokenType::MULTIPLY: return "MULTIPLY";
+        case TokenType::DIVIDE: return "DIVIDE";
+        case TokenType::MODULO: return "MODULO";
+        case TokenType::ASSIGN: return "ASSIGN";
+        case TokenType::EQ: return "EQ";
+        case TokenType::NE: return "NE";
+        case TokenType::LT: return "LT";
+        case TokenType::LE: return "LE";
+        case TokenType::GT: return "GT";
+        case TokenType::GE: return "GE";
+        case TokenType::AND: return "AND";
+        case TokenType::OR: return "OR";
+        case TokenType::NOT: return "NOT";
+        case TokenType::SEMICOLON: return "SEMICOLON";
+        case TokenType::COMMA: return "COMMA";
+        case TokenType::DOT: return "DOT";
+        case TokenType::LPAREN: return "LPAREN";
+        case TokenType::RPAREN: return "RPAREN";
+        case TokenType::LBRACE: return "LBRACE";
+        case TokenType::RBRACE: return "RBRACE";
+        case TokenType::LBRACKET: return "LBRACKET";
+        case TokenType::RBRACKET: return "RBRACKET";
+        case TokenType::ARROW: return "ARROW";
+        case TokenType::FAT_ARROW: return "FAT_ARROW";
+        case TokenType::NEWLINE: return "NEWLINE";
+        case TokenType::EOF_TOKEN: return "EOF";
+        default: return "INVALID";
     }
-};
+}
 
-class Lexer {
-private:
-    std::string source;
-    size_t current;
-    int line;
-    int column;
+Lexer::Lexer(const std::string& src) : source(src), current(0), line(1), column(1) {}
     
-    static std::unordered_map<std::string, TokenType> keywords;
-    
-public:
-    Lexer(const std::string& src) : source(src), current(0), line(1), column(1) {}
-    
-    std::vector<Token> tokenize() {
+std::vector<Token> Lexer::tokenize() {
         std::vector<Token> tokens;
         
         while (!isAtEnd()) {
@@ -129,13 +77,12 @@ public:
         tokens.emplace_back(TokenType::EOF_TOKEN, "", line, column);
         return tokens;
     }
-    
-private:
-    bool isAtEnd() const {
+
+bool Lexer::isAtEnd() const {
         return current >= source.length();
     }
-    
-    char advance() {
+
+char Lexer::advance() {
         if (isAtEnd()) return '\0';
         char c = source[current++];
         if (c == '\n') {
@@ -146,18 +93,18 @@ private:
         }
         return c;
     }
-    
-    char peek() const {
+
+char Lexer::peek() const {
         if (isAtEnd()) return '\0';
         return source[current];
     }
-    
-    char peekNext() const {
+
+char Lexer::peekNext() const {
         if (current + 1 >= source.length()) return '\0';
         return source[current + 1];
     }
-    
-    Token nextToken() {
+
+Token Lexer::nextToken() {
         skipWhitespace();
         
         if (isAtEnd()) {
@@ -270,20 +217,20 @@ private:
                 return Token(TokenType::INVALID, std::string(1, c), tokenLine, tokenColumn);
         }
     }
-    
-    void skipWhitespace() {
+
+void Lexer::skipWhitespace() {
         while (!isAtEnd() && (peek() == ' ' || peek() == '\t' || peek() == '\r')) {
             advance();
         }
     }
-    
-    void skipLineComment() {
+
+void Lexer::skipLineComment() {
         while (!isAtEnd() && peek() != '\n') {
             advance();
         }
     }
-    
-    void skipBlockComment() {
+
+void Lexer::skipBlockComment() {
         advance(); // skip '*'
         while (!isAtEnd()) {
             if (peek() == '*' && peekNext() == '/') {
@@ -294,8 +241,8 @@ private:
             advance();
         }
     }
-    
-    Token number(char first, int tokenLine, int tokenColumn) {
+
+Token Lexer::number(char first, int tokenLine, int tokenColumn) {
         std::string value(1, first);
         bool isFloat = false;
         
@@ -315,8 +262,8 @@ private:
         return Token(isFloat ? TokenType::FLOAT : TokenType::INTEGER, 
                     value, tokenLine, tokenColumn);
     }
-    
-    Token string(int tokenLine, int tokenColumn) {
+
+Token Lexer::string(int tokenLine, int tokenColumn) {
         std::string value;
         
         while (!isAtEnd() && peek() != '"') {
@@ -345,8 +292,8 @@ private:
         
         return Token(TokenType::STRING, value, tokenLine, tokenColumn);
     }
-    
-    Token identifier(char first, int tokenLine, int tokenColumn) {
+
+Token Lexer::identifier(char first, int tokenLine, int tokenColumn) {
         std::string value(1, first);
         
         while (!isAtEnd() && (std::isalnum(peek()) || peek() == '_')) {
@@ -359,9 +306,6 @@ private:
         
         return Token(type, value, tokenLine, tokenColumn);
     }
-};
-
-// Initialize keywords map
 std::unordered_map<std::string, TokenType> Lexer::keywords = {
     {"if", TokenType::IF},
     {"elif", TokenType::ELIF},

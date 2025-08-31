@@ -113,11 +113,17 @@ extern "C" {
                 line.erase(0, line.find_first_not_of(" \t"));
                 line.erase(line.find_last_not_of(" \t") + 1);
                 
-                // Check for variable assignment (a = 5)
-                size_t assignPos = line.find(" = ");
+                // Check for variable assignment (a = 5 or a=5)
+                size_t assignPos = line.find('=');
                 if (assignPos != std::string::npos) {
                     std::string varName = line.substr(0, assignPos);
-                    std::string value = line.substr(assignPos + 3);
+                    std::string value = line.substr(assignPos + 1);
+                    
+                    // Remove whitespace from variable name and value
+                    varName.erase(0, varName.find_first_not_of(" \t"));
+                    varName.erase(varName.find_last_not_of(" \t") + 1);
+                    value.erase(0, value.find_first_not_of(" \t"));
+                    value.erase(value.find_last_not_of(" \t") + 1);
                     
                     // Remove semicolon if present
                     if (!value.empty() && value.back() == ';') {

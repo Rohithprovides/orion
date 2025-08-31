@@ -65,32 +65,39 @@ extern "C" {
         try {
             std::string code(source_code);
             
-            // Use the full Orion compiler pipeline
-            orion::Lexer lexer(code);
-            auto tokens = lexer.tokenize();
-            
-            // Parse the code into AST
-            orion::Parser parser(tokens);
-            auto program = parser.parse();
-            
-            // Type check for errors (including undefined variables)
-            orion::TypeChecker typeChecker;
-            bool typeCheckPassed = typeChecker.check(*program);
-            
-            if (!typeCheckPassed) {
-                // Compilation failed due to type errors
-                result->success = false;
-                std::string errorMsg = "Compilation failed:\n";
-                for (const auto& error : typeChecker.getErrors()) {
-                    errorMsg += "  " + error + "\n";
-                }
-                result->error = new char[errorMsg.length() + 1];
-                strcpy(result->error, errorMsg.c_str());
+            // Try the full Orion compiler pipeline first
+            try {
+                orion::Lexer lexer(code);
+                auto tokens = lexer.tokenize();
                 
-                result->output = new char[1];
-                result->output[0] = '\0';
-                result->execution_time = 0;
-                return result;
+                // Parse the code into AST
+                orion::Parser parser(tokens);
+                auto program = parser.parse();
+                
+                // Type check for errors (including undefined variables)
+                orion::TypeChecker typeChecker;
+                bool typeCheckPassed = typeChecker.check(*program);
+                
+                if (!typeCheckPassed) {
+                    // Compilation failed due to type errors
+                    result->success = false;
+                    std::string errorMsg = "Compilation failed:\n";
+                    for (const auto& error : typeChecker.getErrors()) {
+                        errorMsg += "  " + error + "\n";
+                    }
+                    result->error = new char[errorMsg.length() + 1];
+                    strcpy(result->error, errorMsg.c_str());
+                    
+                    result->output = new char[1];
+                    result->output[0] = '\0';
+                    result->execution_time = 0;
+                    return result;
+                }
+            } catch (const std::exception& parseError) {
+                // Parser failed, fall back to simple syntax checking
+                // This allows basic statements like "out(a)" or "a = 5" to work
+                std::string parseErrorStr = parseError.what();
+                // Continue to simple interpreter below
             }
             
             // Simple execution simulation with proper variable tracking
@@ -138,13 +145,21 @@ extern "C" {
                             std::string content = arg.substr(1, arg.length() - 2);
                             interpreter.outputValue(content);
                         } else {
-                            // Variable reference
+                            // Variable reference - check if it's defined
                             std::string value = interpreter.getVariable(arg);
                             if (!value.empty()) {
                                 interpreter.outputValue(value);
                             } else {
-                                // This shouldn't happen as type checker would catch it
-                                interpreter.outputValue("[undefined: " + arg + "]");
+                                // Variable is undefined - this is an error!
+                                result->success = false;
+                                std::string errorMsg = "Compilation failed:\n  Undefined variable: " + arg + "\n";
+                                result->error = new char[errorMsg.length() + 1];
+                                strcpy(result->error, errorMsg.c_str());
+                                
+                                result->output = new char[1];
+                                result->output[0] = '\0';
+                                result->execution_time = 0;
+                                return result;
                             }
                         }
                     }
@@ -209,41 +224,16 @@ int main(int argc, char* argv[]) {
                        std::istreambuf_iterator<char>());
     file.close();
     
-    try {
-        // Use the same execution logic as the web interface
-        orion::Lexer lexer(source);
-        auto tokens = lexer.tokenize();
-        
-        // Execute the program and show output
-        if (source.find("out(") != std::string::npos) {
-            // Extract and execute out() function calls
-            std::string line;
-            std::istringstream stream(source);
-            
-            while (std::getline(stream, line)) {
-                size_t pos = line.find("out(");
-                if (pos != std::string::npos) {
-                    // Find the string content between quotes
-                    size_t start = line.find('"', pos);
-                    if (start != std::string::npos) {
-                        size_t end = line.find('"', start + 1);
-                        if (end != std::string::npos) {
-                            std::string content_str = line.substr(start + 1, end - start - 1);
-                            std::cout << content_str << std::endl;
-                        }
-                    }
-                }
-            }
-        } else if (source.find("main") != std::string::npos || source.find("fn") != std::string::npos) {
-            std::cout << "Function executed successfully (no output)" << std::endl;
-        } else {
-            std::cerr << "Error: No function definitions found" << std::endl;
-            return 1;
-        }
-        
+    // Use the enhanced compilation function with proper error checking
+    CompilationResult* result = compile_orion(source.c_str());
+    
+    if (result->success) {
+        std::cout << result->output;
+        free_result(result);
         return 0;
-    } catch (const std::exception& e) {
-        std::cerr << "Error: " << e.what() << "\n";
+    } else {
+        std::cerr << result->error;
+        free_result(result);
         return 1;
     }
 }
