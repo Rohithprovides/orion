@@ -8,6 +8,11 @@ from flask_cors import CORS
 import json
 import time
 import os
+import sys
+from orion_interpreter import execute_orion_code
+from orion_lexer import tokenize_orion_code, TokenType
+from orion_parser import parse_orion_code, ParseError
+from orion_interpreter import RuntimeError as OrionRuntimeError
 
 app = Flask(__name__)
 CORS(app)
@@ -24,7 +29,7 @@ def serve_static(filename):
 
 @app.route('/compile', methods=['POST'])
 def compile_code():
-    """Compile Orion code and return results."""
+    """Compile and execute Orion code using the real interpreter."""
     try:
         data = request.get_json()
         if not data or 'code' not in data:
@@ -32,46 +37,48 @@ def compile_code():
         
         code = data['code']
         
-        # Simulate compilation for demo purposes
-        # In a real implementation, this would use the full compiler
+        # Use the real Orion interpreter
+        start_time = time.time()
         
-        # Check for basic syntax
-        if 'main' in code or 'fn' in code:
-            # Simulate successful compilation
-            output = ""
-            
-            # Extract and simulate out() calls
-            if 'out(' in code:
-                import re
-                out_matches = re.findall(r'out\(([^)]+)\)', code)
-                for match in out_matches:
-                    # Remove quotes if present
-                    text = match.strip().strip('"').strip("'")
-                    output += text + "\n"
+        try:
+            result, output = execute_orion_code(code)
+            execution_time = int((time.time() - start_time) * 1000)  # Convert to milliseconds
             
             if not output:
-                output = "Program executed successfully (no output)\n"
+                output = "Program executed successfully (no output)"
             
             return jsonify({
                 'success': True,
                 'output': output.strip(),
-                'execution_time': 45
+                'execution_time': execution_time,
+                'return_value': str(result) if result is not None else None
             })
-        else:
+            
+        except ParseError as e:
             return jsonify({
                 'success': False,
-                'error': 'Error: No main function found'
+                'error': f'Parse error: {e.message}' + (f' at line {e.token.line}, column {e.token.column}' if e.token else '')
+            })
+        except OrionRuntimeError as e:
+            return jsonify({
+                'success': False,
+                'error': f'Runtime error: {e.message}'
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Execution error: {str(e)}'
             })
             
     except Exception as e:
         return jsonify({
             'success': False,
-            'error': f'Compilation error: {str(e)}'
+            'error': f'Server error: {str(e)}'
         })
 
 @app.route('/check-syntax', methods=['POST'])
 def check_syntax():
-    """Check syntax of Orion code."""
+    """Check syntax of Orion code using the real lexer."""
     try:
         data = request.get_json()
         if not data or 'code' not in data:
@@ -79,47 +86,51 @@ def check_syntax():
         
         code = data['code']
         
-        # Simple syntax checking
-        tokens = []
-        
-        # Basic tokenization
-        import re
-        
-        # Find keywords
-        keywords = re.findall(r'\b(fn|main|if|else|while|for|return|int|string|bool|out)\b', code)
-        for keyword in keywords:
-            tokens.append({'type': 'KEYWORD', 'value': keyword})
-        
-        # Find identifiers
-        identifiers = re.findall(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', code)
-        for identifier in identifiers:
-            if identifier not in ['fn', 'main', 'if', 'else', 'while', 'for', 'return', 'int', 'string', 'bool', 'out']:
-                tokens.append({'type': 'IDENTIFIER', 'value': identifier})
-        
-        # Find numbers
-        numbers = re.findall(r'\b\d+\b', code)
-        for number in numbers:
-            tokens.append({'type': 'NUMBER', 'value': number})
-        
-        # Find strings
-        strings = re.findall(r'"[^"]*"', code)
-        for string in strings:
-            tokens.append({'type': 'STRING', 'value': string})
-        
-        return jsonify({
-            'valid': True,
-            'tokens': tokens[:20]  # Limit to first 20 tokens
-        })
+        try:
+            # Use the real Orion lexer
+            tokens = tokenize_orion_code(code)
+            
+            # Convert tokens to a format suitable for JSON
+            token_list = []
+            for token in tokens:
+                if token.type not in [TokenType.NEWLINE, TokenType.COMMENT, TokenType.EOF]:
+                    token_list.append({
+                        'type': token.type.value,
+                        'value': token.value,
+                        'line': token.line,
+                        'column': token.column
+                    })
+            
+            # Try to parse to check for syntax errors
+            try:
+                ast = parse_orion_code(code)
+                return jsonify({
+                    'valid': True,
+                    'tokens': token_list[:20],  # Limit to first 20 tokens
+                    'message': f'Syntax is valid. Found {len(token_list)} tokens.'
+                })
+            except ParseError as e:
+                return jsonify({
+                    'valid': False,
+                    'error': f'Parse error: {e.message}' + (f' at line {e.token.line}, column {e.token.column}' if e.token else ''),
+                    'tokens': token_list[:20]
+                })
+                
+        except Exception as e:
+            return jsonify({
+                'valid': False,
+                'error': f'Lexical error: {str(e)}'
+            })
         
     except Exception as e:
         return jsonify({
             'valid': False,
-            'error': f'Syntax error: {str(e)}'
+            'error': f'Syntax check error: {str(e)}'
         })
 
 @app.route('/ast', methods=['POST'])
 def generate_ast():
-    """Generate AST for Orion code."""
+    """Generate AST for Orion code using the real parser."""
     try:
         data = request.get_json()
         if not data or 'code' not in data:
@@ -127,36 +138,70 @@ def generate_ast():
         
         code = data['code']
         
-        # Simple AST generation
-        ast = "Program\n"
-        
-        if 'fn' in code and 'main' in code:
-            ast += "  FunctionDeclaration\n"
-            ast += "    name: main\n"
-            ast += "    parameters: []\n"
-            ast += "    return_type: int\n"
-            ast += "    body:\n"
+        try:
+            # Use the real Orion parser
+            ast = parse_orion_code(code)
             
-            if 'out(' in code:
-                import re
-                out_calls = re.findall(r'out\([^)]+\)', code)
-                for call in out_calls:
-                    ast += "      ExpressionStatement\n"
-                    ast += "        FunctionCall\n"
-                    ast += "          name: out\n"
-                    ast += "          arguments:\n"
-                    ast += "            StringLiteral\n"
-        
-        return jsonify({
-            'success': True,
-            'ast': ast
-        })
+            # Convert AST to a readable string representation
+            ast_string = _ast_to_string(ast)
+            
+            return jsonify({
+                'success': True,
+                'ast': ast_string
+            })
+            
+        except ParseError as e:
+            return jsonify({
+                'success': False,
+                'error': f'Parse error: {e.message}' + (f' at line {e.token.line}, column {e.token.column}' if e.token else '')
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'AST generation error: {str(e)}'
+            })
         
     except Exception as e:
         return jsonify({
             'success': False,
-            'error': f'AST generation error: {str(e)}'
+            'error': f'Server error: {str(e)}'
         })
+
+def _ast_to_string(node, indent=0):
+    """Convert AST node to readable string representation"""
+    prefix = "  " * indent
+    
+    if hasattr(node, '__class__'):
+        result = f"{prefix}{node.__class__.__name__}"
+        
+        # Add specific details for different node types
+        if hasattr(node, 'name'):
+            result += f" (name: {node.name})"
+        elif hasattr(node, 'value'):
+            result += f" (value: {repr(node.value)})"
+        elif hasattr(node, 'operator'):
+            result += f" (op: {node.operator})"
+        
+        result += "\n"
+        
+        # Recursively add child nodes
+        if hasattr(node, 'statements') and node.statements:
+            for stmt in node.statements:
+                result += _ast_to_string(stmt, indent + 1)
+        elif hasattr(node, 'body') and node.body:
+            result += _ast_to_string(node.body, indent + 1)
+        elif hasattr(node, 'left') and hasattr(node, 'right'):
+            result += _ast_to_string(node.left, indent + 1)
+            result += _ast_to_string(node.right, indent + 1)
+        elif hasattr(node, 'expression') and node.expression:
+            result += _ast_to_string(node.expression, indent + 1)
+        elif hasattr(node, 'arguments') and node.arguments:
+            for arg in node.arguments:
+                result += _ast_to_string(arg, indent + 1)
+        
+        return result
+    else:
+        return f"{prefix}{repr(node)}\n"
 
 if __name__ == '__main__':
     print("Starting Orion Compiler Web Interface...")
