@@ -80,12 +80,16 @@ function appendOutput(text, type = 'normal') {
 // Set button loading state
 function setButtonLoading(buttonId, loading) {
     const button = document.getElementById(buttonId);
+    if (!button) return;
+    
     const icon = button.querySelector('i');
     
     if (loading) {
         button.disabled = true;
-        icon.setAttribute('data-feather', 'loader');
-        icon.classList.add('spinner-border', 'spinner-border-sm');
+        if (icon) {
+            icon.setAttribute('data-feather', 'loader');
+            icon.classList.add('spinner-border', 'spinner-border-sm');
+        }
         feather.replace();
         
         // Add spinning animation
@@ -95,9 +99,11 @@ function setButtonLoading(buttonId, loading) {
         }
     } else {
         button.disabled = false;
-        icon.classList.remove('spinner-border', 'spinner-border-sm');
-        icon.setAttribute('data-feather', 'play');
-        icon.style.animation = '';
+        if (icon) {
+            icon.classList.remove('spinner-border', 'spinner-border-sm');
+            icon.setAttribute('data-feather', 'play');
+            icon.style.animation = '';
+        }
         feather.replace();
     }
 }
@@ -113,6 +119,13 @@ if (!document.querySelector('style[data-spinner]')) {
         }
     `;
     document.head.appendChild(style);
+}
+
+// Setup syntax highlighting
+function setupSyntaxHighlighting() {
+    // This function can be used to initialize syntax highlighting
+    // For now, we'll keep it simple since we're using a textarea
+    console.log('Syntax highlighting setup completed');
 }
 
 // Compile and run code
