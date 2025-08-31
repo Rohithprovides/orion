@@ -296,3 +296,15 @@ document.getElementById('codeEditor').addEventListener('input', function() {
         }
     }
 });
+
+// Initialize when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadExample('hello');
+    setupSyntaxHighlighting();
+    
+    // Add event listeners to prevent unhandled promise rejections
+    window.addEventListener('unhandledrejection', function(event) {
+        console.error('Unhandled promise rejection:', event.reason);
+        event.preventDefault();
+    });
+});
