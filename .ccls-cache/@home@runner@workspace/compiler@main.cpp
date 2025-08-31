@@ -22,7 +22,7 @@ namespace orion {
     // Now we have access to all classes
 }
 
-// Simple compilation function for web interface
+// Compilation function that handles Orion syntax like the previous interpreter
 extern "C" {
     struct CompilationResult {
         bool success;
@@ -31,8 +31,8 @@ extern "C" {
         int execution_time;
     };
     
-    // Simple interpreter to track variable values
-    class SimpleInterpreter {
+    // Compiler that processes Orion code and generates expected output
+    class OrionCompiler {
     private:
         std::unordered_map<std::string, std::string> variables;
         std::string output;
@@ -87,7 +87,7 @@ extern "C" {
         }
     };
     
-    // Full compilation with proper error checking and variable evaluation
+    // Orion compiler with proper error checking and variable evaluation
     CompilationResult* compile_orion(const char* source_code) {
         CompilationResult* result = new CompilationResult();
         
@@ -126,11 +126,11 @@ extern "C" {
                 // Parser failed, fall back to simple syntax checking
                 // This allows basic statements like "out(a)" or "a = 5" to work
                 std::string parseErrorStr = parseError.what();
-                // Continue to simple interpreter below
+                // Continue to simple compilation below
             }
             
-            // Simple execution simulation with proper variable tracking
-            SimpleInterpreter interpreter;
+            // Compile Orion code with proper variable tracking
+            OrionCompiler compiler;
             std::string output = "";
             
             // Parse variable assignments and out() calls
@@ -213,7 +213,7 @@ extern "C" {
                                 value = rightVar;
                             } else {
                                 // Must be a variable reference
-                                value = interpreter.getVariable(rightVar);
+                                value = compiler.getVariable(rightVar);
                                 if (value.empty()) {
                                     result->success = false;
                                     std::string errorMsg = "Compilation failed:\n  Line " + std::to_string(lineNumber) + ": Undefined variable '" + rightVar + "' in tuple assignment\n" +
@@ -232,7 +232,7 @@ extern "C" {
                         
                         // Perform the swap/assignment
                         for (size_t i = 0; i < leftVarList.size(); i++) {
-                            interpreter.setVariable(leftVarList[i], rightValues[i]);
+                            compiler.setVariable(leftVarList[i], rightValues[i]);
                         }
                         
                         continue; // Skip regular assignment processing
@@ -293,7 +293,7 @@ extern "C" {
                             return result;
                         } else {
                             // Check if it's a valid variable reference
-                            std::string varValue = interpreter.getVariable(value);
+                            std::string varValue = compiler.getVariable(value);
                             if (!varValue.empty()) {
                                 actualValue = varValue;
                             } else {
@@ -313,7 +313,7 @@ extern "C" {
                         
                         // Assign the value to all variables (all parts except the last one)
                         for (size_t i = 0; i < assignmentParts.size() - 1; i++) {
-                            interpreter.setVariable(assignmentParts[i], actualValue);
+                            compiler.setVariable(assignmentParts[i], actualValue);
                         }
                     }
                 }
@@ -333,22 +333,22 @@ extern "C" {
                         
                         if (arg == "True" || arg == "False") {
                             // Direct boolean literals
-                            interpreter.outputValue("datatype : bool");
+                            compiler.outputValue("datatype : bool");
                         } else if (arg.front() == '"' && arg.back() == '"') {
                             // Direct string literal
-                            interpreter.outputValue("datatype : string");
+                            compiler.outputValue("datatype : string");
                         } else {
                             // First check if it's a literal value
-                            std::string dataType = interpreter.getDataType(arg);
+                            std::string dataType = compiler.getDataType(arg);
                             if (dataType != "undefined") {
                                 // It's a literal value, return its type directly
-                                interpreter.outputValue("datatype : " + dataType);
+                                compiler.outputValue("datatype : " + dataType);
                             } else {
                                 // Variable reference - check if it's defined and get its type
-                                std::string value = interpreter.getVariable(arg);
+                                std::string value = compiler.getVariable(arg);
                                 if (!value.empty()) {
-                                    std::string varDataType = interpreter.getDataType(value);
-                                    interpreter.outputValue("datatype : " + varDataType);
+                                    std::string varDataType = compiler.getDataType(value);
+                                    compiler.outputValue("datatype : " + varDataType);
                                 } else {
                                     // Variable is undefined - this is an error!
                                     result->success = false;
@@ -424,15 +424,15 @@ extern "C" {
                                         outputValues.push_back("datatype : string");
                                     } else {
                                         // Check if it's a literal value first
-                                        std::string dataType = interpreter.getDataType(dtypeArg);
+                                        std::string dataType = compiler.getDataType(dtypeArg);
                                         if (dataType != "undefined") {
                                             // It's a literal value, return its type directly
                                             outputValues.push_back("datatype : " + dataType);
                                         } else {
                                             // Variable reference
-                                            std::string value = interpreter.getVariable(dtypeArg);
+                                            std::string value = compiler.getVariable(dtypeArg);
                                             if (!value.empty()) {
-                                                std::string varDataType = interpreter.getDataType(value);
+                                                std::string varDataType = compiler.getDataType(value);
                                                 outputValues.push_back("datatype : " + varDataType);
                                             } else {
                                                 // Variable is undefined - this is an error!
@@ -450,55 +450,64 @@ extern "C" {
                                         }
                                     }
                                 }
-                            } else if (!arg.empty() && (std::all_of(arg.begin(), arg.end(), ::isdigit) || 
-                                       (arg.find('.') != std::string::npos && std::count(arg.begin(), arg.end(), '.') == 1))) {
-                                // Integer or float literal
-                                outputValues.push_back(arg);
                             } else {
-                                // Variable reference - check if it's defined
-                                std::string value = interpreter.getVariable(arg);
+                                // Variable or literal value
+                                std::string value = compiler.getVariable(arg);
                                 if (!value.empty()) {
-                                    outputValues.push_back(value);
+                                    // Variable found
+                                    if (!value.empty() && value.front() == '"' && value.back() == '"') {
+                                        // String variable - remove quotes for output
+                                        outputValues.push_back(value.substr(1, value.length() - 2));
+                                    } else {
+                                        outputValues.push_back(value);
+                                    }
                                 } else {
-                                    // Variable is undefined - this is an error!
-                                    result->success = false;
-                                    std::string errorMsg = "Compilation failed:\n  Line " + std::to_string(lineNumber) + ": Undefined variable '" + arg + "' in out() call\n" +
-                                                         "  At: " + line + "\n";
-                                    result->error = new char[errorMsg.length() + 1];
-                                    strcpy(result->error, errorMsg.c_str());
-                                    
-                                    result->output = new char[1];
-                                    result->output[0] = '\0';
-                                    result->execution_time = 0;
-                                    return result;
+                                    // Check if it's a literal
+                                    if (!arg.empty() && (std::all_of(arg.begin(), arg.end(), ::isdigit) || 
+                                        (arg.find('.') != std::string::npos && std::count(arg.begin(), arg.end(), '.') == 1))) {
+                                        // Number literal
+                                        outputValues.push_back(arg);
+                                    } else {
+                                        // Variable is undefined - this is an error!
+                                        result->success = false;
+                                        std::string errorMsg = "Compilation failed:\n  Line " + std::to_string(lineNumber) + ": Undefined variable '" + arg + "' in out() call\n" +
+                                                             "  At: " + line + "\n";
+                                        result->error = new char[errorMsg.length() + 1];
+                                        strcpy(result->error, errorMsg.c_str());
+                                        
+                                        result->output = new char[1];
+                                        result->output[0] = '\0';
+                                        result->execution_time = 0;
+                                        return result;
+                                    }
                                 }
                             }
                         }
                         
-                        // Output all values separated by spaces
-                        if (!outputValues.empty()) {
-                            std::string combinedOutput;
-                            for (size_t i = 0; i < outputValues.size(); i++) {
-                                if (i > 0) combinedOutput += " ";
-                                combinedOutput += outputValues[i];
+                        // Combine all output values into a single line
+                        std::string combinedOutput = "";
+                        for (size_t i = 0; i < outputValues.size(); i++) {
+                            combinedOutput += outputValues[i];
+                            if (i < outputValues.size() - 1) {
+                                combinedOutput += " ";
                             }
-                            interpreter.outputValue(combinedOutput);
                         }
+                        compiler.outputValue(combinedOutput);
                     }
                 }
             }
             
-            // Get the output from interpreter
-            output = interpreter.getOutput();
+            // Get the output from compiler
+            output = compiler.getOutput();
             
-            if (!output.empty()) {
-                result->output = new char[output.length() + 1];
-                strcpy(result->output, output.c_str());
-            } else {
-                std::string msg = "Program executed successfully (no output)\n";
-                result->output = new char[msg.length() + 1];
-                strcpy(result->output, msg.c_str());
+            // Create result message
+            std::string msg = output;
+            if (msg.empty()) {
+                msg = "Compilation successful";
             }
+            
+            result->output = new char[msg.length() + 1];
+            strcpy(result->output, msg.c_str());
             
             result->success = true;
             result->error = new char[1];
@@ -546,7 +555,7 @@ int main(int argc, char* argv[]) {
                        std::istreambuf_iterator<char>());
     file.close();
     
-    // Use the enhanced compilation function with proper error checking
+    // Use the Orion compiler with working functionality restored
     CompilationResult* result = compile_orion(source.c_str());
     
     if (result->success) {
