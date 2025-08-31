@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orion Programming Language Compiler</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container-fluid h-100">
+        <nav class="navbar navbar-dark bg-dark">
+            <div class="container-fluid">
+                <span class="navbar-brand mb-0 h1">
+                    <i data-feather="code"></i>
+                    Orion Programming Language
+                </span>
+                <span class="badge bg-primary">v1.0.0</span>
+            </div>
+        </nav>
+
+        <div class="row h-100 g-0">
+            <!-- Editor Panel -->
+            <div class="col-md-6 d-flex flex-column">
+                <div class="editor-header bg-light p-3 border-bottom">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i data-feather="edit-3"></i>
+                            Code Editor
+                        </h5>
+                        <div class="btn-group">
+                            <button class="btn btn-outline-secondary btn-sm" onclick="loadExample('hello')">
+                                Hello World
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="loadExample('fibonacci')">
+                                Fibonacci
+                            </button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="clearEditor()">
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-grow-1 p-0">
+                    <textarea id="codeEditor" class="form-control h-100" placeholder="Write your Orion code here...">// Welcome to Orion Programming Language!
+// Fast as C, easy to write like Python
+
+fn main() {
+    out("Hello, Orion World!")
+    out("Fast as C, readable as Python!")
+}</textarea>
+                </div>
+                <div class="editor-footer bg-light p-3 border-top">
+                    <div class="d-flex gap-2">
+                        <button id="compileBtn" class="btn btn-primary" onclick="compileCode()">
+                            <i data-feather="play"></i>
+                            Compile & Run
+                        </button>
+                        <button class="btn btn-outline-info" onclick="checkSyntax()">
+                            <i data-feather="check-circle"></i>
+                            Check Syntax
+                        </button>
+                        <button class="btn btn-outline-warning" onclick="showAST()">
+                            <i data-feather="git-branch"></i>
+                            Show AST
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Panel -->
+            <div class="col-md-6 d-flex flex-column border-start">
+                <div class="output-header bg-light p-3 border-bottom">
+                    <h5 class="mb-0">
+                        <i data-feather="terminal"></i>
+                        Output
+                    </h5>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="tab-content h-100">
+                        <div class="tab-pane fade show active h-100" id="output-tab">
+                            <pre id="outputArea" class="h-100 p-3 m-0 bg-dark text-light">Ready to compile Orion code...</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Language Features Modal -->
+        <div class="modal fade" id="featuresModal" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Orion Language Features</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Variable Declarations</h6>
+                                <pre><code class="language-orion">a = 5
+int a = 5
+a int = 5
+a = int 5</code></pre>
+                                
+                                <h6>Functions</h6>
+                                <pre><code class="language-orion">add(x int, y int) -> int { return x + y }
+// or single-line
+add(x int, y int) -> int => x + y</code></pre>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Control Flow</h6>
+                                <pre><code class="language-orion">if x > 0 {
+    print("positive")
+} elif x < 0 {
+    print("negative")
+} else {
+    print("zero")
+}</code></pre>
+                                
+                                <h6>Structs & Enums</h6>
+                                <pre><code class="language-orion">struct Point {
+    x int
+    y int
+}
+
+enum Color { Red, Green, Blue }</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

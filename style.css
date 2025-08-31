@@ -1,0 +1,157 @@
+:root {
+    --orion-primary: #6366f1;
+    --orion-secondary: #8b5cf6;
+    --orion-success: #10b981;
+    --orion-warning: #f59e0b;
+    --orion-danger: #ef4444;
+    --orion-dark: #1f2937;
+    --orion-light: #f9fafb;
+}
+
+html, body {
+    height: 100%;
+    overflow: hidden;
+}
+
+.navbar-brand i {
+    margin-right: 8px;
+}
+
+.editor-header h5 i,
+.output-header h5 i {
+    margin-right: 8px;
+}
+
+#codeEditor {
+    font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+    border: none;
+    resize: none;
+    border-radius: 0;
+    background-color: #1e1e1e;
+    color: #d4d4d4;
+}
+
+#codeEditor:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+#outputArea {
+    font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.editor-footer,
+.editor-header,
+.output-header {
+    flex-shrink: 0;
+}
+
+.btn i {
+    margin-right: 4px;
+    width: 16px;
+    height: 16px;
+}
+
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* Syntax highlighting for Orion */
+.language-orion .token.keyword {
+    color: #569cd6;
+}
+
+.language-orion .token.string {
+    color: #ce9178;
+}
+
+.language-orion .token.number {
+    color: #b5cea8;
+}
+
+.language-orion .token.comment {
+    color: #6a9955;
+    font-style: italic;
+}
+
+.language-orion .token.function {
+    color: #dcdcaa;
+}
+
+.language-orion .token.operator {
+    color: #d4d4d4;
+}
+
+/* Status indicators */
+.status-success {
+    color: var(--orion-success);
+}
+
+.status-error {
+    color: var(--orion-danger);
+}
+
+.status-warning {
+    color: var(--orion-warning);
+}
+
+/* Loading states */
+.btn[disabled] {
+    opacity: 0.6;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .row.h-100 {
+        flex-direction: column;
+    }
+    
+    .col-md-6 {
+        height: 50vh;
+    }
+    
+    .editor-footer .btn-group {
+        width: 100%;
+    }
+    
+    .editor-footer .btn {
+        flex: 1;
+    }
+}
+
+/* Custom scrollbar for output */
+#outputArea::-webkit-scrollbar {
+    width: 8px;
+}
+
+#outputArea::-webkit-scrollbar-track {
+    background: #2d3748;
+}
+
+#outputArea::-webkit-scrollbar-thumb {
+    background: #4a5568;
+    border-radius: 4px;
+}
+
+#outputArea::-webkit-scrollbar-thumb:hover {
+    background: #718096;
+}
+
+/* Animation for compile button */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.btn-primary:not([disabled]):hover {
+    animation: pulse 0.5s ease-in-out;
+}
