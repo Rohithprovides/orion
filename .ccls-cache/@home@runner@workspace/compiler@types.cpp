@@ -14,10 +14,12 @@ private:
     
     Type currentReturnType;
     std::vector<std::string> errors;
+    std::vector<std::string> sourceLines;
     
 public:
-    bool check(Program& program) {
+    bool check(Program& program, const std::vector<std::string>& srcLines = {}) {
         errors.clear();
+        sourceLines = srcLines;
         
         // First pass: collect function, struct, and enum declarations
         for (auto& stmt : program.statements) {
@@ -49,8 +51,17 @@ public:
     }
     
 private:
-    void addError(const std::string& message) {
-        errors.push_back(message);
+    void addError(const std::string& message, int line = 0) {
+        std::string fullMessage = message;
+        if (line > 0) {
+            fullMessage = "Line " + std::to_string(line) + ": " + message;
+            if (line <= (int)sourceLines.size() && line > 0) {
+                fullMessage += "\n    " + sourceLines[line - 1];
+                // Add a caret to point to the error column if needed
+                fullMessage += "\n    ^";
+            }
+        }
+        errors.push_back(fullMessage);
     }
     
     Type inferType(Expression& expr) {
@@ -168,7 +179,7 @@ public:
     void visit(BoolLiteral& node) override {}
     void visit(Identifier& node) override {
         if (variables.find(node.name) == variables.end()) {
-            addError("Undefined variable: " + node.name);
+            addError("Undefined variable: " + node.name, node.line);
         }
     }
     

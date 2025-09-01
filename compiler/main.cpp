@@ -120,6 +120,12 @@ public:
                 varType = "bool";
             } else if (auto floatLit = dynamic_cast<FloatLiteral*>(node.initializer.get())) {
                 varType = "float";
+            } else if (auto id = dynamic_cast<Identifier*>(node.initializer.get())) {
+                // Variable assignment: copy type from source variable
+                auto typeIt = variableTypes.find(id->name);
+                if (typeIt != variableTypes.end()) {
+                    varType = typeIt->second;
+                }
             }
             
             node.initializer->accept(*this);

@@ -6,7 +6,6 @@ dtype_string: .string "datatype: string\n"
 dtype_bool: .string "datatype: bool\n"
 dtype_float: .string "datatype: float\n"
 dtype_unknown: .string "datatype: unknown\n"
-str_0: .string "Hello\n"
 
 .section .text
 .global main
@@ -15,9 +14,18 @@ str_0: .string "Hello\n"
 main:
     push %rbp
     mov %rsp, %rbp
-    # Call out() with string
-    mov $str_0, %rsi
-    mov $format_str, %rdi
+    # Variable: x
+    mov $10, %rax
+    mov %rax, -8(%rbp)
+    # Variable: y
+    mov -8(%rbp), %rax
+    mov %rax, -16(%rbp)
+    # Variable: z
+    mov -16(%rbp), %rax
+    mov %rax, -24(%rbp)
+    # Call out() with variable: z (type: int)
+    mov -24(%rbp), %rsi
+    mov $format_int, %rdi
     xor %rax, %rax
     call printf
     mov $0, %rax
