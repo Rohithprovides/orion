@@ -208,6 +208,45 @@ public:
         }
     }
     
+    void visit(TupleExpression& node) override {
+        // For now, tuples just evaluate to the last element
+        // In a full implementation, this would need proper tuple handling
+        if (!node.elements.empty()) {
+            node.elements.back()->accept(*this);
+        }
+    }
+    
+    void visit(TupleAssignment& node) override {
+        // Handle tuple assignment like (a, b) = (c, d)
+        // We need to evaluate all values first, then assign them
+        
+        if (node.targets.size() != node.values.size()) {
+            throw std::runtime_error("Tuple assignment size mismatch");
+        }
+        
+        assembly << "    # Tuple assignment\n";
+        
+        // Store all values in temporary registers/stack locations
+        std::vector<int> tempOffsets;
+        for (size_t i = 0; i < node.values.size(); i++) {
+            node.values[i]->accept(*this);
+            stackOffset += 8;
+            tempOffsets.push_back(stackOffset);
+            assembly << "    mov %rax, -" << stackOffset << "(%rbp)  # temp " << i << "\n";
+        }
+        
+        // Now assign the temporary values to targets
+        for (size_t i = 0; i < node.targets.size(); i++) {
+            if (auto id = dynamic_cast<Identifier*>(node.targets[i].get())) {
+                auto it = variables.find(id->name);
+                if (it != variables.end()) {
+                    assembly << "    mov -" << tempOffsets[i] << "(%rbp), %rax  # load temp " << i << "\n";
+                    assembly << "    mov %rax, -" << it->second << "(%rbp)  # assign to " << id->name << "\n";
+                }
+            }
+        }
+    }
+
     // Stub implementations for other visitors
     void visit(FloatLiteral& node) override { assembly << "    # Float: " << node.value << "\n"; }
     void visit(BoolLiteral& node) override { assembly << "    mov $" << (node.value ? 1 : 0) << ", %rax\n"; }

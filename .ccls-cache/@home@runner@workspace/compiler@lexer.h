@@ -72,7 +72,7 @@ private:
     void skipLineComment();
     void skipBlockComment();
     Token number(char first, int tokenLine, int tokenColumn);
-    Token string(int tokenLine, int tokenColumn);
+    Token string(char quote, int tokenLine, int tokenColumn);
     Token identifier(char first, int tokenLine, int tokenColumn);
 };
 

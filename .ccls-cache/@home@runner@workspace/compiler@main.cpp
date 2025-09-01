@@ -21,6 +21,7 @@ private:
     std::ostringstream assembly;
     std::vector<std::string> stringLiterals;
     std::unordered_map<std::string, int> variables; // Variable name -> stack offset
+    std::unordered_map<std::string, std::string> variableTypes; // Variable name -> type
     int stackOffset = 0;
     int labelCounter = 0;
     
@@ -39,6 +40,7 @@ public:
         assembly.clear();
         stringLiterals.clear();
         variables.clear();
+        variableTypes.clear();
         stackOffset = 0;
         labelCounter = 0;
         
@@ -102,11 +104,24 @@ public:
         assembly << "    # Variable: " << node.name << "\n";
         
         if (node.initializer) {
+            // Determine variable type from initializer
+            std::string varType = "unknown";
+            if (auto intLit = dynamic_cast<IntLiteral*>(node.initializer.get())) {
+                varType = "int";
+            } else if (auto strLit = dynamic_cast<StringLiteral*>(node.initializer.get())) {
+                varType = "string";
+            } else if (auto boolLit = dynamic_cast<BoolLiteral*>(node.initializer.get())) {
+                varType = "bool";
+            } else if (auto floatLit = dynamic_cast<FloatLiteral*>(node.initializer.get())) {
+                varType = "float";
+            }
+            
             node.initializer->accept(*this);
             
-            // Store variable on stack
+            // Store variable on stack and track its type
             stackOffset += 8;
             variables[node.name] = stackOffset;
+            variableTypes[node.name] = varType;
             assembly << "    mov %rax, -" << stackOffset << "(%rbp)\n";
         }
     }
@@ -136,12 +151,19 @@ public:
                     assembly << "    xor %rax, %rax\n";
                     assembly << "    call printf\n";
                 } else if (auto id = dynamic_cast<Identifier*>(arg.get())) {
-                    // Variable reference - assume string for now
+                    // Variable reference - use correct format based on type
                     auto it = variables.find(id->name);
-                    if (it != variables.end()) {
-                        assembly << "    # Call out() with variable: " << id->name << "\n";
+                    auto typeIt = variableTypes.find(id->name);
+                    if (it != variables.end() && typeIt != variableTypes.end()) {
+                        assembly << "    # Call out() with variable: " << id->name << " (type: " << typeIt->second << ")\n";
                         assembly << "    mov -" << it->second << "(%rbp), %rsi\n";
-                        assembly << "    mov $format_str, %rdi\n";
+                        
+                        if (typeIt->second == "int" || typeIt->second == "bool") {
+                            assembly << "    mov $format_int, %rdi\n";
+                        } else {
+                            assembly << "    mov $format_str, %rdi\n";
+                        }
+                        
                         assembly << "    xor %rax, %rax\n";
                         assembly << "    call printf\n";
                     }

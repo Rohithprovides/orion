@@ -67,11 +67,24 @@ void FunctionCall::accept(ASTVisitor& visitor) {
     visitor.visit(*this);
 }
 
+void TupleExpression::accept(ASTVisitor& visitor) {
+    visitor.visit(*this);
+}
+
 std::string FunctionCall::toString(int indent) const {
     std::string indentStr(indent, ' ');
     std::string result = indentStr + "FunctionCall(" + name + "):\n";
     for (const auto& arg : arguments) {
         result += arg->toString(indent + 2);
+    }
+    return result;
+}
+
+std::string TupleExpression::toString(int indent) const {
+    std::string indentStr(indent, ' ');
+    std::string result = indentStr + "TupleExpression:\n";
+    for (const auto& element : elements) {
+        result += element->toString(indent + 2);
     }
     return result;
 }
@@ -126,6 +139,24 @@ std::string BlockStatement::toString(int indent) const {
 
 void ExpressionStatement::accept(ASTVisitor& visitor) {
     visitor.visit(*this);
+}
+
+void TupleAssignment::accept(ASTVisitor& visitor) {
+    visitor.visit(*this);
+}
+
+std::string TupleAssignment::toString(int indent) const {
+    std::string indentStr(indent, ' ');
+    std::string result = indentStr + "TupleAssignment:\n";
+    result += indentStr + "  Targets:\n";
+    for (const auto& target : targets) {
+        result += target->toString(indent + 4);
+    }
+    result += indentStr + "  Values:\n";
+    for (const auto& value : values) {
+        result += value->toString(indent + 4);
+    }
+    return result;
 }
 
 void ReturnStatement::accept(ASTVisitor& visitor) {

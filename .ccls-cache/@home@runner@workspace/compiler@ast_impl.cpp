@@ -67,6 +67,10 @@ void FunctionCall::accept(ASTVisitor& visitor) {
     visitor.visit(*this);
 }
 
+void TupleExpression::accept(ASTVisitor& visitor) {
+    visitor.visit(*this);
+}
+
 std::string FunctionCall::toString(int indent) const {
     std::string indentStr(indent, ' ');
     std::string result = indentStr + "FunctionCall(" + name + "):\n";

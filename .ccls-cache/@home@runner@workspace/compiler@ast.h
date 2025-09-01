@@ -175,6 +175,16 @@ public:
     std::string toString(int indent = 0) const override;
 };
 
+// Tuple expression
+class TupleExpression : public Expression {
+public:
+    std::vector<std::unique_ptr<Expression>> elements;
+    
+    TupleExpression() {}
+    void accept(ASTVisitor& visitor) override;
+    std::string toString(int indent = 0) const override;
+};
+
 // Variable declaration
 class VariableDeclaration : public Statement {
 public:
@@ -237,6 +247,17 @@ public:
         return std::string(indent, ' ') + "ExpressionStatement:\n" + 
                expression->toString(indent + 2);
     }
+};
+
+// Tuple assignment for (a,b) = (c,d) syntax
+class TupleAssignment : public Statement {
+public:
+    std::vector<std::unique_ptr<Expression>> targets;  // left side (a,b)
+    std::vector<std::unique_ptr<Expression>> values;   // right side (c,d)
+    
+    TupleAssignment() {}
+    void accept(ASTVisitor& visitor) override;
+    std::string toString(int indent = 0) const override;
 };
 
 // Return statement
@@ -357,10 +378,12 @@ public:
     virtual void visit(BinaryExpression& node) = 0;
     virtual void visit(UnaryExpression& node) = 0;
     virtual void visit(FunctionCall& node) = 0;
+    virtual void visit(TupleExpression& node) = 0;
     virtual void visit(VariableDeclaration& node) = 0;
     virtual void visit(FunctionDeclaration& node) = 0;
     virtual void visit(BlockStatement& node) = 0;
     virtual void visit(ExpressionStatement& node) = 0;
+    virtual void visit(TupleAssignment& node) = 0;
     virtual void visit(ReturnStatement& node) = 0;
     virtual void visit(IfStatement& node) = 0;
     virtual void visit(WhileStatement& node) = 0;

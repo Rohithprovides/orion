@@ -134,7 +134,10 @@ Token Lexer::nextToken() {
         
         // Strings
         if (c == '"') {
-            return string(tokenLine, tokenColumn);
+            return string('"', tokenLine, tokenColumn);
+        }
+        if (c == '\'') {
+            return string('\'', tokenLine, tokenColumn);
         }
         
         // Identifiers and keywords
@@ -263,10 +266,10 @@ Token Lexer::number(char first, int tokenLine, int tokenColumn) {
                     value, tokenLine, tokenColumn);
     }
 
-Token Lexer::string(int tokenLine, int tokenColumn) {
+Token Lexer::string(char quote, int tokenLine, int tokenColumn) {
         std::string value;
         
-        while (!isAtEnd() && peek() != '"') {
+        while (!isAtEnd() && peek() != quote) {
             char c = peek();
             if (c == '\\') {
                 advance(); // skip '\'
@@ -278,6 +281,7 @@ Token Lexer::string(int tokenLine, int tokenColumn) {
                         case 'r': value += '\r'; break;
                         case '\\': value += '\\'; break;
                         case '"': value += '"'; break;
+                        case '\'': value += '\''; break;
                         default: value += escaped; break;
                     }
                 }
@@ -287,7 +291,7 @@ Token Lexer::string(int tokenLine, int tokenColumn) {
         }
         
         if (!isAtEnd()) {
-            advance(); // consume closing '"'
+            advance(); // consume closing quote
         }
         
         return Token(TokenType::STRING, value, tokenLine, tokenColumn);
