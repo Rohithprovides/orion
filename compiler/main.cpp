@@ -241,14 +241,14 @@ int main(int argc, char* argv[]) {
         orion::SimpleCodeGenerator codegen;
         std::string assembly = codegen.generate(*ast);
         
-        // Step 4: Write assembly to temporary file
-        std::string asmFile = "/tmp/orion_temp.s";
+        // Step 4: Write assembly to file (KEEP FOR PROOF)
+        std::string asmFile = "proof_assembly.s";
         std::ofstream asmOut(asmFile);
         asmOut << assembly;
         asmOut.close();
         
-        // Step 5: Use GCC to assemble and link
-        std::string exeFile = "/tmp/orion_program";
+        // Step 5: Use GCC to assemble and link (KEEP EXECUTABLE FOR PROOF)
+        std::string exeFile = "proof_executable";
         std::string gccCommand = "gcc -o " + exeFile + " " + asmFile;
         
         int result = system(gccCommand.c_str());
@@ -258,11 +258,9 @@ int main(int argc, char* argv[]) {
         }
         
         // Step 6: Execute the compiled program
-        result = system(exeFile.c_str());
+        result = system(("./" + exeFile).c_str());
         
-        // Clean up temporary files
-        unlink(asmFile.c_str());
-        unlink(exeFile.c_str());
+        // DON'T clean up - leave files for proof
         
         return 0;
         
