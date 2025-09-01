@@ -257,8 +257,7 @@ public:
         Type savedReturnType = currentReturnType;
         currentReturnType = node.returnType;
         
-        // Add parameters to scope
-        std::unordered_map<std::string, Type> savedVars = variables;
+        // Add parameters to variables (no scoping)
         for (const auto& param : node.parameters) {
             variables[param.name] = param.type;
         }
@@ -279,8 +278,7 @@ public:
             }
         }
         
-        // Restore context
-        variables = savedVars;
+        // Restore return type context
         currentReturnType = savedReturnType;
     }
     

@@ -198,10 +198,9 @@ public:
     Type type;
     std::unique_ptr<Expression> initializer;
     bool hasExplicitType;
-    bool isLocal;
     
-    VariableDeclaration(const std::string& n, const Type& t, std::unique_ptr<Expression> init, bool explicit_type = false, bool local = false)
-        : name(n), type(t), initializer(std::move(init)), hasExplicitType(explicit_type), isLocal(local) {}
+    VariableDeclaration(const std::string& n, const Type& t, std::unique_ptr<Expression> init, bool explicit_type = false)
+        : name(n), type(t), initializer(std::move(init)), hasExplicitType(explicit_type) {}
     
     void accept(ASTVisitor& visitor) override;
     std::string toString(int indent = 0) const override;

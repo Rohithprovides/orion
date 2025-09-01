@@ -14,14 +14,12 @@ dtype_unknown: .string "datatype: unknown\n"
 main:
     push %rbp
     mov %rsp, %rbp
-    # Variable: a
+    # Chain assignment
     mov $5, %rax
-    mov %rax, -8(%rbp)
-    # Variable: a
-    mov $6, %rax
-    mov %rax, -16(%rbp)
+    mov %rax, -8(%rbp)  # assign to a
+    mov %rax, -16(%rbp)  # assign to b
     # Call out() with variable: a (type: int)
-    mov -16(%rbp), %rsi
+    mov -8(%rbp), %rsi
     mov $format_int, %rdi
     xor %rax, %rax
     call printf

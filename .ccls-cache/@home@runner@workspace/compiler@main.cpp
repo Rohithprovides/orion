@@ -23,8 +23,11 @@ private:
     std::vector<std::string> stringLiterals;
     std::unordered_map<std::string, int> variables; // Variable name -> stack offset
     std::unordered_map<std::string, std::string> variableTypes; // Variable name -> type
+    std::unordered_map<std::string, int> globalVariables; // Global scope backup
+    std::unordered_map<std::string, std::string> globalVariableTypes; // Global scope backup
     int stackOffset = 0;
     int labelCounter = 0;
+    bool inFunctionScope = false;
     
     std::string newLabel(const std::string& prefix = "L") {
         return prefix + std::to_string(labelCounter++);
@@ -95,6 +98,11 @@ public:
     
     void visit(FunctionDeclaration& node) override {
         if (node.name == "main") {
+            // Enter function scope - backup global variables
+            inFunctionScope = true;
+            globalVariables = variables;
+            globalVariableTypes = variableTypes;
+            
             // Generate main function body
             if (node.isSingleExpression) {
                 node.expression->accept(*this);
@@ -103,11 +111,18 @@ public:
                     stmt->accept(*this);
                 }
             }
+            
+            // Exit function scope - restore globals and keep locals as shadows
+            inFunctionScope = false;
         }
     }
     
     void visit(VariableDeclaration& node) override {
-        assembly << "    # Variable: " << node.name << "\n";
+        if (node.isLocal) {
+            assembly << "    # Local Variable: " << node.name << "\n";
+        } else {
+            assembly << "    # Variable: " << node.name << "\n";
+        }
         
         if (node.initializer) {
             // Determine variable type from initializer
@@ -130,11 +145,37 @@ public:
             
             node.initializer->accept(*this);
             
-            // Store variable on stack and track its type
-            stackOffset += 8;
-            variables[node.name] = stackOffset;
-            variableTypes[node.name] = varType;
-            assembly << "    mov %rax, -" << stackOffset << "(%rbp)\n";
+            if (node.isLocal && inFunctionScope) {
+                // Local variable - create new stack location
+                stackOffset += 8;
+                variables[node.name] = stackOffset;
+                variableTypes[node.name] = varType;
+                assembly << "    mov %rax, -" << stackOffset << "(%rbp)\n";
+            } else if (!node.isLocal && inFunctionScope) {
+                // Global assignment from within function - update global variable
+                auto globalIt = globalVariables.find(node.name);
+                if (globalIt != globalVariables.end()) {
+                    // Update existing global variable
+                    assembly << "    mov %rax, -" << globalIt->second << "(%rbp)\n";
+                    globalVariableTypes[node.name] = varType;
+                    variables[node.name] = globalIt->second;
+                    variableTypes[node.name] = varType;
+                } else {
+                    // Create new global variable
+                    stackOffset += 8;
+                    variables[node.name] = stackOffset;
+                    variableTypes[node.name] = varType;
+                    globalVariables[node.name] = stackOffset;
+                    globalVariableTypes[node.name] = varType;
+                    assembly << "    mov %rax, -" << stackOffset << "(%rbp)\n";
+                }
+            } else {
+                // Global scope (outside function)
+                stackOffset += 8;
+                variables[node.name] = stackOffset;
+                variableTypes[node.name] = varType;
+                assembly << "    mov %rax, -" << stackOffset << "(%rbp)\n";
+            }
         }
     }
     

@@ -30,7 +30,6 @@ std::string Token::typeToString() const {
         case TokenType::STRING_TYPE: return "STRING_TYPE";
         case TokenType::BOOL_TYPE: return "BOOL_TYPE";
         case TokenType::VOID: return "VOID";
-        case TokenType::LOCAL: return "LOCAL";
         case TokenType::PLUS: return "PLUS";
         case TokenType::MINUS: return "MINUS";
         case TokenType::MULTIPLY: return "MULTIPLY";
@@ -330,7 +329,6 @@ std::unordered_map<std::string, TokenType> Lexer::keywords = {
     {"string", TokenType::STRING_TYPE},
     {"bool", TokenType::BOOL_TYPE},
     {"void", TokenType::VOID},
-    {"local", TokenType::LOCAL}
 };
 
 } // namespace orion
