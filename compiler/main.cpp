@@ -202,6 +202,8 @@ public:
                         
                         assembly << "    xor %rax, %rax\n";
                         assembly << "    call printf\n";
+                    } else {
+                        throw std::runtime_error("Error: Undefined variable '" + id->name + "'");
                     }
                 } else {
                     // Generic expression
@@ -236,6 +238,8 @@ public:
                             dtypeLabel = "dtype_unknown";
                         }
                         assembly << "    mov $" << dtypeLabel << ", %rax\n";
+                    } else {
+                        throw std::runtime_error("Error: Undefined variable '" + id->name + "'");
                     }
                 }
             }
@@ -267,6 +271,8 @@ public:
         auto it = variables.find(node.name);
         if (it != variables.end()) {
             assembly << "    mov -" << it->second << "(%rbp), %rax\n";
+        } else {
+            throw std::runtime_error("Error: Undefined variable '" + node.name + "'");
         }
     }
     

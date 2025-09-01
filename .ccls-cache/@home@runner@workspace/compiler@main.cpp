@@ -141,6 +141,37 @@ public:
             if (!node.arguments.empty()) {
                 auto& arg = node.arguments[0];
                 
+                // Check if the argument is a dtype() function call
+                if (auto dtypeCall = dynamic_cast<FunctionCall*>(arg.get())) {
+                    if (dtypeCall->name == "dtype" && !dtypeCall->arguments.empty()) {
+                        // Handle dtype() call inside out()
+                        auto dtypeArg = dtypeCall->arguments[0].get();
+                        if (auto id = dynamic_cast<Identifier*>(dtypeArg)) {
+                            auto typeIt = variableTypes.find(id->name);
+                            if (typeIt != variableTypes.end()) {
+                                assembly << "    # Call out(dtype(" << id->name << "))\n";
+                                std::string dtypeLabel;
+                                if (typeIt->second == "int") {
+                                    dtypeLabel = "dtype_int";
+                                } else if (typeIt->second == "string") {
+                                    dtypeLabel = "dtype_string";
+                                } else if (typeIt->second == "bool") {
+                                    dtypeLabel = "dtype_bool";
+                                } else if (typeIt->second == "float") {
+                                    dtypeLabel = "dtype_float";
+                                } else {
+                                    dtypeLabel = "dtype_unknown";
+                                }
+                                assembly << "    mov $" << dtypeLabel << ", %rsi\n";
+                                assembly << "    mov $format_str, %rdi\n";
+                                assembly << "    xor %rax, %rax\n";
+                                assembly << "    call printf\n";
+                            }
+                        }
+                        return;
+                    }
+                }
+                
                 // Check the type of argument to determine format
                 if (auto intLit = dynamic_cast<IntLiteral*>(arg.get())) {
                     assembly << "    # Call out() with integer\n";
@@ -180,6 +211,32 @@ public:
                     assembly << "    mov $format_str, %rdi\n";
                     assembly << "    xor %rax, %rax\n";
                     assembly << "    call printf\n";
+                }
+            }
+        } else if (node.name == "dtype") {
+            // Handle standalone dtype() calls (though typically used inside out())
+            if (!node.arguments.empty()) {
+                auto& arg = node.arguments[0];
+                if (auto id = dynamic_cast<Identifier*>(arg.get())) {
+                    auto typeIt = variableTypes.find(id->name);
+                    if (typeIt != variableTypes.end()) {
+                        assembly << "    # dtype(" << id->name << ") - type: " << typeIt->second << "\n";
+                        // For standalone dtype(), we could return a type indicator
+                        // For now, just put the type string address in %rax
+                        std::string dtypeLabel;
+                        if (typeIt->second == "int") {
+                            dtypeLabel = "dtype_int";
+                        } else if (typeIt->second == "string") {
+                            dtypeLabel = "dtype_string";
+                        } else if (typeIt->second == "bool") {
+                            dtypeLabel = "dtype_bool";
+                        } else if (typeIt->second == "float") {
+                            dtypeLabel = "dtype_float";
+                        } else {
+                            dtypeLabel = "dtype_unknown";
+                        }
+                        assembly << "    mov $" << dtypeLabel << ", %rax\n";
+                    }
                 }
             }
         }

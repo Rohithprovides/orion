@@ -15,10 +15,9 @@ main:
     push %rbp
     mov %rsp, %rbp
     # Variable: a
-    mov $1, %rax
     mov %rax, -8(%rbp)
-    # Call out(dtype(a))
-    mov $dtype_bool, %rsi
+    # Call out() with variable: a (type: unknown)
+    mov -8(%rbp), %rsi
     mov $format_str, %rdi
     xor %rax, %rax
     call printf
