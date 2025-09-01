@@ -14,17 +14,6 @@ dtype_unknown: .string "datatype: unknown\n"
 main:
     push %rbp
     mov %rsp, %rbp
-    # Variable: a
-    mov $5, %rax
-    mov %rax, -8(%rbp)
-    # Variable: b
-    mov -8(%rbp), %rax
-    mov %rax, -16(%rbp)
-    # Call out() with variable: b (type: unknown)
-    mov -16(%rbp), %rsi
-    mov $format_str, %rdi
-    xor %rax, %rax
-    call printf
     mov $0, %rax
     pop %rbp
     ret
