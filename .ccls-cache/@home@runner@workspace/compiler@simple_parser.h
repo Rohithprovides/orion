@@ -184,13 +184,16 @@ private:
                 // Chain assignment detected (a=b=5)
                 auto chainAssign = std::make_unique<ChainAssignment>();
                 
-                // Parse variables before assignments
+                // Parse variables: for "a=b=5", we need [a, b]
                 size_t pos = current;
-                for (size_t assignPos : assignPositions) {
+                for (size_t i = 0; i < assignPositions.size(); i++) {
+                    size_t assignPos = assignPositions[i];
+                    // Get the identifier before this assignment
                     if (pos < assignPos && tokens[pos].type == TokenType::IDENTIFIER) {
                         chainAssign->variables.push_back(tokens[pos].value);
-                        pos = assignPos + 1; // Move past the = sign
                     }
+                    // Move to the position after this = sign for next variable
+                    pos = assignPos + 1;
                 }
                 
                 // Move current to the last assignment position + 1 (the value)

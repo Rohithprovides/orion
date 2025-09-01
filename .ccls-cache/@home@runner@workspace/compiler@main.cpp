@@ -54,6 +54,11 @@ public:
         fullAssembly << ".section .data\n";
         fullAssembly << "format_int: .string \"%d\\n\"\n";
         fullAssembly << "format_str: .string \"%s\\n\"\n";
+        fullAssembly << "dtype_int: .string \"datatype: int\\n\"\n";
+        fullAssembly << "dtype_string: .string \"datatype: string\\n\"\n";
+        fullAssembly << "dtype_bool: .string \"datatype: bool\\n\"\n";
+        fullAssembly << "dtype_float: .string \"datatype: float\\n\"\n";
+        fullAssembly << "dtype_unknown: .string \"datatype: unknown\\n\"\n";
         
         // String literals
         for (size_t i = 0; i < stringLiterals.size(); i++) {
