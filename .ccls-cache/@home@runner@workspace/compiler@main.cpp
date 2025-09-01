@@ -296,26 +296,37 @@ public:
 private:
     void generateAssignment(const SimpleOrionParser::ParsedStatement& stmt, int& stringCounter) {
         assembly << "\n    # Assignment: " << stmt.variable << " = " << stmt.value << "\n";
-        variables[stmt.variable] = stmt.value;
         
-        if (!stmt.value.empty() && stmt.value.front() == '"' && stmt.value.back() == '"') {
+        // Resolve the value - check if it's a variable reference first
+        std::string resolvedValue = stmt.value;
+        auto it = variables.find(stmt.value);
+        if (it != variables.end()) {
+            // Variable reference - use its value
+            resolvedValue = it->second;
+            assembly << "    # Resolving variable reference: " << stmt.value << " -> " << resolvedValue << "\n";
+        }
+        
+        // Store the resolved value
+        variables[stmt.variable] = resolvedValue;
+        
+        if (!resolvedValue.empty() && resolvedValue.front() == '"' && resolvedValue.back() == '"') {
             // String assignment - store reference to string literal
             assembly << "    mov $str" << stringCounter << ", %rax\n";
             assembly << "    # Store string reference for " << stmt.variable << "\n";
             stringCounter++;
-        } else if (std::all_of(stmt.value.begin(), stmt.value.end(), ::isdigit) || 
-                   (stmt.value[0] == '-' && std::all_of(stmt.value.begin() + 1, stmt.value.end(), ::isdigit))) {
+        } else if (std::all_of(resolvedValue.begin(), resolvedValue.end(), ::isdigit) || 
+                   (resolvedValue[0] == '-' && std::all_of(resolvedValue.begin() + 1, resolvedValue.end(), ::isdigit))) {
             // Integer assignment
-            assembly << "    mov $" << stmt.value << ", %rax\n";
-            assembly << "    # Store integer " << stmt.value << " for " << stmt.variable << "\n";
-        } else if (stmt.value.find('.') != std::string::npos) {
+            assembly << "    mov $" << resolvedValue << ", %rax\n";
+            assembly << "    # Store integer " << resolvedValue << " for " << stmt.variable << "\n";
+        } else if (resolvedValue.find('.') != std::string::npos) {
             // Float assignment - store as integer representation for now
-            assembly << "    mov $0, %rax  # Float " << stmt.value << " (stored as 0 for now)\n";
-            assembly << "    # Store float " << stmt.value << " for " << stmt.variable << "\n";
-        } else if (stmt.value == "True" || stmt.value == "true") {
+            assembly << "    mov $0, %rax  # Float " << resolvedValue << " (stored as 0 for now)\n";
+            assembly << "    # Store float " << resolvedValue << " for " << stmt.variable << "\n";
+        } else if (resolvedValue == "True" || resolvedValue == "true") {
             assembly << "    mov $1, %rax\n";
             assembly << "    # Store boolean True for " << stmt.variable << "\n";
-        } else if (stmt.value == "False" || stmt.value == "false") {
+        } else if (resolvedValue == "False" || resolvedValue == "false") {
             assembly << "    mov $0, %rax\n";
             assembly << "    # Store boolean False for " << stmt.variable << "\n";
         }

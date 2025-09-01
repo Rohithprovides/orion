@@ -26,11 +26,14 @@ public:
     SimpleOrionParser(const std::string& src) : source(src) {}
     
     struct ParsedStatement {
-        enum Type { ASSIGNMENT, OUTPUT, DTYPE_CALL };
+        enum Type { ASSIGNMENT, OUTPUT, DTYPE_CALL, TUPLE_ASSIGNMENT };
         Type type;
         std::string variable;
         std::string value;
         std::vector<std::string> args;
+        // For tuple assignment
+        std::vector<std::string> leftVars;
+        std::vector<std::string> rightVars;
     };
     
     std::vector<ParsedStatement> parse() {
@@ -49,26 +52,45 @@ public:
             
             if (line.empty()) continue;
             
-            // Parse variable assignment (a = 5)
+            // Parse assignments
             size_t assignPos = line.find('=');
             if (assignPos != std::string::npos) {
-                ParsedStatement stmt;
-                stmt.type = ParsedStatement::ASSIGNMENT;
+                std::string leftSide = line.substr(0, assignPos);
+                leftSide.erase(leftSide.find_last_not_of(" \t") + 1);
                 
-                std::string var = line.substr(0, assignPos);
-                var.erase(var.find_last_not_of(" \t") + 1);
-                
-                std::string val = line.substr(assignPos + 1);
-                val.erase(0, val.find_first_not_of(" \t"));
-                if (!val.empty() && val.back() == ';') {
-                    val.pop_back();
-                    val.erase(val.find_last_not_of(" \t") + 1);
+                std::string rightSide = line.substr(assignPos + 1);
+                rightSide.erase(0, rightSide.find_first_not_of(" \t"));
+                if (!rightSide.empty() && rightSide.back() == ';') {
+                    rightSide.pop_back();
+                    rightSide.erase(rightSide.find_last_not_of(" \t") + 1);
                 }
                 
-                stmt.variable = var;
-                stmt.value = val;
-                statements.push_back(stmt);
-                continue;
+                // Check for tuple assignment: (a,b) = (b,a)
+                if (leftSide.front() == '(' && leftSide.back() == ')' && 
+                    rightSide.front() == '(' && rightSide.back() == ')') {
+                    ParsedStatement stmt;
+                    stmt.type = ParsedStatement::TUPLE_ASSIGNMENT;
+                    
+                    // Parse left side variables
+                    std::string leftVars = leftSide.substr(1, leftSide.length() - 2);
+                    parseTupleVariables(leftVars, stmt.leftVars);
+                    
+                    // Parse right side variables
+                    std::string rightVars = rightSide.substr(1, rightSide.length() - 2);
+                    parseTupleVariables(rightVars, stmt.rightVars);
+                    
+                    statements.push_back(stmt);
+                    continue;
+                } else {
+                    // Regular variable assignment (a = 5)
+                    ParsedStatement stmt;
+                    stmt.type = ParsedStatement::ASSIGNMENT;
+                    
+                    stmt.variable = leftSide;
+                    stmt.value = rightSide;
+                    statements.push_back(stmt);
+                    continue;
+                }
             }
             
             // Parse out() calls
@@ -155,6 +177,29 @@ public:
     }
     
 private:
+    void parseTupleVariables(const std::string& varStr, std::vector<std::string>& vars) {
+        std::string var;
+        for (size_t i = 0; i < varStr.length(); i++) {
+            char c = varStr[i];
+            if (c == ',') {
+                // End current variable
+                var.erase(0, var.find_first_not_of(" \t"));
+                var.erase(var.find_last_not_of(" \t") + 1);
+                if (!var.empty()) {
+                    vars.push_back(var);
+                }
+                var.clear();
+            } else {
+                var += c;
+            }
+        }
+        // Add final variable
+        var.erase(0, var.find_first_not_of(" \t"));
+        var.erase(var.find_last_not_of(" \t") + 1);
+        if (!var.empty()) {
+            vars.push_back(var);
+        }
+    }
     std::string preprocessOrionSyntax(const std::string& source) {
         std::string processed = source;
         
@@ -281,6 +326,9 @@ public:
                     break;
                 case SimpleOrionParser::ParsedStatement::DTYPE_CALL:
                     generateDtype(stmt);
+                    break;
+                case SimpleOrionParser::ParsedStatement::TUPLE_ASSIGNMENT:
+                    generateTupleAssignment(stmt);
                     break;
             }
         }
@@ -426,6 +474,42 @@ private:
         assembly << "    mov $type_" << type << ", %rsi\n";
         assembly << "    xor %rax, %rax\n";
         assembly << "    call printf\n";
+    }
+    
+    void generateTupleAssignment(const SimpleOrionParser::ParsedStatement& stmt) {
+        assembly << "\n    # Tuple assignment: (";
+        for (size_t i = 0; i < stmt.leftVars.size(); i++) {
+            if (i > 0) assembly << ", ";
+            assembly << stmt.leftVars[i];
+        }
+        assembly << ") = (";
+        for (size_t i = 0; i < stmt.rightVars.size(); i++) {
+            if (i > 0) assembly << ", ";
+            assembly << stmt.rightVars[i];
+        }
+        assembly << ")\n";
+        
+        // Perform the variable swapping
+        if (stmt.leftVars.size() == stmt.rightVars.size()) {
+            // Store old values temporarily
+            std::vector<std::string> tempValues;
+            for (size_t i = 0; i < stmt.rightVars.size(); i++) {
+                auto it = variables.find(stmt.rightVars[i]);
+                if (it != variables.end()) {
+                    tempValues.push_back(it->second);
+                    assembly << "    # Temp store " << stmt.rightVars[i] << " = " << it->second << "\n";
+                } else {
+                    tempValues.push_back(stmt.rightVars[i]); // Direct value if not a variable
+                    assembly << "    # Temp store literal " << stmt.rightVars[i] << "\n";
+                }
+            }
+            
+            // Assign new values
+            for (size_t i = 0; i < stmt.leftVars.size(); i++) {
+                variables[stmt.leftVars[i]] = tempValues[i];
+                assembly << "    # Set " << stmt.leftVars[i] << " = " << tempValues[i] << "\n";
+            }
+        }
     }
 };
 
