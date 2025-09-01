@@ -1,7 +1,6 @@
 .section .data
 format_int: .string "%d\n"
 format_str: .string "%s\n"
-str_0: .string "5\n"
 
 .section .text
 .global main
@@ -11,11 +10,23 @@ main:
     push %rbp
     mov %rsp, %rbp
     # Variable: a
-    mov $str_0, %rax
+    mov $5, %rax
     mov %rax, -8(%rbp)
-    # Call out() with variable: a (type: string)
+    # Variable: b
+    mov $6, %rax
+    mov %rax, -16(%rbp)
+    # Tuple assignment
+    mov -16(%rbp), %rax
+    mov %rax, -24(%rbp)  # temp 0
+    mov -8(%rbp), %rax
+    mov %rax, -32(%rbp)  # temp 1
+    mov -24(%rbp), %rax  # load temp 0
+    mov %rax, -8(%rbp)  # assign to a
+    mov -32(%rbp), %rax  # load temp 1
+    mov %rax, -16(%rbp)  # assign to b
+    # Call out() with variable: a (type: int)
     mov -8(%rbp), %rsi
-    mov $format_str, %rdi
+    mov $format_int, %rdi
     xor %rax, %rax
     call printf
     mov $0, %rax

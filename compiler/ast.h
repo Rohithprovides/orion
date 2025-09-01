@@ -260,6 +260,17 @@ public:
     std::string toString(int indent = 0) const override;
 };
 
+// Chain assignment for a=b=5 syntax
+class ChainAssignment : public Statement {
+public:
+    std::vector<std::string> variables;  // variables to assign to (a, b)
+    std::unique_ptr<Expression> value;   // value to assign (5)
+    
+    ChainAssignment() {}
+    void accept(ASTVisitor& visitor) override;
+    std::string toString(int indent = 0) const override;
+};
+
 // Return statement
 class ReturnStatement : public Statement {
 public:
@@ -384,6 +395,7 @@ public:
     virtual void visit(BlockStatement& node) = 0;
     virtual void visit(ExpressionStatement& node) = 0;
     virtual void visit(TupleAssignment& node) = 0;
+    virtual void visit(ChainAssignment& node) = 0;
     virtual void visit(ReturnStatement& node) = 0;
     virtual void visit(IfStatement& node) = 0;
     virtual void visit(WhileStatement& node) = 0;

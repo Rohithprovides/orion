@@ -163,10 +163,46 @@ private:
     }
 
     std::unique_ptr<Statement> parseVariableDeclarationOrExpression() {
-        // Simple variable assignment: name = value
+        // Check for chain assignment: a=b=5
         if (check(TokenType::IDENTIFIER)) {
-            size_t lookahead = current + 1;
-            if (lookahead < tokens.size() && tokens[lookahead].type == TokenType::ASSIGN) {
+            // Scan ahead to detect chain assignment pattern
+            std::vector<size_t> assignPositions;
+            size_t lookahead = current;
+            
+            while (lookahead < tokens.size()) {
+                if (tokens[lookahead].type == TokenType::ASSIGN) {
+                    assignPositions.push_back(lookahead);
+                } else if (tokens[lookahead].type == TokenType::NEWLINE || 
+                          tokens[lookahead].type == TokenType::SEMICOLON ||
+                          tokens[lookahead].type == TokenType::EOF_TOKEN) {
+                    break;
+                }
+                lookahead++;
+            }
+            
+            if (assignPositions.size() > 1) {
+                // Chain assignment detected (a=b=5)
+                auto chainAssign = std::make_unique<ChainAssignment>();
+                
+                // Parse variables: for "a=b=5", we need [a, b]
+                size_t pos = current;
+                for (size_t i = 0; i < assignPositions.size(); i++) {
+                    size_t assignPos = assignPositions[i];
+                    // Get the identifier before this assignment
+                    if (pos < assignPos && tokens[pos].type == TokenType::IDENTIFIER) {
+                        chainAssign->variables.push_back(tokens[pos].value);
+                    }
+                    // Move to the position after this = sign for next variable
+                    pos = assignPos + 1;
+                }
+                
+                // Move current to the last assignment position + 1 (the value)
+                current = assignPositions.back() + 1;
+                chainAssign->value = parseExpression();
+                
+                return std::move(chainAssign);
+            } else if (assignPositions.size() == 1) {
+                // Simple variable assignment: name = value
                 std::string varName = advance().value;
                 advance(); // consume '='
                 

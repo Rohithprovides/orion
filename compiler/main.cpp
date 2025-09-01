@@ -247,6 +247,39 @@ public:
         }
     }
 
+    void visit(ChainAssignment& node) override {
+        assembly << "    # Chain assignment\n";
+        
+        // Evaluate the value expression
+        node.value->accept(*this);
+        
+        // Assign to all variables in the chain
+        for (const auto& varName : node.variables) {
+            // Check if variable already exists, if not create it
+            auto it = variables.find(varName);
+            if (it == variables.end()) {
+                // Create new variable
+                stackOffset += 8;
+                variables[varName] = stackOffset;
+                
+                // Determine type from the value expression
+                std::string varType = "unknown";
+                if (auto intLit = dynamic_cast<IntLiteral*>(node.value.get())) {
+                    varType = "int";
+                } else if (auto strLit = dynamic_cast<StringLiteral*>(node.value.get())) {
+                    varType = "string";
+                } else if (auto boolLit = dynamic_cast<BoolLiteral*>(node.value.get())) {
+                    varType = "bool";
+                } else if (auto floatLit = dynamic_cast<FloatLiteral*>(node.value.get())) {
+                    varType = "float";
+                }
+                variableTypes[varName] = varType;
+            }
+            
+            assembly << "    mov %rax, -" << variables[varName] << "(%rbp)  # assign to " << varName << "\n";
+        }
+    }
+
     // Stub implementations for other visitors
     void visit(FloatLiteral& node) override { assembly << "    # Float: " << node.value << "\n"; }
     void visit(BoolLiteral& node) override { assembly << "    mov $" << (node.value ? 1 : 0) << ", %rax\n"; }

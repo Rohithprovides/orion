@@ -159,6 +159,24 @@ std::string TupleAssignment::toString(int indent) const {
     return result;
 }
 
+void ChainAssignment::accept(ASTVisitor& visitor) {
+    visitor.visit(*this);
+}
+
+std::string ChainAssignment::toString(int indent) const {
+    std::string indentStr(indent, ' ');
+    std::string result = indentStr + "ChainAssignment:\n";
+    result += indentStr + "  Variables: ";
+    for (size_t i = 0; i < variables.size(); i++) {
+        if (i > 0) result += ", ";
+        result += variables[i];
+    }
+    result += "\n";
+    result += indentStr + "  Value:\n";
+    result += value->toString(indent + 4);
+    return result;
+}
+
 void ReturnStatement::accept(ASTVisitor& visitor) {
     visitor.visit(*this);
 }
