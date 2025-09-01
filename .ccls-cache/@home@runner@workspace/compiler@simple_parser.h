@@ -59,6 +59,11 @@ private:
     }
     
     std::unique_ptr<Statement> parseStatement() {
+        // Check for tuple assignment first
+        if (check(TokenType::LPAREN)) {
+            return parseTupleAssignmentOrExpression();
+        }
+        
         // Function declaration (fn name() { ... })
         if (check(TokenType::IDENTIFIER) && tokens[current].value == "fn") {
             return parseFunctionDeclaration();
@@ -114,6 +119,49 @@ private:
         return func;
     }
     
+    std::unique_ptr<Statement> parseTupleAssignmentOrExpression() {
+        // Parse what looks like a tuple
+        auto tupleExpr = parseExpression();
+        
+        // Check if it's followed by assignment
+        if (check(TokenType::ASSIGN)) {
+            advance(); // consume '='
+            
+            // This is a tuple assignment
+            auto assignment = std::make_unique<TupleAssignment>();
+            
+            // Extract targets from the tuple expression
+            if (auto tuple = dynamic_cast<TupleExpression*>(tupleExpr.get())) {
+                // Move elements from tuple to assignment targets
+                for (auto& element : tuple->elements) {
+                    assignment->targets.push_back(std::move(element));
+                }
+                tupleExpr.release(); // We've moved the contents
+            } else {
+                // Single target (not actually a tuple)
+                assignment->targets.push_back(std::move(tupleExpr));
+            }
+            
+            // Parse right side - could be a tuple or single expression
+            auto rightExpr = parseExpression();
+            if (auto rightTuple = dynamic_cast<TupleExpression*>(rightExpr.get())) {
+                // Move elements from right tuple to assignment values
+                for (auto& element : rightTuple->elements) {
+                    assignment->values.push_back(std::move(element));
+                }
+                rightExpr.release(); // We've moved the contents
+            } else {
+                // Single value
+                assignment->values.push_back(std::move(rightExpr));
+            }
+            
+            return std::move(assignment);
+        } else {
+            // Not an assignment, just a regular expression statement
+            return std::make_unique<ExpressionStatement>(std::move(tupleExpr));
+        }
+    }
+
     std::unique_ptr<Statement> parseVariableDeclarationOrExpression() {
         // Simple variable assignment: name = value
         if (check(TokenType::IDENTIFIER)) {
@@ -179,6 +227,42 @@ private:
         if (check(TokenType::TRUE) || check(TokenType::FALSE)) {
             bool value = (advance().value == "True" || advance().value == "true");
             return std::make_unique<BoolLiteral>(value);
+        }
+        
+        if (check(TokenType::LPAREN)) {
+            advance(); // consume '('
+            
+            // Check if this is a tuple or just a parenthesized expression
+            auto firstExpr = parseExpression();
+            
+            if (check(TokenType::COMMA)) {
+                // This is a tuple
+                auto tuple = std::make_unique<TupleExpression>();
+                tuple->elements.push_back(std::move(firstExpr));
+                
+                do {
+                    advance(); // consume ','
+                    tuple->elements.push_back(parseExpression());
+                } while (check(TokenType::COMMA));
+                
+                if (!check(TokenType::RPAREN)) {
+                    throw std::runtime_error("Expected ')' after tuple");
+                }
+                advance(); // consume ')'
+                return std::move(tuple);
+            } else {
+                // Just a parenthesized expression
+                if (!check(TokenType::RPAREN)) {
+                    throw std::runtime_error("Expected ')' after expression");
+                }
+                advance(); // consume ')'
+                return firstExpr;
+            }
+        }
+        
+        if (check(TokenType::IDENTIFIER)) {
+            std::string varName = advance().value;
+            return std::make_unique<Identifier>(varName);
         }
         
         throw std::runtime_error("Unexpected token in expression");

@@ -97,6 +97,11 @@ private:
                 }
             }
             
+            // Check for tuple assignment
+            if (check(TokenType::LPAREN)) {
+                return parseTupleAssignmentOrExpression();
+            }
+            
             // Other statements
             if (match({TokenType::STRUCT})) return parseStructDeclaration();
             if (match({TokenType::ENUM})) return parseEnumDeclaration();
@@ -213,6 +218,49 @@ private:
         }
         
         throw std::runtime_error("Invalid variable declaration syntax");
+    }
+    
+    std::unique_ptr<Statement> parseTupleAssignmentOrExpression() {
+        // Parse what looks like a tuple
+        auto tupleExpr = parseExpression();
+        
+        // Check if it's followed by assignment
+        if (match({TokenType::ASSIGN})) {
+            // This is a tuple assignment
+            auto assignment = std::make_unique<TupleAssignment>();
+            
+            // Extract targets from the tuple expression
+            if (auto tuple = dynamic_cast<TupleExpression*>(tupleExpr.get())) {
+                // Move elements from tuple to assignment targets
+                for (auto& element : tuple->elements) {
+                    assignment->targets.push_back(std::move(element));
+                }
+                tupleExpr.release(); // We've moved the contents
+            } else {
+                // Single target (not actually a tuple)
+                assignment->targets.push_back(std::move(tupleExpr));
+            }
+            
+            // Parse right side - could be a tuple or single expression
+            auto rightExpr = parseExpression();
+            if (auto rightTuple = dynamic_cast<TupleExpression*>(rightExpr.get())) {
+                // Move elements from right tuple to assignment values
+                for (auto& element : rightTuple->elements) {
+                    assignment->values.push_back(std::move(element));
+                }
+                rightExpr.release(); // We've moved the contents
+            } else {
+                // Single value
+                assignment->values.push_back(std::move(rightExpr));
+            }
+            
+            match({TokenType::NEWLINE, TokenType::SEMICOLON}); // Optional terminator
+            return std::move(assignment);
+        } else {
+            // Not an assignment, just a regular expression statement
+            match({TokenType::NEWLINE, TokenType::SEMICOLON}); // Optional terminator
+            return std::make_unique<ExpressionStatement>(std::move(tupleExpr));
+        }
     }
     
     std::unique_ptr<Statement> parseStructDeclaration() {
@@ -488,9 +536,25 @@ private:
         }
         
         if (match({TokenType::LPAREN})) {
-            auto expr = parseExpression();
-            consume(TokenType::RPAREN, "Expected ')' after expression");
-            return expr;
+            // Check if this is a tuple or just a parenthesized expression
+            auto firstExpr = parseExpression();
+            
+            if (match({TokenType::COMMA})) {
+                // This is a tuple
+                auto tuple = std::make_unique<TupleExpression>();
+                tuple->elements.push_back(std::move(firstExpr));
+                
+                do {
+                    tuple->elements.push_back(parseExpression());
+                } while (match({TokenType::COMMA}));
+                
+                consume(TokenType::RPAREN, "Expected ')' after tuple");
+                return std::move(tuple);
+            } else {
+                // Just a parenthesized expression
+                consume(TokenType::RPAREN, "Expected ')' after expression");
+                return firstExpr;
+            }
         }
         
         throw std::runtime_error("Unexpected token in expression: " + peek().value);

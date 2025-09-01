@@ -12,14 +12,14 @@ main:
     # Variable: a
     mov $10, %rax
     mov %rax, -8(%rbp)
+    # Variable: b
+    mov $20, %rax
+    mov %rax, -16(%rbp)
     # Call out() with variable: a (type: int)
     mov -8(%rbp), %rsi
     mov $format_int, %rdi
     xor %rax, %rax
     call printf
-    # Variable: b
-    mov $20, %rax
-    mov %rax, -16(%rbp)
     # Call out() with variable: b (type: int)
     mov -16(%rbp), %rsi
     mov $format_int, %rdi
