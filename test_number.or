@@ -1,0 +1,6 @@
+fn main() {
+    number = 42
+    text = "The answer is"
+    out(text)
+    out(number)
+}

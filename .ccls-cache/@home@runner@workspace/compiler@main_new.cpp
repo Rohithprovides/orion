@@ -1,6 +1,5 @@
 #include "ast.h"
 #include "lexer.h"
-#include "simple_parser.h"
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -14,6 +13,50 @@
 
 namespace orion {
 
+// Forward declaration of Parser class from parser.cpp
+class Parser {
+private:
+    std::vector<Token> tokens;
+    size_t current;
+    
+public:
+    Parser(const std::vector<Token>& toks) : tokens(toks), current(0) {}
+    std::unique_ptr<Program> parse();
+    
+private:
+    bool isAtEnd() const;
+    const Token& peek() const;
+    Token advance();
+    bool check(TokenType type) const;
+    bool match(std::initializer_list<TokenType> types);
+    Token consume(TokenType type, const std::string& message);
+    std::unique_ptr<Statement> parseStatement();
+    std::unique_ptr<Statement> parseVariableDeclarationOrExpression();
+    std::unique_ptr<VariableDeclaration> parseVariableDeclaration();
+    std::unique_ptr<FunctionDeclaration> parseFunctionDeclaration();
+    std::unique_ptr<Statement> parseIfStatement();
+    std::unique_ptr<Statement> parseWhileStatement();
+    std::unique_ptr<Statement> parseForStatement();
+    std::unique_ptr<Statement> parseReturnStatement();
+    std::unique_ptr<Statement> parseBlockStatement();
+    std::unique_ptr<Statement> parseStructDeclaration();
+    std::unique_ptr<Statement> parseEnumDeclaration();
+    std::unique_ptr<Expression> parseExpression();
+    std::unique_ptr<Expression> parseAssignment();
+    std::unique_ptr<Expression> parseLogicalOr();
+    std::unique_ptr<Expression> parseLogicalAnd();
+    std::unique_ptr<Expression> parseEquality();
+    std::unique_ptr<Expression> parseComparison();
+    std::unique_ptr<Expression> parseTerm();
+    std::unique_ptr<Expression> parseFactor();
+    std::unique_ptr<Expression> parseUnary();
+    std::unique_ptr<Expression> parseCall();
+    std::unique_ptr<Expression> parsePrimary();
+    Type parseType();
+    bool isTypeKeyword(TokenType type) const;
+    Type tokenToType(TokenType type, const std::string& value);
+    void synchronize();
+};
 
 // Simplified Code Generator for basic functionality
 class SimpleCodeGenerator : public ASTVisitor {
@@ -119,41 +162,14 @@ public:
         if (node.name == "out") {
             // Handle out() function calls
             if (!node.arguments.empty()) {
-                auto& arg = node.arguments[0];
+                node.arguments[0]->accept(*this);
                 
-                // Check the type of argument to determine format
-                if (auto intLit = dynamic_cast<IntLiteral*>(arg.get())) {
-                    assembly << "    # Call out() with integer\n";
-                    assembly << "    mov $" << intLit->value << ", %rsi\n";
-                    assembly << "    mov $format_int, %rdi\n";
-                    assembly << "    xor %rax, %rax\n";
-                    assembly << "    call printf\n";
-                } else if (auto strLit = dynamic_cast<StringLiteral*>(arg.get())) {
-                    int index = addStringLiteral(strLit->value);
-                    assembly << "    # Call out() with string\n";
-                    assembly << "    mov $str_" << index << ", %rsi\n";
-                    assembly << "    mov $format_str, %rdi\n";
-                    assembly << "    xor %rax, %rax\n";
-                    assembly << "    call printf\n";
-                } else if (auto id = dynamic_cast<Identifier*>(arg.get())) {
-                    // Variable reference - assume string for now
-                    auto it = variables.find(id->name);
-                    if (it != variables.end()) {
-                        assembly << "    # Call out() with variable: " << id->name << "\n";
-                        assembly << "    mov -" << it->second << "(%rbp), %rsi\n";
-                        assembly << "    mov $format_str, %rdi\n";
-                        assembly << "    xor %rax, %rax\n";
-                        assembly << "    call printf\n";
-                    }
-                } else {
-                    // Generic expression
-                    arg->accept(*this);
-                    assembly << "    # Call out() with expression result\n";
-                    assembly << "    mov %rax, %rsi\n";
-                    assembly << "    mov $format_str, %rdi\n";
-                    assembly << "    xor %rax, %rax\n";
-                    assembly << "    call printf\n";
-                }
+                // Check if it's a string or integer
+                assembly << "    # Call out() function\n";
+                assembly << "    mov %rax, %rsi\n";
+                assembly << "    mov $format_str, %rdi\n";
+                assembly << "    xor %rax, %rax\n";
+                assembly << "    call printf\n";
             }
         }
     }
@@ -205,7 +221,6 @@ public:
     void visit(EnumDeclaration& node) override { }
 };
 
-
 } // namespace orion
 
 // Compiler main function
@@ -234,7 +249,7 @@ int main(int argc, char* argv[]) {
         auto tokens = lexer.tokenize();
         
         // Step 2: Parsing
-        orion::SimpleOrionParser parser(tokens);
+        orion::Parser parser(tokens);
         auto ast = parser.parse();
         
         // Step 3: Code generation

@@ -1,0 +1,4 @@
+fn main() {
+    greeting = "Hello, World!"
+    out(greeting)
+}
