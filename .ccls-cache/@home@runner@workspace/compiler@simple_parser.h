@@ -163,13 +163,6 @@ private:
     }
 
     std::unique_ptr<Statement> parseVariableDeclarationOrExpression() {
-        // Check for local keyword first
-        bool isLocal = false;
-        if (check(TokenType::LOCAL)) {
-            advance(); // consume 'local'
-            isLocal = true;
-        }
-        
         // Check for chain assignment: a=b=5
         if (check(TokenType::IDENTIFIER)) {
             // Scan ahead to detect chain assignment pattern
@@ -214,13 +207,8 @@ private:
                 advance(); // consume '='
                 
                 auto init = parseExpression();
-                return std::make_unique<VariableDeclaration>(varName, Type(), std::move(init), false, isLocal);
+                return std::make_unique<VariableDeclaration>(varName, Type(), std::move(init), false);
             }
-        }
-        
-        // If we consumed 'local' but didn't find a valid pattern, error
-        if (isLocal) {
-            throw std::runtime_error("Expected variable declaration after 'local' keyword");
         }
         
         // Expression statement

@@ -130,11 +130,19 @@ public:
             
             node.initializer->accept(*this);
             
-            // Simple variable assignment without scoping
-            stackOffset += 8;
-            variables[node.name] = stackOffset;
-            variableTypes[node.name] = varType;
-            assembly << "    mov %rax, -" << stackOffset << "(%rbp)\n";
+            // Check if variable already exists
+            auto it = variables.find(node.name);
+            if (it != variables.end()) {
+                // Variable exists, update it
+                assembly << "    mov %rax, -" << it->second << "(%rbp)\n";
+                variableTypes[node.name] = varType;
+            } else {
+                // New variable, create stack space
+                stackOffset += 8;
+                variables[node.name] = stackOffset;
+                variableTypes[node.name] = varType;
+                assembly << "    mov %rax, -" << stackOffset << "(%rbp)\n";
+            }
         }
     }
     
@@ -344,6 +352,19 @@ public:
                 variables[varName] = stackOffset;
                 
                 // Determine type from the value expression
+                std::string varType = "unknown";
+                if (auto intLit = dynamic_cast<IntLiteral*>(node.value.get())) {
+                    varType = "int";
+                } else if (auto strLit = dynamic_cast<StringLiteral*>(node.value.get())) {
+                    varType = "string";
+                } else if (auto boolLit = dynamic_cast<BoolLiteral*>(node.value.get())) {
+                    varType = "bool";
+                } else if (auto floatLit = dynamic_cast<FloatLiteral*>(node.value.get())) {
+                    varType = "float";
+                }
+                variableTypes[varName] = varType;
+            } else {
+                // Variable exists, update its type
                 std::string varType = "unknown";
                 if (auto intLit = dynamic_cast<IntLiteral*>(node.value.get())) {
                     varType = "int";
