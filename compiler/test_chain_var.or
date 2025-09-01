@@ -1,0 +1,4 @@
+x=7
+a=b=x
+out(a)
+out(b)

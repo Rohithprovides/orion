@@ -1,0 +1,6 @@
+fn main() {
+    a=b=c=10
+    out(a)
+    out(b)
+    out(c)
+}

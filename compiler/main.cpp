@@ -26,7 +26,7 @@ public:
     SimpleOrionParser(const std::string& src) : source(src) {}
     
     struct ParsedStatement {
-        enum Type { ASSIGNMENT, OUTPUT, DTYPE_CALL, TUPLE_ASSIGNMENT };
+        enum Type { ASSIGNMENT, OUTPUT, DTYPE_CALL, TUPLE_ASSIGNMENT, CHAINED_ASSIGNMENT };
         Type type;
         std::string variable;
         std::string value;
@@ -34,6 +34,8 @@ public:
         // For tuple assignment
         std::vector<std::string> leftVars;
         std::vector<std::string> rightVars;
+        // For chained assignment
+        std::vector<std::string> chainedVars;
     };
     
     std::vector<ParsedStatement> parse() {
@@ -55,6 +57,58 @@ public:
             // Parse assignments
             size_t assignPos = line.find('=');
             if (assignPos != std::string::npos) {
+                // Check for chained assignment (a=b=5)
+                std::vector<size_t> assignPositions;
+                for (size_t i = 0; i < line.length(); i++) {
+                    if (line[i] == '=') {
+                        assignPositions.push_back(i);
+                    }
+                }
+                
+                if (assignPositions.size() > 1) {
+                    // Chained assignment detected
+                    ParsedStatement stmt;
+                    stmt.type = ParsedStatement::CHAINED_ASSIGNMENT;
+                    
+                    // Extract variables (everything before the last =)
+                    size_t lastAssignPos = assignPositions.back();
+                    std::string varsString = line.substr(0, lastAssignPos);
+                    
+                    // Extract value (everything after the last =)
+                    std::string value = line.substr(lastAssignPos + 1);
+                    value.erase(0, value.find_first_not_of(" \t"));
+                    if (!value.empty() && value.back() == ';') {
+                        value.pop_back();
+                        value.erase(value.find_last_not_of(" \t") + 1);
+                    }
+                    stmt.value = value;
+                    
+                    // Parse chained variables (split by =)
+                    std::string var;
+                    for (size_t i = 0; i < varsString.length(); i++) {
+                        char c = varsString[i];
+                        if (c == '=') {
+                            var.erase(0, var.find_first_not_of(" \t"));
+                            var.erase(var.find_last_not_of(" \t") + 1);
+                            if (!var.empty()) {
+                                stmt.chainedVars.push_back(var);
+                            }
+                            var.clear();
+                        } else {
+                            var += c;
+                        }
+                    }
+                    // Add final variable
+                    var.erase(0, var.find_first_not_of(" \t"));
+                    var.erase(var.find_last_not_of(" \t") + 1);
+                    if (!var.empty()) {
+                        stmt.chainedVars.push_back(var);
+                    }
+                    
+                    statements.push_back(stmt);
+                    continue;
+                }
+                
                 std::string leftSide = line.substr(0, assignPos);
                 leftSide.erase(leftSide.find_last_not_of(" \t") + 1);
                 
@@ -330,6 +384,9 @@ public:
                 case SimpleOrionParser::ParsedStatement::TUPLE_ASSIGNMENT:
                     generateTupleAssignment(stmt);
                     break;
+                case SimpleOrionParser::ParsedStatement::CHAINED_ASSIGNMENT:
+                    generateChainedAssignment(stmt, stringCounter);
+                    break;
             }
         }
         
@@ -509,6 +566,56 @@ private:
                 variables[stmt.leftVars[i]] = tempValues[i];
                 assembly << "    # Set " << stmt.leftVars[i] << " = " << tempValues[i] << "\n";
             }
+        }
+    }
+    
+    void generateChainedAssignment(const SimpleOrionParser::ParsedStatement& stmt, int& stringCounter) {
+        assembly << "\n    # Chained assignment: ";
+        for (size_t i = 0; i < stmt.chainedVars.size(); i++) {
+            if (i > 0) assembly << "=";
+            assembly << stmt.chainedVars[i];
+        }
+        assembly << "=" << stmt.value << "\n";
+        
+        // Resolve the value - check if it's a variable reference first
+        std::string resolvedValue = stmt.value;
+        auto it = variables.find(stmt.value);
+        if (it != variables.end()) {
+            // Variable reference - use its value
+            resolvedValue = it->second;
+            assembly << "    # Resolving variable reference: " << stmt.value << " -> " << resolvedValue << "\n";
+        }
+        
+        // Assign the resolved value to all chained variables
+        for (const auto& var : stmt.chainedVars) {
+            variables[var] = resolvedValue;
+            assembly << "    # Set " << var << " = " << resolvedValue << "\n";
+            
+            if (!resolvedValue.empty() && resolvedValue.front() == '"' && resolvedValue.back() == '"') {
+                // String assignment - store reference to string literal
+                assembly << "    mov $str" << stringCounter << ", %rax\n";
+                assembly << "    # Store string reference for " << var << "\n";
+            } else if (std::all_of(resolvedValue.begin(), resolvedValue.end(), ::isdigit) || 
+                       (resolvedValue[0] == '-' && std::all_of(resolvedValue.begin() + 1, resolvedValue.end(), ::isdigit))) {
+                // Integer assignment
+                assembly << "    mov $" << resolvedValue << ", %rax\n";
+                assembly << "    # Store integer " << resolvedValue << " for " << var << "\n";
+            } else if (resolvedValue.find('.') != std::string::npos) {
+                // Float assignment - store as integer representation for now
+                assembly << "    mov $0, %rax  # Float " << resolvedValue << " (stored as 0 for now)\n";
+                assembly << "    # Store float " << resolvedValue << " for " << var << "\n";
+            } else if (resolvedValue == "True" || resolvedValue == "true") {
+                assembly << "    mov $1, %rax\n";
+                assembly << "    # Store boolean True for " << var << "\n";
+            } else if (resolvedValue == "False" || resolvedValue == "false") {
+                assembly << "    mov $0, %rax\n";
+                assembly << "    # Store boolean False for " << var << "\n";
+            }
+        }
+        
+        // Only increment string counter once if it was a string
+        if (!resolvedValue.empty() && resolvedValue.front() == '"' && resolvedValue.back() == '"') {
+            stringCounter++;
         }
     }
 };
