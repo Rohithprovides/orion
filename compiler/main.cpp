@@ -173,6 +173,8 @@ public:
                                 assembly << "    mov $format_str, %rdi\n";
                                 assembly << "    xor %rax, %rax\n";
                                 assembly << "    call printf\n";
+                            } else {
+                                throw std::runtime_error("Line " + std::to_string(id->line) + ": Error: Undefined variable '" + id->name + "'");
                             }
                         }
                         return;
@@ -246,7 +248,7 @@ public:
                         }
                         assembly << "    mov $" << dtypeLabel << ", %rax\n";
                     } else {
-                        throw std::runtime_error("Error: Undefined variable '" + id->name + "'");
+                        throw std::runtime_error("Line " + std::to_string(id->line) + ": Error: Undefined variable '" + id->name + "'");
                     }
                 }
             }
