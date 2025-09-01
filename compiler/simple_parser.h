@@ -261,7 +261,7 @@ private:
         }
         
         if (check(TokenType::TRUE) || check(TokenType::FALSE)) {
-            bool value = (advance().value == "true");
+            bool value = (advance().value == "True");
             return std::make_unique<BoolLiteral>(value);
         }
         
