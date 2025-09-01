@@ -35,8 +35,12 @@ public:
     
     std::vector<ParsedStatement> parse() {
         std::vector<ParsedStatement> statements;
+        
+        // Handle both simple format and fn main() {} format
+        std::string processedSource = preprocessOrionSyntax(source);
+        
         std::string line;
-        std::istringstream stream(source);
+        std::istringstream stream(processedSource);
         
         while (std::getline(stream, line)) {
             // Remove leading/trailing whitespace
@@ -86,15 +90,42 @@ public:
                     dtypeArg.erase(dtypeArg.find_last_not_of(" \t") + 1);
                     stmt.args.push_back(dtypeArg);
                 } else {
-                    // Split arguments by comma
-                    std::stringstream argStream(args);
+                    // Split arguments by comma, but respect quotes
                     std::string arg;
-                    while (std::getline(argStream, arg, ',')) {
-                        arg.erase(0, arg.find_first_not_of(" \t"));
-                        arg.erase(arg.find_last_not_of(" \t") + 1);
-                        if (!arg.empty()) {
-                            stmt.args.push_back(arg);
+                    bool inQuotes = false;
+                    char quoteChar = '\0';
+                    
+                    for (size_t i = 0; i < args.length(); i++) {
+                        char c = args[i];
+                        
+                        if (!inQuotes && (c == '"' || c == '\'')) {
+                            // Start of quoted string
+                            inQuotes = true;
+                            quoteChar = c;
+                            arg += c;
+                        } else if (inQuotes && c == quoteChar) {
+                            // End of quoted string
+                            inQuotes = false;
+                            arg += c;
+                        } else if (!inQuotes && c == ',') {
+                            // Comma outside quotes - end current argument
+                            arg.erase(0, arg.find_first_not_of(" \t"));
+                            arg.erase(arg.find_last_not_of(" \t") + 1);
+                            if (!arg.empty()) {
+                                stmt.args.push_back(arg);
+                            }
+                            arg.clear();
+                        } else {
+                            // Regular character
+                            arg += c;
                         }
+                    }
+                    
+                    // Add final argument
+                    arg.erase(0, arg.find_first_not_of(" \t"));
+                    arg.erase(arg.find_last_not_of(" \t") + 1);
+                    if (!arg.empty()) {
+                        stmt.args.push_back(arg);
                     }
                 }
                 
@@ -121,6 +152,39 @@ public:
         }
         
         return statements;
+    }
+    
+private:
+    std::string preprocessOrionSyntax(const std::string& source) {
+        std::string processed = source;
+        
+        // Find fn main() { } blocks and extract their contents
+        std::regex fnMainRegex(R"(fn\s+main\s*\(\s*\)\s*\{([^}]*)\})");
+        std::smatch match;
+        
+        if (std::regex_search(processed, match, fnMainRegex)) {
+            // Extract the content inside the main function
+            std::string mainBody = match[1].str();
+            
+            // Clean up the extracted content
+            std::istringstream bodyStream(mainBody);
+            std::string cleanedBody;
+            std::string line;
+            
+            while (std::getline(bodyStream, line)) {
+                // Remove leading/trailing whitespace
+                line.erase(0, line.find_first_not_of(" \t"));
+                line.erase(line.find_last_not_of(" \t") + 1);
+                
+                if (!line.empty()) {
+                    cleanedBody += line + "\n";
+                }
+            }
+            
+            processed = cleanedBody;
+        }
+        
+        return processed;
     }
 };
 
