@@ -1,0 +1,5 @@
+a=5
+fn main() {
+    local a=6
+    out(a)
+}
