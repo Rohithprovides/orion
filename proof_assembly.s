@@ -1,7 +1,6 @@
 .section .data
 format_int: .string "%d\n"
 format_str: .string "%s\n"
-str_0: .string "5\n"
 
 .section .text
 .global main
@@ -11,7 +10,7 @@ main:
     push %rbp
     mov %rsp, %rbp
     # Variable: a
-    mov $str_0, %rax
+    mov $5, %rax
     mov %rax, -8(%rbp)
     # Call out() with variable: a
     mov -8(%rbp), %rsi
