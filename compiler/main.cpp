@@ -1,6 +1,7 @@
 #include "ast.h"
 #include "lexer.h"
 #include "simple_parser.h"
+#include "types.cpp"
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -272,7 +273,11 @@ public:
         if (it != variables.end()) {
             assembly << "    mov -" << it->second << "(%rbp), %rax\n";
         } else {
-            throw std::runtime_error("Error: Undefined variable '" + node.name + "'");
+            std::string errorMsg = "Error: Undefined variable '" + node.name + "'";
+            if (node.line > 0) {
+                errorMsg = "Line " + std::to_string(node.line) + ": " + errorMsg;
+            }
+            throw std::runtime_error(errorMsg);
         }
     }
     
@@ -391,6 +396,14 @@ int main(int argc, char* argv[]) {
                           std::istreambuf_iterator<char>());
         file.close();
         
+        // Split source into lines for error reporting
+        std::vector<std::string> sourceLines;
+        std::stringstream ss(source);
+        std::string line;
+        while (std::getline(ss, line)) {
+            sourceLines.push_back(line);
+        }
+        
         // Step 1: Lexical analysis
         orion::Lexer lexer(source);
         auto tokens = lexer.tokenize();
@@ -398,6 +411,9 @@ int main(int argc, char* argv[]) {
         // Step 2: Parsing
         orion::SimpleOrionParser parser(tokens);
         auto ast = parser.parse();
+        
+        // Note: Type checking would be done here for better error messages
+        // but we'll focus on runtime error improvements for now
         
         // Step 3: Code generation
         orion::SimpleCodeGenerator codegen;

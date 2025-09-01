@@ -241,8 +241,8 @@ private:
                 return std::move(call);
             } else {
                 // Variable reference
-                std::string varName = advance().value;
-                return std::make_unique<Identifier>(varName);
+                Token varToken = advance();
+                return std::make_unique<Identifier>(varToken.value, varToken.line, varToken.column);
             }
         }
         
@@ -251,18 +251,20 @@ private:
     
     std::unique_ptr<Expression> parsePrimary() {
         if (check(TokenType::INTEGER)) {
-            int value = std::stoi(advance().value);
-            return std::make_unique<IntLiteral>(value);
+            Token token = advance();
+            int value = std::stoi(token.value);
+            return std::make_unique<IntLiteral>(value, token.line, token.column);
         }
         
         if (check(TokenType::STRING)) {
-            std::string value = advance().value;
-            return std::make_unique<StringLiteral>(value);
+            Token token = advance();
+            return std::make_unique<StringLiteral>(token.value, token.line, token.column);
         }
         
         if (check(TokenType::TRUE) || check(TokenType::FALSE)) {
-            bool value = (advance().value == "True");
-            return std::make_unique<BoolLiteral>(value);
+            Token token = advance();
+            bool value = (token.value == "True");
+            return std::make_unique<BoolLiteral>(value, token.line, token.column);
         }
         
         if (check(TokenType::LPAREN)) {

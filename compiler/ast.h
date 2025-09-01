@@ -14,6 +14,10 @@ class ASTVisitor;
 // Base AST node class
 class ASTNode {
 public:
+    int line = 0;
+    int column = 0;
+    
+    ASTNode(int l = 0, int c = 0) : line(l), column(c) {}
     virtual ~ASTNode() = default;
     virtual void accept(ASTVisitor& visitor) = 0;
     virtual std::string toString(int indent = 0) const = 0;
@@ -22,12 +26,14 @@ public:
 // Expression base class
 class Expression : public ASTNode {
 public:
+    Expression(int line = 0, int column = 0) : ASTNode(line, column) {}
     virtual ~Expression() = default;
 };
 
 // Statement base class
 class Statement : public ASTNode {
 public:
+    Statement(int line = 0, int column = 0) : ASTNode(line, column) {}
     virtual ~Statement() = default;
 };
 
@@ -74,7 +80,7 @@ class IntLiteral : public Expression {
 public:
     int32_t value;
     
-    IntLiteral(int32_t val) : value(val) {}
+    IntLiteral(int32_t val, int line = 0, int column = 0) : Expression(line, column), value(val) {}
     void accept(ASTVisitor& visitor) override;
     std::string toString(int indent = 0) const override {
         return std::string(indent, ' ') + "IntLiteral(" + std::to_string(value) + ")";
@@ -85,7 +91,7 @@ class FloatLiteral : public Expression {
 public:
     double value;
     
-    FloatLiteral(double val) : value(val) {}
+    FloatLiteral(double val, int line = 0, int column = 0) : Expression(line, column), value(val) {}
     void accept(ASTVisitor& visitor) override;
     std::string toString(int indent = 0) const override {
         return std::string(indent, ' ') + "FloatLiteral(" + std::to_string(value) + ")";
@@ -96,7 +102,7 @@ class StringLiteral : public Expression {
 public:
     std::string value;
     
-    StringLiteral(const std::string& val) : value(val) {}
+    StringLiteral(const std::string& val, int line = 0, int column = 0) : Expression(line, column), value(val) {}
     void accept(ASTVisitor& visitor) override;
     std::string toString(int indent = 0) const override {
         return std::string(indent, ' ') + "StringLiteral(\"" + value + "\")";
@@ -107,7 +113,7 @@ class BoolLiteral : public Expression {
 public:
     bool value;
     
-    BoolLiteral(bool val) : value(val) {}
+    BoolLiteral(bool val, int line = 0, int column = 0) : Expression(line, column), value(val) {}
     void accept(ASTVisitor& visitor) override;
     std::string toString(int indent = 0) const override {
         return std::string(indent, ' ') + "BoolLiteral(" + (value ? "True" : "False") + ")";
@@ -119,7 +125,7 @@ class Identifier : public Expression {
 public:
     std::string name;
     
-    Identifier(const std::string& n) : name(n) {}
+    Identifier(const std::string& n, int line = 0, int column = 0) : Expression(line, column), name(n) {}
     void accept(ASTVisitor& visitor) override;
     std::string toString(int indent = 0) const override {
         return std::string(indent, ' ') + "Identifier(" + name + ")";
