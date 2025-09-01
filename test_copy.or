@@ -1,3 +1,4 @@
 a=5
+b=a
 out(a)
-out(a)
+out(b)

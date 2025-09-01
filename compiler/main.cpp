@@ -75,12 +75,14 @@ public:
         fullAssembly << "main:\n";
         fullAssembly << "    push %rbp\n";
         fullAssembly << "    mov %rsp, %rbp\n";
+        fullAssembly << "    sub $64, %rsp\n";  // Allocate 64 bytes of stack space for variables
         
         // Program code
         fullAssembly << assembly.str();
         
         // Return 0
         fullAssembly << "    mov $0, %rax\n";
+        fullAssembly << "    add $64, %rsp\n";  // Restore stack pointer
         fullAssembly << "    pop %rbp\n";
         fullAssembly << "    ret\n";
         
