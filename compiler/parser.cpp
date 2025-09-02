@@ -103,6 +103,8 @@ private:
             }
             
             // Other statements
+            if (match({TokenType::GLOBAL})) return parseGlobalStatement();
+            if (match({TokenType::LOCAL})) return parseLocalStatement();
             if (match({TokenType::STRUCT})) return parseStructDeclaration();
             if (match({TokenType::ENUM})) return parseEnumDeclaration();
             if (match({TokenType::IF})) return parseIfStatement();
@@ -310,6 +312,40 @@ private:
         
         consume(TokenType::RBRACE, "Expected '}' after enum values");
         return std::move(enumDecl);
+    }
+    
+    std::unique_ptr<Statement> parseGlobalStatement() {
+        auto globalStmt = std::make_unique<GlobalStatement>();
+        
+        // Parse comma-separated variable names
+        if (!check(TokenType::IDENTIFIER)) {
+            throw std::runtime_error("Expected variable name after 'global'");
+        }
+        
+        do {
+            Token varName = consume(TokenType::IDENTIFIER, "Expected identifier in global statement");
+            globalStmt->variables.push_back(varName.value);
+        } while (match({TokenType::COMMA}));
+        
+        match({TokenType::NEWLINE, TokenType::SEMICOLON}); // Optional terminator
+        return std::move(globalStmt);
+    }
+    
+    std::unique_ptr<Statement> parseLocalStatement() {
+        auto localStmt = std::make_unique<LocalStatement>();
+        
+        // Parse comma-separated variable names  
+        if (!check(TokenType::IDENTIFIER)) {
+            throw std::runtime_error("Expected variable name after 'local'");
+        }
+        
+        do {
+            Token varName = consume(TokenType::IDENTIFIER, "Expected identifier in local statement");
+            localStmt->variables.push_back(varName.value);
+        } while (match({TokenType::COMMA}));
+        
+        match({TokenType::NEWLINE, TokenType::SEMICOLON}); // Optional terminator
+        return std::move(localStmt);
     }
     
     std::unique_ptr<Statement> parseIfStatement() {

@@ -1,0 +1,8 @@
+global x
+local y
+
+func main() int {
+    x = 10
+    y = 20
+    return x + y
+}

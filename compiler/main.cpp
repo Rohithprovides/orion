@@ -12,6 +12,7 @@
 #include <sstream>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <unordered_set>
 
 namespace orion {
 
@@ -21,8 +22,14 @@ class SimpleCodeGenerator : public ASTVisitor {
 private:
     std::ostringstream assembly;
     std::vector<std::string> stringLiterals;
-    std::unordered_map<std::string, int> variables; // Variable name -> stack offset
-    std::unordered_map<std::string, std::string> variableTypes; // Variable name -> type
+    struct VariableInfo {
+        int stackOffset;
+        std::string type;
+        bool isGlobal;
+    };
+    std::unordered_map<std::string, VariableInfo> variables; // Variable scoping info
+    std::unordered_set<std::string> globalVars; // Variables declared global
+    std::unordered_set<std::string> localVars;  // Variables declared local
     int stackOffset = 0;
     int labelCounter = 0;
     
@@ -41,7 +48,8 @@ public:
         assembly.clear();
         stringLiterals.clear();
         variables.clear();
-        variableTypes.clear();
+        globalVars.clear();
+        localVars.clear();
         stackOffset = 0;
         labelCounter = 0;
         
@@ -124,9 +132,9 @@ public:
                 varType = "float";
             } else if (auto id = dynamic_cast<Identifier*>(node.initializer.get())) {
                 // Variable assignment: copy type from source variable
-                auto typeIt = variableTypes.find(id->name);
-                if (typeIt != variableTypes.end()) {
-                    varType = typeIt->second;
+                auto varIt = variables.find(id->name);
+                if (varIt != variables.end()) {
+                    varType = varIt->second.type;
                 }
             }
             
@@ -136,13 +144,16 @@ public:
             auto it = variables.find(node.name);
             if (it != variables.end()) {
                 // Variable exists, update it
-                assembly << "    mov %rax, -" << it->second << "(%rbp)\n";
-                variableTypes[node.name] = varType;
+                assembly << "    mov %rax, -" << it->second.stackOffset << "(%rbp)\n";
+                it->second.type = varType;
             } else {
                 // New variable, create stack space
                 stackOffset += 8;
-                variables[node.name] = stackOffset;
-                variableTypes[node.name] = varType;
+                VariableInfo varInfo;
+                varInfo.stackOffset = stackOffset;
+                varInfo.type = varType;
+                varInfo.isGlobal = false;
+                variables[node.name] = varInfo;
                 assembly << "    mov %rax, -" << stackOffset << "(%rbp)\n";
             }
         }
@@ -164,17 +175,17 @@ public:
                         // Handle dtype() call inside out()
                         auto dtypeArg = dtypeCall->arguments[0].get();
                         if (auto id = dynamic_cast<Identifier*>(dtypeArg)) {
-                            auto typeIt = variableTypes.find(id->name);
-                            if (typeIt != variableTypes.end()) {
+                            auto varIt = variables.find(id->name);
+                            if (varIt != variables.end()) {
                                 assembly << "    # Call out(dtype(" << id->name << "))\n";
                                 std::string dtypeLabel;
-                                if (typeIt->second == "int") {
+                                if (varIt->second.type == "int") {
                                     dtypeLabel = "dtype_int";
-                                } else if (typeIt->second == "string") {
+                                } else if (varIt->second.type == "string") {
                                     dtypeLabel = "dtype_string";
-                                } else if (typeIt->second == "bool") {
+                                } else if (varIt->second.type == "bool") {
                                     dtypeLabel = "dtype_bool";
-                                } else if (typeIt->second == "float") {
+                                } else if (varIt->second.type == "float") {
                                     dtypeLabel = "dtype_float";
                                 } else {
                                     dtypeLabel = "dtype_unknown";
@@ -208,12 +219,11 @@ public:
                 } else if (auto id = dynamic_cast<Identifier*>(arg.get())) {
                     // Variable reference - use correct format based on type
                     auto it = variables.find(id->name);
-                    auto typeIt = variableTypes.find(id->name);
-                    if (it != variables.end() && typeIt != variableTypes.end()) {
-                        assembly << "    # Call out() with variable: " << id->name << " (type: " << typeIt->second << ")\n";
-                        assembly << "    mov -" << it->second << "(%rbp), %rsi\n";
+                    if (it != variables.end()) {
+                        assembly << "    # Call out() with variable: " << id->name << " (type: " << it->second.type << ")\n";
+                        assembly << "    mov -" << it->second.stackOffset << "(%rbp), %rsi\n";
                         
-                        if (typeIt->second == "int" || typeIt->second == "bool") {
+                        if (it->second.type == "int" || it->second.type == "bool") {
                             assembly << "    mov $format_int, %rdi\n";
                         } else {
                             assembly << "    mov $format_str, %rdi\n";
@@ -239,8 +249,8 @@ public:
             if (!node.arguments.empty()) {
                 auto& arg = node.arguments[0];
                 if (auto id = dynamic_cast<Identifier*>(arg.get())) {
-                    auto typeIt = variableTypes.find(id->name);
-                    if (typeIt != variableTypes.end()) {
+                    auto varIt = variables.find(id->name);
+                    if (varIt != variables.end()) {
                         assembly << "    # dtype(" << id->name << ") - type: " << typeIt->second << "\n";
                         // For standalone dtype(), we could return a type indicator
                         // For now, just put the type string address in %rax
@@ -351,36 +361,39 @@ public:
             if (it == variables.end()) {
                 // Create new variable
                 stackOffset += 8;
-                variables[varName] = stackOffset;
+                VariableInfo varInfo;
+                varInfo.stackOffset = stackOffset;
+                varInfo.isGlobal = false;
                 
                 // Determine type from the value expression
-                std::string varType = "unknown";
                 if (auto intLit = dynamic_cast<IntLiteral*>(node.value.get())) {
-                    varType = "int";
+                    varInfo.type = "int";
                 } else if (auto strLit = dynamic_cast<StringLiteral*>(node.value.get())) {
-                    varType = "string";
+                    varInfo.type = "string";
                 } else if (auto boolLit = dynamic_cast<BoolLiteral*>(node.value.get())) {
-                    varType = "bool";
+                    varInfo.type = "bool";
                 } else if (auto floatLit = dynamic_cast<FloatLiteral*>(node.value.get())) {
-                    varType = "float";
+                    varInfo.type = "float";
+                } else {
+                    varInfo.type = "unknown";
                 }
-                variableTypes[varName] = varType;
+                variables[varName] = varInfo;
+                assembly << "    mov %rax, -" << stackOffset << "(%rbp)  # assign to " << varName << "\n";
             } else {
                 // Variable exists, update its type
-                std::string varType = "unknown";
                 if (auto intLit = dynamic_cast<IntLiteral*>(node.value.get())) {
-                    varType = "int";
+                    it->second.type = "int";
                 } else if (auto strLit = dynamic_cast<StringLiteral*>(node.value.get())) {
-                    varType = "string";
+                    it->second.type = "string";
                 } else if (auto boolLit = dynamic_cast<BoolLiteral*>(node.value.get())) {
-                    varType = "bool";
+                    it->second.type = "bool";
                 } else if (auto floatLit = dynamic_cast<FloatLiteral*>(node.value.get())) {
-                    varType = "float";
+                    it->second.type = "float";
+                } else {
+                    it->second.type = "unknown";
                 }
-                variableTypes[varName] = varType;
+                assembly << "    mov %rax, -" << it->second.stackOffset << "(%rbp)  # assign to " << varName << "\n";
             }
-            
-            assembly << "    mov %rax, -" << variables[varName] << "(%rbp)  # assign to " << varName << "\n";
         }
     }
 
@@ -399,6 +412,20 @@ public:
     void visit(IfStatement& node) override { }
     void visit(WhileStatement& node) override { }
     void visit(ForStatement& node) override { }
+    void visit(GlobalStatement& node) override {
+        for (const std::string& varName : node.variables) {
+            globalVars.insert(varName);
+            assembly << "    # Global declaration: " << varName << "\n";
+        }
+    }
+    
+    void visit(LocalStatement& node) override {
+        for (const std::string& varName : node.variables) {
+            localVars.insert(varName);
+            assembly << "    # Local declaration: " << varName << "\n";
+        }
+    }
+    
     void visit(StructDeclaration& node) override { }
     void visit(EnumDeclaration& node) override { }
 };
