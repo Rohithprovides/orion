@@ -79,9 +79,21 @@ public:
         // If declared as global in current scope, set in global scope
         if (currentScope.globalVars.count(name)) {
             globalScope[name] = type;
-        } else {
-            // Set in current local scope
+            return;
+        }
+        
+        // Python-style scoping rules:
+        // 1. If explicitly declared local, keep it local
+        // 2. If we're in a function scope and no explicit declaration, create local variable
+        // 3. If not in function scope, set in global scope
+        
+        if (currentScope.localVars.count(name) || 
+            (currentScope.isFunction && !currentScope.globalVars.count(name))) {
+            // Set in current local scope (explicit local or implicit local in function)
             scopeStack.back().variables[name] = type;
+        } else {
+            // Set in global scope (not in function or not declared as local/global)
+            globalScope[name] = type;
         }
     }
     

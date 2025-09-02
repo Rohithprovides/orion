@@ -27,10 +27,12 @@ private:
         std::string type;
         bool isGlobal;
     };
-    std::unordered_map<std::string, VariableInfo> variables; // Variable scoping info
+    std::unordered_map<std::string, VariableInfo> variables; // All variables
     std::unordered_set<std::string> globalVars; // Variables declared global
-    std::unordered_set<std::string> localVars;  // Variables declared local
+    std::unordered_set<std::string> localVars;  // Variables declared local  
+    std::unordered_map<std::string, VariableInfo> shadowedVars; // Variables shadowed by locals
     int stackOffset = 0;
+    bool inFunction = false;
     int labelCounter = 0;
     
     std::string newLabel(const std::string& prefix = "L") {
@@ -50,6 +52,8 @@ public:
         variables.clear();
         globalVars.clear();
         localVars.clear();
+        shadowedVars.clear();
+        inFunction = false;
         stackOffset = 0;
         labelCounter = 0;
         
@@ -105,6 +109,10 @@ public:
     
     void visit(FunctionDeclaration& node) override {
         if (node.name == "main") {
+            // Enter function scope
+            inFunction = true;
+            shadowedVars.clear(); // Clear shadowed variables from previous functions
+            
             // Generate main function body
             if (node.isSingleExpression) {
                 node.expression->accept(*this);
@@ -113,6 +121,13 @@ public:
                     stmt->accept(*this);
                 }
             }
+            
+            // Exit function scope - restore shadowed variables
+            for (const auto& pair : shadowedVars) {
+                variables[pair.first] = pair.second; // Restore shadowed variable
+            }
+            shadowedVars.clear();
+            inFunction = false;
         }
     }
     
@@ -140,21 +155,62 @@ public:
             
             node.initializer->accept(*this);
             
-            // Check if variable already exists
-            auto it = variables.find(node.name);
-            if (it != variables.end()) {
-                // Variable exists, update it
-                assembly << "    mov %rax, -" << it->second.stackOffset << "(%rbp)\n";
-                it->second.type = varType;
+            // Python-style scoping rules
+            if (globalVars.count(node.name)) {
+                // Explicitly declared global - always use/update global variable
+                auto it = variables.find(node.name);
+                if (it != variables.end()) {
+                    // Update existing global variable
+                    assembly << "    mov %rax, -" << it->second.stackOffset << "(%rbp)\n";
+                    it->second.type = varType;
+                } else {
+                    // Create new global variable
+                    stackOffset += 8;
+                    VariableInfo varInfo;
+                    varInfo.stackOffset = stackOffset;
+                    varInfo.type = varType;
+                    varInfo.isGlobal = true;
+                    variables[node.name] = varInfo;
+                    assembly << "    mov %rax, -" << stackOffset << "(%rbp)\n";
+                }
+            } else if (inFunction && !globalVars.count(node.name)) {
+                // In function and not declared global - create/update local variable
+                auto it = variables.find(node.name);
+                if (it != variables.end() && !it->second.isGlobal) {
+                    // Update existing local variable
+                    assembly << "    mov %rax, -" << it->second.stackOffset << "(%rbp)\n";
+                    it->second.type = varType;
+                } else {
+                    // Create new local variable (shadow global if it exists)
+                    if (it != variables.end() && it->second.isGlobal) {
+                        // Shadow the global variable
+                        shadowedVars[node.name] = it->second;
+                    }
+                    stackOffset += 8;
+                    VariableInfo varInfo;
+                    varInfo.stackOffset = stackOffset;
+                    varInfo.type = varType;
+                    varInfo.isGlobal = false;
+                    variables[node.name] = varInfo;
+                    assembly << "    mov %rax, -" << stackOffset << "(%rbp)\n";
+                }
             } else {
-                // New variable, create stack space
-                stackOffset += 8;
-                VariableInfo varInfo;
-                varInfo.stackOffset = stackOffset;
-                varInfo.type = varType;
-                varInfo.isGlobal = false;
-                variables[node.name] = varInfo;
-                assembly << "    mov %rax, -" << stackOffset << "(%rbp)\n";
+                // Not in function - create/update global variable
+                auto it = variables.find(node.name);
+                if (it != variables.end()) {
+                    // Update existing global variable
+                    assembly << "    mov %rax, -" << it->second.stackOffset << "(%rbp)\n";
+                    it->second.type = varType;
+                } else {
+                    // Create new global variable
+                    stackOffset += 8;
+                    VariableInfo varInfo;
+                    varInfo.stackOffset = stackOffset;
+                    varInfo.type = varType;
+                    varInfo.isGlobal = true;
+                    variables[node.name] = varInfo;
+                    assembly << "    mov %rax, -" << stackOffset << "(%rbp)\n";
+                }
             }
         }
     }
@@ -297,6 +353,7 @@ public:
     }
     
     void visit(Identifier& node) override {
+        // Simple lookup in the variables map
         auto it = variables.find(node.name);
         if (it != variables.end()) {
             assembly << "    mov -" << it->second.stackOffset << "(%rbp), %rax\n";

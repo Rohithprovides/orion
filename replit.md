@@ -58,4 +58,22 @@ Orion is designed as a pure compiled language with specific syntax choices that 
 - **Flask-CORS**: Cross-Origin Resource Sharing support for browser compatibility
 - **C++ Compiler**: Native g++ for building the Orion compiler
 
+## Recent Updates (September 2025)
+
+### Variable Scoping System
+The Orion compiler now implements proper Python-style variable scoping with the following features:
+
+- **Local Variables by Default**: Variable assignments inside functions create local variables that shadow global variables
+- **Global Keyword Support**: Using `global varname` forces assignments to affect the global scope
+- **Local Keyword Support**: Using `local varname` explicitly creates local variables (though this is the default behavior)
+- **Variable Shadowing**: Local variables properly shadow global variables and are restored when function exits
+- **Proper Scope Management**: The compiler tracks variable scopes across function boundaries correctly
+
+### Deployment Configuration
+The project is fully configured for Replit deployment with:
+- **Autoscale deployment** target for efficient resource usage
+- **Gunicorn production server** configuration
+- **Port 5000 binding** for web interface compatibility
+- **Environment variable management** for session secrets
+
 The system is designed with a clear separation between the web interface (Python/Flask) and the language implementation (C++). The Orion language itself is purely compiled with no runtime interpretation, making it suitable for systems programming and performance-critical applications.

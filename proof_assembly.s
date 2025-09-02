@@ -14,11 +14,16 @@ dtype_unknown: .string "datatype: unknown\n"
 main:
     push %rbp
     mov %rsp, %rbp
+    sub $64, %rsp
     # Variable: a
     mov $5, %rax
     mov %rax, -8(%rbp)
+    # Local declaration: a
+    # Variable: a
+    mov $6, %rax
+    mov %rax, -16(%rbp)
     # Call out() with variable: a (type: int)
-    mov -8(%rbp), %rsi
+    mov -16(%rbp), %rsi
     mov $format_int, %rdi
     xor %rax, %rax
     call printf
@@ -28,5 +33,6 @@ main:
     xor %rax, %rax
     call printf
     mov $0, %rax
+    add $64, %rsp
     pop %rbp
     ret
