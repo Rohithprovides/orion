@@ -64,6 +64,16 @@ private:
             return parseTupleAssignmentOrExpression();
         }
         
+        // Global statement
+        if (check(TokenType::GLOBAL)) {
+            return parseGlobalStatement();
+        }
+        
+        // Local statement
+        if (check(TokenType::LOCAL)) {
+            return parseLocalStatement();
+        }
+        
         // Function declaration (fn name() { ... })
         if (check(TokenType::IDENTIFIER) && tokens[current].value == "fn") {
             return parseFunctionDeclaration();
@@ -117,6 +127,46 @@ private:
         advance(); // consume '}'
         
         return func;
+    }
+    
+    std::unique_ptr<GlobalStatement> parseGlobalStatement() {
+        advance(); // consume 'global'
+        
+        auto globalStmt = std::make_unique<GlobalStatement>();
+        
+        // Parse comma-separated variable names
+        if (!check(TokenType::IDENTIFIER)) {
+            throw std::runtime_error("Expected variable name after 'global'");
+        }
+        
+        do {
+            if (!check(TokenType::IDENTIFIER)) {
+                throw std::runtime_error("Expected identifier in global statement");
+            }
+            globalStmt->variables.push_back(advance().value);
+        } while (check(TokenType::COMMA) && (advance(), true));
+        
+        return globalStmt;
+    }
+    
+    std::unique_ptr<LocalStatement> parseLocalStatement() {
+        advance(); // consume 'local'
+        
+        auto localStmt = std::make_unique<LocalStatement>();
+        
+        // Parse comma-separated variable names
+        if (!check(TokenType::IDENTIFIER)) {
+            throw std::runtime_error("Expected variable name after 'local'");
+        }
+        
+        do {
+            if (!check(TokenType::IDENTIFIER)) {
+                throw std::runtime_error("Expected identifier in local statement");
+            }
+            localStmt->variables.push_back(advance().value);
+        } while (check(TokenType::COMMA) && (advance(), true));
+        
+        return localStmt;
     }
     
     std::unique_ptr<Statement> parseTupleAssignmentOrExpression() {

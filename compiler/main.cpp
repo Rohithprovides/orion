@@ -251,17 +251,17 @@ public:
                 if (auto id = dynamic_cast<Identifier*>(arg.get())) {
                     auto varIt = variables.find(id->name);
                     if (varIt != variables.end()) {
-                        assembly << "    # dtype(" << id->name << ") - type: " << typeIt->second << "\n";
+                        assembly << "    # dtype(" << id->name << ") - type: " << varIt->second.type << "\n";
                         // For standalone dtype(), we could return a type indicator
                         // For now, just put the type string address in %rax
                         std::string dtypeLabel;
-                        if (typeIt->second == "int") {
+                        if (varIt->second.type == "int") {
                             dtypeLabel = "dtype_int";
-                        } else if (typeIt->second == "string") {
+                        } else if (varIt->second.type == "string") {
                             dtypeLabel = "dtype_string";
-                        } else if (typeIt->second == "bool") {
+                        } else if (varIt->second.type == "bool") {
                             dtypeLabel = "dtype_bool";
-                        } else if (typeIt->second == "float") {
+                        } else if (varIt->second.type == "float") {
                             dtypeLabel = "dtype_float";
                         } else {
                             dtypeLabel = "dtype_unknown";
@@ -299,7 +299,7 @@ public:
     void visit(Identifier& node) override {
         auto it = variables.find(node.name);
         if (it != variables.end()) {
-            assembly << "    mov -" << it->second << "(%rbp), %rax\n";
+            assembly << "    mov -" << it->second.stackOffset << "(%rbp), %rax\n";
         } else {
             std::string errorMsg = "Error: Undefined variable '" + node.name + "'";
             if (node.line > 0) {
@@ -342,7 +342,7 @@ public:
                 auto it = variables.find(id->name);
                 if (it != variables.end()) {
                     assembly << "    mov -" << tempOffsets[i] << "(%rbp), %rax  # load temp " << i << "\n";
-                    assembly << "    mov %rax, -" << it->second << "(%rbp)  # assign to " << id->name << "\n";
+                    assembly << "    mov %rax, -" << it->second.stackOffset << "(%rbp)  # assign to " << id->name << "\n";
                 }
             }
         }

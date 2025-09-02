@@ -2,12 +2,97 @@
 #include <unordered_map>
 #include <string>
 #include <iostream>
+#include <unordered_set>
 
 namespace orion {
 
+// Scoping system for LEGB resolution
+class ScopeManager {
+struct Scope {
+    std::unordered_map<std::string, Type> variables;
+    std::unordered_set<std::string> globalVars;  // declared global in this scope
+    std::unordered_set<std::string> localVars;   // declared local in this scope
+    bool isFunction = false;
+};
+
+std::vector<Scope> scopeStack;
+std::unordered_map<std::string, Type> globalScope;
+
+public:
+    void enterScope(bool isFunction = false) {
+        Scope newScope;
+        newScope.isFunction = isFunction;
+        scopeStack.push_back(newScope);
+    }
+    
+    void exitScope() {
+        if (!scopeStack.empty()) {
+            scopeStack.pop_back();
+        }
+    }
+    
+    void declareGlobal(const std::string& name) {
+        if (!scopeStack.empty()) {
+            scopeStack.back().globalVars.insert(name);
+        }
+    }
+    
+    void declareLocal(const std::string& name) {
+        if (!scopeStack.empty()) {
+            scopeStack.back().localVars.insert(name);
+        }
+    }
+    
+    // LEGB resolution: Local -> Enclosing function -> Global
+    Type* findVariable(const std::string& name) {
+        // Check from innermost to outermost scope
+        for (int i = scopeStack.size() - 1; i >= 0; i--) {
+            const auto& scope = scopeStack[i];
+            
+            // If this scope declared the variable as global, look in global scope
+            if (scope.globalVars.count(name)) {
+                auto globalIt = globalScope.find(name);
+                return (globalIt != globalScope.end()) ? &globalIt->second : nullptr;
+            }
+            
+            // Check local variables in this scope
+            auto localIt = scope.variables.find(name);
+            if (localIt != scope.variables.end()) {
+                return const_cast<Type*>(&localIt->second);
+            }
+        }
+        
+        // Check global scope as fallback
+        auto globalIt = globalScope.find(name);
+        return (globalIt != globalScope.end()) ? &globalIt->second : nullptr;
+    }
+    
+    void setVariable(const std::string& name, const Type& type) {
+        if (scopeStack.empty()) {
+            // No scope, set in global
+            globalScope[name] = type;
+            return;
+        }
+        
+        const auto& currentScope = scopeStack.back();
+        
+        // If declared as global in current scope, set in global scope
+        if (currentScope.globalVars.count(name)) {
+            globalScope[name] = type;
+        } else {
+            // Set in current local scope
+            scopeStack.back().variables[name] = type;
+        }
+    }
+    
+    bool isGlobal() const {
+        return scopeStack.empty();
+    }
+};
+
 class TypeChecker : public ASTVisitor {
 private:
-    std::unordered_map<std::string, Type> variables;
+    ScopeManager scopeManager;
     std::unordered_map<std::string, FunctionDeclaration*> functions;
     std::unordered_map<std::string, StructDeclaration*> structs;
     std::unordered_map<std::string, EnumDeclaration*> enums;
@@ -79,9 +164,9 @@ private:
             return Type(TypeKind::BOOL);
         }
         if (auto id = dynamic_cast<Identifier*>(&expr)) {
-            auto it = variables.find(id->name);
-            if (it != variables.end()) {
-                return it->second;
+            Type* varType = scopeManager.findVariable(id->name);
+            if (varType) {
+                return *varType;
             }
             addError("Undefined variable: " + id->name);
             return Type(TypeKind::UNKNOWN);
@@ -178,7 +263,8 @@ public:
     void visit(StringLiteral& node) override {}
     void visit(BoolLiteral& node) override {}
     void visit(Identifier& node) override {
-        if (variables.find(node.name) == variables.end()) {
+        Type* varType = scopeManager.findVariable(node.name);
+        if (!varType) {
             addError("Undefined variable: " + node.name, node.line);
         }
     }
@@ -249,7 +335,7 @@ public:
             addError("Variable " + node.name + " needs either explicit type or initializer");
         }
         
-        variables[node.name] = node.type;
+        scopeManager.setVariable(node.name, node.type);
     }
     
     void visit(FunctionDeclaration& node) override {
@@ -257,9 +343,12 @@ public:
         Type savedReturnType = currentReturnType;
         currentReturnType = node.returnType;
         
-        // Add parameters to variables (no scoping)
+        // Enter function scope
+        scopeManager.enterScope(true);
+        
+        // Add parameters to function scope
         for (const auto& param : node.parameters) {
-            variables[param.name] = param.type;
+            scopeManager.setVariable(param.name, param.type);
         }
         
         if (node.isSingleExpression) {
@@ -278,6 +367,9 @@ public:
             }
         }
         
+        // Exit function scope
+        scopeManager.exitScope();
+        
         // Restore return type context
         currentReturnType = savedReturnType;
     }
@@ -290,6 +382,18 @@ public:
     
     void visit(ExpressionStatement& node) override {
         node.expression->accept(*this);
+    }
+    
+    void visit(GlobalStatement& node) override {
+        for (const std::string& varName : node.variables) {
+            scopeManager.declareGlobal(varName);
+        }
+    }
+    
+    void visit(LocalStatement& node) override {
+        for (const std::string& varName : node.variables) {
+            scopeManager.declareLocal(varName);
+        }
     }
     
     void visit(ReturnStatement& node) override {

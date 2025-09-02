@@ -277,6 +277,26 @@ public:
     std::string toString(int indent = 0) const override;
 };
 
+// Global statement
+class GlobalStatement : public Statement {
+public:
+    std::vector<std::string> variables;  // global x, y, z
+    
+    GlobalStatement() {}
+    void accept(ASTVisitor& visitor) override;
+    std::string toString(int indent = 0) const override;
+};
+
+// Local statement
+class LocalStatement : public Statement {
+public:
+    std::vector<std::string> variables;  // local x, y, z
+    
+    LocalStatement() {}
+    void accept(ASTVisitor& visitor) override;
+    std::string toString(int indent = 0) const override;
+};
+
 // Return statement
 class ReturnStatement : public Statement {
 public:
@@ -402,6 +422,8 @@ public:
     virtual void visit(ExpressionStatement& node) = 0;
     virtual void visit(TupleAssignment& node) = 0;
     virtual void visit(ChainAssignment& node) = 0;
+    virtual void visit(GlobalStatement& node) = 0;
+    virtual void visit(LocalStatement& node) = 0;
     virtual void visit(ReturnStatement& node) = 0;
     virtual void visit(IfStatement& node) = 0;
     virtual void visit(WhileStatement& node) = 0;
