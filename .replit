@@ -16,32 +16,19 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Orion Compiler Interface"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Start application"
+args = "Orion Web Interface"
 
 [[workflows.workflow]]
-name = "Orion Compiler Interface"
+name = "Orion Web Interface"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "python3 app.py"
+args = "SESSION_SECRET=\"-uFM9FxrW-HDE4JqjvQGhH7gZY1zVLKE\" python3 app.py"
 waitForPort = 5000
 
 [workflows.workflow.metadata]
 outputType = "webview"
-
-[[workflows.workflow]]
-name = "Start application"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "gunicorn --bind 0.0.0.0:5000 --reuse-port --reload main:app"
-waitForPort = 5000
 
 [[ports]]
 localPort = 5000
@@ -49,4 +36,4 @@ externalPort = 80
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]
+run = ["SESSION_SECRET=-uFM9FxrW-HDE4JqjvQGhH7gZY1zVLKE", "python3", "app.py"]
