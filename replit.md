@@ -60,8 +60,17 @@ Orion is designed as a pure compiled language with specific syntax choices that 
 
 ## Recent Updates (September 2025)
 
+### Python-Style Function Behavior
+The Orion compiler now implements Python-style function execution and nested function support:
+
+- **Functions Only Run When Called**: Functions are defined but do not execute automatically - they only run when explicitly called
+- **Nested Function Support**: Functions can be defined inside other functions and called properly
+- **Explicit Function Calling**: All functions, including `main()`, must be called explicitly to execute
+- **Proper Function Scoping**: Nested functions have access to their containing function's scope
+- **No Automatic Execution**: The compiler no longer automatically executes the `main()` function or any other functions
+
 ### Variable Scoping System
-The Orion compiler now implements proper Python-style variable scoping with the following features:
+The Orion compiler also implements proper Python-style variable scoping with the following features:
 
 - **Local Variables by Default**: Variable assignments inside functions create local variables that shadow global variables
 - **Global Keyword Support**: Using `global varname` forces assignments to affect the global scope

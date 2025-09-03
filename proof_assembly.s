@@ -6,7 +6,6 @@ dtype_string: .string "datatype: string\n"
 dtype_bool: .string "datatype: bool\n"
 dtype_float: .string "datatype: float\n"
 dtype_unknown: .string "datatype: unknown\n"
-str_0: .string "Hello World\n"
 
 .section .text
 .global main
@@ -16,11 +15,19 @@ main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp
-    # Call out() with string
-    mov $str_0, %rsi
-    mov $format_str, %rdi
+    # Function defined: main
+    # Function defined: hello
+    # Explicit call to main()
+    # Executing function call: main
+    # Variable: a
+    mov $5, %rax
+    mov %rax, -8(%rbp)
+    # Call out() with variable: a (type: int)
+    mov -8(%rbp), %rsi
+    mov $format_int, %rdi
     xor %rax, %rax
     call printf
+    # Function 'hello' defined but not executed
     mov $0, %rax
     add $64, %rsp
     pop %rbp

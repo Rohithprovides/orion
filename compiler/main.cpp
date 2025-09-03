@@ -31,6 +31,7 @@ private:
     std::unordered_set<std::string> globalVars; // Variables declared global
     std::unordered_set<std::string> localVars;  // Variables declared local  
     std::unordered_map<std::string, VariableInfo> shadowedVars; // Variables shadowed by locals
+    std::unordered_map<std::string, FunctionDeclaration*> functions; // Store function definitions
     int stackOffset = 0;
     bool inFunction = false;
     int labelCounter = 0;
@@ -102,33 +103,80 @@ public:
     }
     
     void visit(Program& node) override {
+        // First pass: collect all function definitions (including nested ones)
+        collectFunctions(node.statements);
+        
+        // Second pass: execute only non-function statements and function calls
         for (auto& stmt : node.statements) {
-            stmt->accept(*this);
+            if (dynamic_cast<FunctionDeclaration*>(stmt.get()) == nullptr) {
+                stmt->accept(*this);
+            }
+        }
+    }
+    
+    void collectFunctions(const std::vector<std::unique_ptr<Statement>>& statements) {
+        for (auto& stmt : statements) {
+            if (auto func = dynamic_cast<FunctionDeclaration*>(stmt.get())) {
+                // Store function definition
+                functions[func->name] = func;
+                assembly << "    # Function defined: " << func->name << "\n";
+                
+                // Recursively collect nested functions from this function's body
+                if (!func->isSingleExpression) {
+                    collectFunctions(func->body);
+                }
+            } else if (auto block = dynamic_cast<BlockStatement*>(stmt.get())) {
+                // Recursively collect nested functions
+                collectFunctions(block->statements);
+            }
         }
     }
     
     void visit(FunctionDeclaration& node) override {
-        if (node.name == "main") {
-            // Enter function scope
-            inFunction = true;
-            shadowedVars.clear(); // Clear shadowed variables from previous functions
-            
-            // Generate main function body
-            if (node.isSingleExpression) {
-                node.expression->accept(*this);
-            } else {
-                for (auto& stmt : node.body) {
-                    stmt->accept(*this);
-                }
-            }
-            
-            // Exit function scope - restore shadowed variables
-            for (const auto& pair : shadowedVars) {
-                variables[pair.first] = pair.second; // Restore shadowed variable
-            }
-            shadowedVars.clear();
-            inFunction = false;
+        // Functions are only executed when called, not when defined
+        assembly << "    # Function '" << node.name << "' defined but not executed\n";
+        
+        // Store function in our function table (simplified - we store the raw pointer)
+        // In a real implementation, we'd need proper cloning/copying
+        // For now, just mark that we've seen this function
+    }
+    
+    void executeFunctionCall(const std::string& functionName, const std::vector<std::unique_ptr<Expression>>& arguments) {
+        assembly << "    # Executing function call: " << functionName << "\n";
+        
+        // Find the function in the current scope
+        FunctionDeclaration* func = findFunction(functionName);
+        if (!func) {
+            throw std::runtime_error("Error: Undefined function '" + functionName + "'");
         }
+        
+        // Enter function scope
+        inFunction = true;
+        shadowedVars.clear(); // Clear shadowed variables from previous functions
+        
+        // Execute function body
+        if (func->isSingleExpression) {
+            func->expression->accept(*this);
+        } else {
+            for (auto& stmt : func->body) {
+                stmt->accept(*this);
+            }
+        }
+        
+        // Exit function scope - restore shadowed variables
+        for (const auto& pair : shadowedVars) {
+            variables[pair.first] = pair.second; // Restore shadowed variable
+        }
+        shadowedVars.clear();
+        inFunction = false;
+    }
+    
+    FunctionDeclaration* findFunction(const std::string& name) {
+        auto it = functions.find(name);
+        if (it != functions.end()) {
+            return it->second;
+        }
+        return nullptr;
     }
     
     void visit(VariableDeclaration& node) override {
@@ -324,9 +372,20 @@ public:
                         }
                         assembly << "    mov $" << dtypeLabel << ", %rax\n";
                     } else {
-                        throw std::runtime_error("Line " + std::to_string(id->line) + ": Error: Undefined variable '" + id->name + "'");
+                        throw std::runtime_error("Line " + std::to_string(id->line) + ": Error: Undefined variable '" + node.name + "'");
                     }
                 }
+            }
+        } else {
+            // Handle user-defined function calls
+            if (node.name == "main") {
+                // Special handling for explicit main() calls
+                assembly << "    # Explicit call to main()\n";
+                executeFunctionCall("main", node.arguments);
+            } else {
+                // Handle other user-defined function calls
+                assembly << "    # User-defined function call: " << node.name << "\n";
+                executeFunctionCall(node.name, node.arguments);
             }
         }
     }
