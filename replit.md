@@ -70,13 +70,14 @@ The Orion compiler now implements Python-style function execution and nested fun
 - **No Automatic Execution**: The compiler no longer automatically executes the `main()` function or any other functions
 
 ### Variable Scoping System
-The Orion compiler also implements proper Python-style variable scoping with the following features:
+The Orion compiler implements proper Python-style variable scoping with complete scope isolation:
 
-- **Local Variables by Default**: Variable assignments inside functions create local variables that shadow global variables
-- **Global Keyword Support**: Using `global varname` forces assignments to affect the global scope
-- **Local Keyword Support**: Using `local varname` explicitly creates local variables (though this is the default behavior)
-- **Variable Shadowing**: Local variables properly shadow global variables and are restored when function exits
-- **Proper Scope Management**: The compiler tracks variable scopes across function boundaries correctly
+- **Function Scope Isolation**: Variables defined inside functions only exist within that function's scope
+- **Local Variables by Default**: Variable assignments inside functions create local variables that are inaccessible outside the function
+- **Global Keyword Support**: Using `global varname` allows functions to create or modify global variables
+- **Proper Error Handling**: Accessing variables outside their defining scope throws "Undefined variable" errors
+- **Variable Lifetime Management**: Local variables are properly destroyed when function scope exits
+- **Nested Function Support**: Functions defined inside other functions have proper scope chain resolution
 
 ### Deployment Configuration
 The project is fully configured for Replit deployment with:

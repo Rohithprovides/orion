@@ -1,0 +1,12 @@
+fn main() {
+  a = 5
+  out(a)
+  fn hello() {
+    a = 6
+    out(a)
+  }
+  hello()
+}
+
+main()
+out(a)

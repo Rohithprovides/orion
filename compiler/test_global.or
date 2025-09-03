@@ -1,0 +1,14 @@
+fn main() {
+  global a
+  a = 5
+  out(a)
+  fn hello() {
+    global a  
+    a = 6
+    out(a)
+  }
+  hello()
+}
+
+main()
+out(a)

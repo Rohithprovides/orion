@@ -19,9 +19,10 @@ main:
     # Function defined: hello
     # Explicit call to main()
     # Executing function call: main
+    # Global declaration: a
     # Variable: a
     mov $5, %rax
-    mov %rax, -8(%rbp)
+    mov %rax, -8(%rbp)  # store global a
     # Call out() with variable: a (type: int)
     mov -8(%rbp), %rsi
     mov $format_int, %rdi
@@ -30,10 +31,16 @@ main:
     # Function 'hello' defined but not executed
     # User-defined function call: hello
     # Executing function call: hello
-    # Variable: b
+    # Global declaration: a
+    # Variable: a
     mov $6, %rax
-    mov %rax, -16(%rbp)
-    # Call out() with variable: b (type: int)
+    mov %rax, -16(%rbp)  # store global a
+    # Call out() with variable: a (type: int)
+    mov -16(%rbp), %rsi
+    mov $format_int, %rdi
+    xor %rax, %rax
+    call printf
+    # Call out() with variable: a (type: int)
     mov -16(%rbp), %rsi
     mov $format_int, %rdi
     xor %rax, %rax

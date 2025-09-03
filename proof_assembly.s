@@ -19,15 +19,22 @@ main:
     # Function defined: hello
     # Explicit call to main()
     # Executing function call: main
+    # Global declaration: a
     # Variable: a
     mov $5, %rax
-    mov %rax, -8(%rbp)
+    mov %rax, -8(%rbp)  # store global a
+    # Function 'hello' defined but not executed
+    # User-defined function call: hello
+    # Executing function call: hello
+    # Global declaration: a
+    # Variable: a
+    mov $6, %rax
+    mov %rax, -16(%rbp)  # store global a
     # Call out() with variable: a (type: int)
-    mov -8(%rbp), %rsi
+    mov -16(%rbp), %rsi
     mov $format_int, %rdi
     xor %rax, %rax
     call printf
-    # Function 'hello' defined but not executed
     mov $0, %rax
     add $64, %rsp
     pop %rbp
