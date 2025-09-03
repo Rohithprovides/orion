@@ -24,7 +24,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "SESSION_SECRET=\"-uFM9FxrW-HDE4JqjvQGhH7gZY1zVLKE\" python3 app.py"
+args = "python3 app.py"
 waitForPort = 5000
 
 [workflows.workflow.metadata]
