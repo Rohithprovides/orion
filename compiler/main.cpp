@@ -326,11 +326,11 @@ public:
                         throw std::runtime_error("Error: Undefined variable '" + id->name + "'");
                     }
                 } else {
-                    // Generic expression
+                    // Generic expression (like arithmetic operations)
                     arg->accept(*this);
                     assembly << "    # Call out() with expression result\n";
                     assembly << "    mov %rax, %rsi\n";
-                    assembly << "    mov $format_str, %rdi\n";
+                    assembly << "    mov $format_int, %rdi\n";  // Use integer format for computed results
                     assembly << "    xor %rax, %rax\n";
                     assembly << "    call printf\n";
                 }
