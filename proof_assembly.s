@@ -15,7 +15,19 @@ main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp
-    # Function defined: main
+    mov $2, %rax
+    push %rax
+    mov $3, %rax
+    pop %rbx
+    mov %rax, %rcx
+    mov %rbx, %rax
+    xor %rdx, %rdx
+    idiv %rcx
+    # Call out() with expression result
+    mov %rax, %rsi
+    mov $format_int, %rdi
+    xor %rax, %rax
+    call printf
     mov $0, %rax
     add $64, %rsp
     pop %rbp
