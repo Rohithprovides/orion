@@ -267,36 +267,161 @@ private:
     }
     
     std::unique_ptr<Expression> parseExpression() {
-        // Function call: name(args)
-        if (check(TokenType::IDENTIFIER)) {
-            size_t lookahead = current + 1;
-            if (lookahead < tokens.size() && tokens[lookahead].type == TokenType::LPAREN) {
-                std::string funcName = advance().value;
-                advance(); // consume '('
-                
-                auto call = std::make_unique<FunctionCall>(funcName);
-                
-                // Parse arguments
-                if (!check(TokenType::RPAREN)) {
-                    do {
-                        call->arguments.push_back(parseExpression());
-                    } while (check(TokenType::COMMA) && (advance(), true));
+        return parseLogicalOr();
+    }
+    
+    std::unique_ptr<Expression> parseLogicalOr() {
+        auto expr = parseLogicalAnd();
+        
+        while (check(TokenType::OR)) {
+            advance(); // consume '||'
+            auto right = parseLogicalAnd();
+            expr = std::make_unique<BinaryExpression>(std::move(expr), BinaryOp::OR, std::move(right));
+        }
+        
+        return expr;
+    }
+    
+    std::unique_ptr<Expression> parseLogicalAnd() {
+        auto expr = parseEquality();
+        
+        while (check(TokenType::AND)) {
+            advance(); // consume '&&'
+            auto right = parseEquality();
+            expr = std::make_unique<BinaryExpression>(std::move(expr), BinaryOp::AND, std::move(right));
+        }
+        
+        return expr;
+    }
+    
+    std::unique_ptr<Expression> parseEquality() {
+        auto expr = parseComparison();
+        
+        while (check(TokenType::EQ) || check(TokenType::NE)) {
+            BinaryOp op = (peek().type == TokenType::EQ) ? BinaryOp::EQ : BinaryOp::NE;
+            advance();
+            auto right = parseComparison();
+            expr = std::make_unique<BinaryExpression>(std::move(expr), op, std::move(right));
+        }
+        
+        return expr;
+    }
+    
+    std::unique_ptr<Expression> parseComparison() {
+        auto expr = parseTerm();
+        
+        while (check(TokenType::LT) || check(TokenType::LE) || check(TokenType::GT) || check(TokenType::GE)) {
+            BinaryOp op;
+            switch (peek().type) {
+                case TokenType::LT: op = BinaryOp::LT; break;
+                case TokenType::LE: op = BinaryOp::LE; break;
+                case TokenType::GT: op = BinaryOp::GT; break;
+                case TokenType::GE: op = BinaryOp::GE; break;
+                default: throw std::runtime_error("Invalid comparison operator");
+            }
+            advance();
+            auto right = parseTerm();
+            expr = std::make_unique<BinaryExpression>(std::move(expr), op, std::move(right));
+        }
+        
+        return expr;
+    }
+    
+    std::unique_ptr<Expression> parseTerm() {
+        auto expr = parseFactor();
+        
+        while (check(TokenType::PLUS) || check(TokenType::MINUS)) {
+            BinaryOp op = (peek().type == TokenType::PLUS) ? BinaryOp::ADD : BinaryOp::SUB;
+            advance();
+            auto right = parseFactor();
+            expr = std::make_unique<BinaryExpression>(std::move(expr), op, std::move(right));
+        }
+        
+        return expr;
+    }
+    
+    std::unique_ptr<Expression> parseFactor() {
+        auto expr = parsePower();
+        
+        while (check(TokenType::MULTIPLY) || check(TokenType::DIVIDE) || check(TokenType::MODULO) || check(TokenType::FLOOR_DIVIDE)) {
+            BinaryOp op;
+            switch (peek().type) {
+                case TokenType::MULTIPLY: op = BinaryOp::MUL; break;
+                case TokenType::DIVIDE: op = BinaryOp::DIV; break;
+                case TokenType::MODULO: op = BinaryOp::MOD; break;
+                case TokenType::FLOOR_DIVIDE: op = BinaryOp::FLOOR_DIV; break;
+                default: throw std::runtime_error("Invalid factor operator");
+            }
+            advance();
+            auto right = parsePower();
+            expr = std::make_unique<BinaryExpression>(std::move(expr), op, std::move(right));
+        }
+        
+        return expr;
+    }
+    
+    std::unique_ptr<Expression> parsePower() {
+        auto expr = parseUnary();
+        
+        // Exponentiation is right-associative
+        if (check(TokenType::POWER)) {
+            advance(); // consume '**'
+            auto right = parsePower(); // Right-associative: a**b**c = a**(b**c)
+            expr = std::make_unique<BinaryExpression>(std::move(expr), BinaryOp::POWER, std::move(right));
+        }
+        
+        return expr;
+    }
+    
+    std::unique_ptr<Expression> parseUnary() {
+        if (check(TokenType::NOT) || check(TokenType::MINUS) || check(TokenType::PLUS)) {
+            UnaryOp op;
+            switch (peek().type) {
+                case TokenType::NOT: op = UnaryOp::NOT; break;
+                case TokenType::MINUS: op = UnaryOp::MINUS; break;
+                case TokenType::PLUS: op = UnaryOp::PLUS; break;
+                default: throw std::runtime_error("Invalid unary operator");
+            }
+            advance();
+            auto right = parseUnary();
+            return std::make_unique<UnaryExpression>(op, std::move(right));
+        }
+        
+        return parseCall();
+    }
+    
+    std::unique_ptr<Expression> parseCall() {
+        auto expr = parsePrimary();
+        
+        while (true) {
+            if (check(TokenType::LPAREN)) {
+                // Function call
+                if (auto id = dynamic_cast<Identifier*>(expr.get())) {
+                    advance(); // consume '('
+                    auto call = std::make_unique<FunctionCall>(id->name);
+                    expr.release(); // Release ownership since we're replacing it
+                    
+                    // Parse arguments
+                    if (!check(TokenType::RPAREN)) {
+                        do {
+                            call->arguments.push_back(parseExpression());
+                        } while (check(TokenType::COMMA) && (advance(), true));
+                    }
+                    
+                    if (!check(TokenType::RPAREN)) {
+                        throw std::runtime_error("Expected ')' after function arguments");
+                    }
+                    advance(); // consume ')'
+                    expr = std::move(call);
+                } else {
+                    throw std::runtime_error("Invalid function call");
                 }
-                
-                if (!check(TokenType::RPAREN)) {
-                    throw std::runtime_error("Expected ')' after function arguments");
-                }
-                advance(); // consume ')'
-                
-                return std::move(call);
             } else {
-                // Variable reference
-                Token varToken = advance();
-                return std::make_unique<Identifier>(varToken.value, varToken.line, varToken.column);
+                break;
             }
         }
         
-        return parsePrimary();
+        return expr;
     }
     
     std::unique_ptr<Expression> parsePrimary() {

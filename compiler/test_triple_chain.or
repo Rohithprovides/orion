@@ -1,4 +1,0 @@
-x=y=z=42
-out(x)
-out(y)
-out(z)

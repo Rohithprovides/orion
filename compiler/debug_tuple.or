@@ -1,7 +1,0 @@
-a = 10
-b = 20
-out(a)
-out(b)
-(a, b) = (b, a)
-out(a)
-out(b)

@@ -1,4 +1,0 @@
-name = "John"
-age = 25  
-out(name)
-out(undefined_var)

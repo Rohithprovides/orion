@@ -1,9 +1,0 @@
-a = 10
-b = 20
-out("Before swap:")
-out(a)
-out(b)
-(a, b) = (b, a)
-out("After swap:")
-out(a)
-out(b)

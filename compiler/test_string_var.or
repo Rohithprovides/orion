@@ -1,3 +1,0 @@
-name = "Alice"
-greeting = name
-out(greeting)
