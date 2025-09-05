@@ -378,14 +378,62 @@ public:
     }
     
     void visit(BinaryExpression& node) override {
-        // Handle string concatenation and other operations
-        if (node.op == BinaryOp::ADD) {
-            // For now, simple integer addition
-            node.left->accept(*this);
-            assembly << "    push %rax\n";
-            node.right->accept(*this);
-            assembly << "    pop %rbx\n";
-            assembly << "    add %rbx, %rax\n";
+        // Evaluate left operand
+        node.left->accept(*this);
+        assembly << "    push %rax\n";
+        
+        // Evaluate right operand
+        node.right->accept(*this);
+        assembly << "    pop %rbx\n";
+        
+        // Perform operation
+        switch (node.op) {
+            case BinaryOp::ADD:
+                assembly << "    add %rbx, %rax\n";
+                break;
+            case BinaryOp::SUB:
+                assembly << "    sub %rax, %rbx\n";
+                assembly << "    mov %rbx, %rax\n";
+                break;
+            case BinaryOp::MUL:
+                assembly << "    imul %rbx, %rax\n";
+                break;
+            case BinaryOp::DIV:
+                assembly << "    mov %rax, %rcx\n";
+                assembly << "    mov %rbx, %rax\n";
+                assembly << "    xor %rdx, %rdx\n";
+                assembly << "    idiv %rcx\n";
+                break;
+            case BinaryOp::MOD:
+                assembly << "    mov %rax, %rcx\n";
+                assembly << "    mov %rbx, %rax\n";
+                assembly << "    xor %rdx, %rdx\n";
+                assembly << "    idiv %rcx\n";
+                assembly << "    mov %rdx, %rax\n";
+                break;
+            case BinaryOp::FLOOR_DIV:
+                // Integer division (same as DIV for integers)
+                assembly << "    mov %rax, %rcx\n";
+                assembly << "    mov %rbx, %rax\n";
+                assembly << "    xor %rdx, %rdx\n";
+                assembly << "    idiv %rcx\n";
+                break;
+            case BinaryOp::POWER:
+                // Simple power implementation for small integers
+                assembly << "    mov %rbx, %rcx  # base\n";
+                assembly << "    mov %rax, %rdx  # exponent\n";
+                assembly << "    mov $1, %rax    # result = 1\n";
+                assembly << "power_loop:\n";
+                assembly << "    test %rdx, %rdx\n";
+                assembly << "    jz power_done\n";
+                assembly << "    imul %rcx, %rax\n";
+                assembly << "    dec %rdx\n";
+                assembly << "    jmp power_loop\n";
+                assembly << "power_done:\n";
+                break;
+            default:
+                assembly << "    # Unsupported binary operation\n";
+                break;
         }
     }
     
