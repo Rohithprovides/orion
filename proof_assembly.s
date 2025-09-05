@@ -15,7 +15,23 @@ main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp
-    # Function defined: main
+    # Variable: a
+    mov $5, %rax
+    push %rax
+    mov $6, %rax
+    pop %rbx
+    add %rbx, %rax
+    mov %rax, -8(%rbp)  # store global a
+    mov $5, %rax
+    push %rax
+    mov $6, %rax
+    pop %rbx
+    add %rbx, %rax
+    # Call out() with expression result
+    mov %rax, %rsi
+    mov $format_str, %rdi
+    xor %rax, %rax
+    call printf
     mov $0, %rax
     add $64, %rsp
     pop %rbp
