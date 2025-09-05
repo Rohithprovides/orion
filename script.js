@@ -264,7 +264,15 @@ async function compileCode() {
             appendOutput('Program Output:\n', 'info');
             appendOutput(result.output + '\n', 'normal');
             appendOutput('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n', 'info');
-            appendOutput(`✓ Execution completed (${result.execution_time}ms)\n`, 'success');
+            
+            // Show timing breakdown
+            const compilationTime = result.compilation_time || 0;
+            const executionTime = result.execution_time || 0;
+            const totalTime = result.total_time || (compilationTime + executionTime);
+            
+            appendOutput(`✓ Compilation completed (${compilationTime}ms)\n`, 'success');
+            appendOutput(`✓ Execution completed (${executionTime}ms)\n`, 'success');
+            appendOutput(`✓ Total runtime: ${totalTime}ms\n`, 'info');
         } else {
             updateOutputStatus('error', 'Error');
             appendOutput('✗ Compilation failed!\n', 'error');

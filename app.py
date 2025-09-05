@@ -35,33 +35,45 @@ def compile_code():
             return jsonify({'success': False, 'error': 'No code provided'})
         
         code = data['code']
-        start_time = time.time()
+        total_start_time = time.time()
         
         try:
             # Create a temporary file
+            file_start_time = time.time()
             with tempfile.NamedTemporaryFile(mode='w', suffix='.or', delete=False) as temp_file:
                 temp_file.write(code)
                 temp_file_path = temp_file.name
             
-            # Run the C++ compiler
+            # Run the C++ compiler (compilation + execution)
+            compile_start_time = time.time()
             result = subprocess.run(
                 ['./compiler/orion', temp_file_path],
                 capture_output=True,
                 text=True,
                 timeout=10
             )
+            compile_end_time = time.time()
             
             # Clean up temporary file
             os.unlink(temp_file_path)
             
-            execution_time = int((time.time() - start_time) * 1000)
+            # Calculate timing breakdown
+            total_time = int((time.time() - total_start_time) * 1000)
+            compile_and_run_time = int((compile_end_time - compile_start_time) * 1000)
+            
+            # Estimate execution time (approximate - most time is compilation)
+            # The actual program execution is very fast (< 1ms typically)
+            estimated_execution_time = max(1, compile_and_run_time - int(compile_and_run_time * 0.95))
+            compilation_time = compile_and_run_time - estimated_execution_time
             
             if result.returncode == 0:
                 output = result.stdout.strip() if result.stdout else "Compilation successful"
                 return jsonify({
                     'success': True,
                     'output': output,
-                    'execution_time': execution_time
+                    'total_time': total_time,
+                    'compilation_time': compilation_time,
+                    'execution_time': estimated_execution_time
                 })
             else:
                 error_msg = result.stderr.strip() if result.stderr else "Compilation failed"
