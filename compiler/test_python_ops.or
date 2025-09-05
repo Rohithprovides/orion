@@ -1,0 +1,21 @@
+fn main() {
+    // Test exponentiation operator **
+    base = 2
+    exp = 3
+    result = base ** exp
+    out("2 ** 3 = " + str(result))
+    
+    // Test floor division operator //
+    dividend = 17
+    divisor = 5
+    floor_result = dividend // divisor
+    out("17 // 5 = " + str(floor_result))
+    
+    // Test operator precedence with **
+    precedence_test = 2 + 3 ** 2
+    out("2 + 3 ** 2 = " + str(precedence_test))
+    
+    // Test right-associativity of **
+    right_assoc = 2 ** 3 ** 2
+    out("2 ** 3 ** 2 = " + str(right_assoc))
+}

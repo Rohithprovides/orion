@@ -135,6 +135,7 @@ public:
 // Binary operations
 enum class BinaryOp {
     ADD, SUB, MUL, DIV, MOD,
+    POWER, FLOOR_DIV,
     EQ, NE, LT, LE, GT, GE,
     AND, OR,
     ASSIGN

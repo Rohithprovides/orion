@@ -175,6 +175,29 @@ public:
             case BinaryOp::OR:
                 output << "    or %rbx, %rax\n";
                 break;
+            case BinaryOp::POWER:
+                // Simple integer exponentiation using a loop
+                output << "    # Power operation: rax = rax ** rbx\n";
+                output << "    push %rcx\n";
+                output << "    push %rdx\n";
+                output << "    mov %rax, %rdx\n";  // base in rdx
+                output << "    mov %rbx, %rcx\n";  // exponent in rcx  
+                output << "    mov $1, %rax\n";    // result starts at 1
+                output << "    test %rcx, %rcx\n"; // check if exponent is 0
+                output << "    jz .power_done\n";
+                output << ".power_loop:\n";
+                output << "    imul %rdx, %rax\n"; // result *= base
+                output << "    dec %rcx\n";
+                output << "    jnz .power_loop\n";
+                output << ".power_done:\n";
+                output << "    pop %rdx\n";
+                output << "    pop %rcx\n";
+                break;
+            case BinaryOp::FLOOR_DIV:
+                // Floor division - same as regular division for integers
+                output << "    xor %rdx, %rdx\n";
+                output << "    idiv %rbx\n";
+                break;
             default:
                 output << "    # Unsupported binary operation\n";
                 break;

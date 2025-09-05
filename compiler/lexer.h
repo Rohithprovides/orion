@@ -22,6 +22,7 @@ enum class TokenType {
     
     // Operators
     PLUS, MINUS, MULTIPLY, DIVIDE, MODULO,
+    POWER, FLOOR_DIVIDE,
     ASSIGN, PLUS_ASSIGN, MINUS_ASSIGN,
     EQ, NE, LT, LE, GT, GE,
     AND, OR, NOT,
