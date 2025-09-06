@@ -41,6 +41,17 @@ private:
         return prefix + std::to_string(labelCounter++);
     }
     
+    bool isFloatExpression(Expression* expr) {
+        if (auto floatLit = dynamic_cast<FloatLiteral*>(expr)) {
+            return true;
+        }
+        if (auto id = dynamic_cast<Identifier*>(expr)) {
+            auto varInfo = lookupVariable(id->name);
+            return varInfo && varInfo->type == "float";
+        }
+        return false;
+    }
+    
     int addStringLiteral(const std::string& str) {
         stringLiterals.push_back(str);
         return stringLiterals.size() - 1;
@@ -230,7 +241,12 @@ public:
                     case BinaryOp::MOD:
                     case BinaryOp::FLOOR_DIV:
                     case BinaryOp::POWER:
-                        varType = "int";  // Arithmetic operations result in int
+                        // Check if either operand is a float
+                        if (isFloatExpression(binExpr->left.get()) || isFloatExpression(binExpr->right.get())) {
+                            varType = "float";
+                        } else {
+                            varType = "int";
+                        }
                         break;
                     case BinaryOp::EQ:
                     case BinaryOp::NE:
@@ -364,7 +380,6 @@ public:
                             assembly << "    mov $format_str, %rdi\n";
                         }
                         
-                        assembly << "    xor %rax, %rax\n";
                         assembly << "    call printf\n";
                     } else {
                         throw std::runtime_error("Error: Undefined variable '" + id->name + "'");
@@ -548,7 +563,7 @@ public:
     // Stub implementations for other visitors
     void visit(FloatLiteral& node) override { 
         assembly << "    # Float: " << node.value << "\n"; 
-        // Store float as IEEE 754 double precision in memory
+        // Store float value as IEEE 754 in memory and load to rax
         int floatIndex = addFloatLiteral(node.value);
         assembly << "    movq float_" << floatIndex << "(%rip), %rax\n";
     }
