@@ -15,11 +15,13 @@ main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp
+    # Variable: b
     # Float: 3.4
     mov $3, %rax
-    # Call out() with expression result
-    mov %rax, %rsi
-    mov $format_int, %rdi
+    mov %rax, -8(%rbp)  # store global b
+    # Call out() with variable: b (type: float)
+    mov -8(%rbp), %rsi
+    mov $format_str, %rdi
     xor %rax, %rax
     call printf
     mov $0, %rax
