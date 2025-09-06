@@ -341,7 +341,7 @@ public:
                         assembly << "    # Call out() with variable: " << id->name << " (type: " << it->type << ")\n";
                         assembly << "    mov -" << it->stackOffset << "(%rbp), %rsi\n";
                         
-                        if (it->type == "int" || it->type == "bool") {
+                        if (it->type == "int" || it->type == "bool" || it->type == "float") {
                             assembly << "    mov $format_int, %rdi\n";
                         } else {
                             assembly << "    mov $format_str, %rdi\n";
