@@ -431,6 +431,12 @@ private:
             return std::make_unique<IntLiteral>(value, token.line, token.column);
         }
         
+        if (check(TokenType::FLOAT)) {
+            Token token = advance();
+            double value = std::stod(token.value);
+            return std::make_unique<FloatLiteral>(value, token.line, token.column);
+        }
+        
         if (check(TokenType::STRING)) {
             Token token = advance();
             return std::make_unique<StringLiteral>(token.value, token.line, token.column);

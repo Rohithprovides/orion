@@ -529,7 +529,11 @@ public:
     }
 
     // Stub implementations for other visitors
-    void visit(FloatLiteral& node) override { assembly << "    # Float: " << node.value << "\n"; }
+    void visit(FloatLiteral& node) override { 
+        assembly << "    # Float: " << node.value << "\n"; 
+        // For now, treat floats as truncated integers
+        assembly << "    mov $" << static_cast<int>(node.value) << ", %rax\n";
+    }
     void visit(BoolLiteral& node) override { assembly << "    mov $" << (node.value ? 1 : 0) << ", %rax\n"; }
     void visit(UnaryExpression& node) override { node.operand->accept(*this); }
     void visit(BlockStatement& node) override { 
