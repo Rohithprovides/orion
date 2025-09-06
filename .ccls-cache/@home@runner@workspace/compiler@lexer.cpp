@@ -37,6 +37,8 @@ std::string Token::typeToString() const {
         case TokenType::MULTIPLY: return "MULTIPLY";
         case TokenType::DIVIDE: return "DIVIDE";
         case TokenType::MODULO: return "MODULO";
+        case TokenType::POWER: return "POWER";
+        case TokenType::FLOOR_DIVIDE: return "FLOOR_DIVIDE";
         case TokenType::ASSIGN: return "ASSIGN";
         case TokenType::EQ: return "EQ";
         case TokenType::NE: return "NE";
@@ -195,6 +197,19 @@ Token Lexer::nextToken() {
         if (c == '=' && peek() == '>') {
             advance();
             return Token(TokenType::FAT_ARROW, "=>", tokenLine, tokenColumn);
+        }
+        if (c == '*' && peek() == '*') {
+            advance();
+            return Token(TokenType::POWER, "**", tokenLine, tokenColumn);
+        }
+        if (c == '/' && peek() == '/') {
+            // Check if this is a comment or floor division
+            if (peekNext() == ' ' || peekNext() == '\t' || std::isdigit(peekNext()) || 
+                std::isalpha(peekNext()) || peekNext() == '(' || peekNext() == '_') {
+                advance();
+                return Token(TokenType::FLOOR_DIVIDE, "//", tokenLine, tokenColumn);
+            }
+            // Otherwise, it's a comment, so skip
         }
         
         // Single-character tokens

@@ -16,7 +16,7 @@ main:
     mov %rsp, %rbp
     sub $64, %rsp
     # Variable: a
-    mov $15, %rax
+    mov $14, %rax
     mov %rax, -8(%rbp)  # store global a
     # Variable: b
     mov $3, %rax
@@ -26,7 +26,10 @@ main:
     push %rax
     mov -16(%rbp), %rax  # load global b
     pop %rbx
-    add %rbx, %rax
+    mov %rax, %rcx
+    mov %rbx, %rax
+    xor %rdx, %rdx
+    idiv %rcx
     mov %rax, -24(%rbp)  # store global c
     # Call out() with variable: c (type: int)
     mov -24(%rbp), %rsi

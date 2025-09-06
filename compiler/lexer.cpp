@@ -120,9 +120,18 @@ Token Lexer::nextToken() {
         char c = advance();
         
         // Single-line comments
+        // Check for floor division (//) before checking for comments
         if (c == '/' && peek() == '/') {
-            skipLineComment();
-            return nextToken();
+            // Check if this is floor division (followed by operand) or comment
+            if (peekNext() == ' ' || peekNext() == '\t' || std::isdigit(peekNext()) || 
+                std::isalpha(peekNext()) || peekNext() == '(' || peekNext() == '_') {
+                advance();
+                return Token(TokenType::FLOOR_DIVIDE, "//", tokenLine, tokenColumn);
+            } else {
+                // It's a comment, so skip the line
+                skipLineComment();
+                return nextToken();
+            }
         }
         
         // Multi-line comments
@@ -201,15 +210,6 @@ Token Lexer::nextToken() {
         if (c == '*' && peek() == '*') {
             advance();
             return Token(TokenType::POWER, "**", tokenLine, tokenColumn);
-        }
-        if (c == '/' && peek() == '/') {
-            // Check if this is a comment or floor division
-            if (peekNext() == ' ' || peekNext() == '\t' || std::isdigit(peekNext()) || 
-                std::isalpha(peekNext()) || peekNext() == '(' || peekNext() == '_') {
-                advance();
-                return Token(TokenType::FLOOR_DIVIDE, "//", tokenLine, tokenColumn);
-            }
-            // Otherwise, it's a comment, so skip
         }
         
         // Single-character tokens

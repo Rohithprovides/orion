@@ -439,7 +439,7 @@ public:
                 assembly << "    mov %rdx, %rax\n";
                 break;
             case BinaryOp::FLOOR_DIV:
-                // Integer division (same as DIV for integers)
+                // Integer division (same as DIV for integers) - EXACT COPY OF DIV
                 assembly << "    mov %rax, %rcx\n";
                 assembly << "    mov %rbx, %rax\n";
                 assembly << "    xor %rdx, %rdx\n";
