@@ -119,19 +119,16 @@ Token Lexer::nextToken() {
         int tokenColumn = column;
         char c = advance();
         
-        // Single-line comments
-        // Check for floor division (//) before checking for comments
+        // Single-line comments with #
+        if (c == '#') {
+            skipLineComment();
+            return nextToken();
+        }
+        
+        // Floor division operator //
         if (c == '/' && peek() == '/') {
-            // Check if this is floor division (followed by operand) or comment
-            if (peekNext() == ' ' || peekNext() == '\t' || std::isdigit(peekNext()) || 
-                std::isalpha(peekNext()) || peekNext() == '(' || peekNext() == '_') {
-                advance();
-                return Token(TokenType::FLOOR_DIVIDE, "//", tokenLine, tokenColumn);
-            } else {
-                // It's a comment, so skip the line
-                skipLineComment();
-                return nextToken();
-            }
+            advance();
+            return Token(TokenType::FLOOR_DIVIDE, "//", tokenLine, tokenColumn);
         }
         
         // Multi-line comments
