@@ -206,6 +206,33 @@ public:
                 if (varInfo != nullptr) {
                     varType = varInfo->type;
                 }
+            } else if (auto binExpr = dynamic_cast<BinaryExpression*>(node.initializer.get())) {
+                // Binary expression: infer type from operands
+                // For arithmetic operations, the result is typically int
+                switch (binExpr->op) {
+                    case BinaryOp::ADD:
+                    case BinaryOp::SUB:
+                    case BinaryOp::MUL:
+                    case BinaryOp::DIV:
+                    case BinaryOp::MOD:
+                    case BinaryOp::FLOOR_DIV:
+                    case BinaryOp::POWER:
+                        varType = "int";  // Arithmetic operations result in int
+                        break;
+                    case BinaryOp::EQ:
+                    case BinaryOp::NE:
+                    case BinaryOp::LT:
+                    case BinaryOp::LE:
+                    case BinaryOp::GT:
+                    case BinaryOp::GE:
+                    case BinaryOp::AND:
+                    case BinaryOp::OR:
+                        varType = "bool";  // Comparison/logical operations result in bool
+                        break;
+                    default:
+                        varType = "int";  // Default to int for unknown operations
+                        break;
+                }
             }
             
             node.initializer->accept(*this);

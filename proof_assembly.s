@@ -21,16 +21,15 @@ main:
     # Variable: b
     mov $3, %rax
     mov %rax, -16(%rbp)  # store global b
+    # Variable: c
     mov -8(%rbp), %rax  # load global a
     push %rax
     mov -16(%rbp), %rax  # load global b
     pop %rbx
-    mov %rax, %rcx
-    mov %rbx, %rax
-    xor %rdx, %rdx
-    idiv %rcx
-    # Call out() with expression result
-    mov %rax, %rsi
+    add %rbx, %rax
+    mov %rax, -24(%rbp)  # store global c
+    # Call out() with variable: c (type: int)
+    mov -24(%rbp), %rsi
     mov $format_int, %rdi
     xor %rax, %rax
     call printf
