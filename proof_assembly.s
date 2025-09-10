@@ -16,7 +16,7 @@ main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp
-    # Function defined: test
+    # Function defined: main
     mov $0, %rax
     add $64, %rsp
     pop %rbp

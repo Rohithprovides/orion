@@ -1,1 +1,3 @@
-out("Hello")
+fn main() {
+    out(42)
+}

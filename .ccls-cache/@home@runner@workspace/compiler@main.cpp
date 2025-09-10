@@ -22,6 +22,7 @@ class SimpleCodeGenerator : public ASTVisitor {
 private:
     std::ostringstream assembly;
     std::vector<std::string> stringLiterals;
+    std::vector<double> floatLiterals;
     struct VariableInfo {
         int stackOffset;
         std::string type;
@@ -40,9 +41,25 @@ private:
         return prefix + std::to_string(labelCounter++);
     }
     
+    bool isFloatExpression(Expression* expr) {
+        if (auto floatLit = dynamic_cast<FloatLiteral*>(expr)) {
+            return true;
+        }
+        if (auto id = dynamic_cast<Identifier*>(expr)) {
+            auto varInfo = lookupVariable(id->name);
+            return varInfo && varInfo->type == "float";
+        }
+        return false;
+    }
+    
     int addStringLiteral(const std::string& str) {
         stringLiterals.push_back(str);
         return stringLiterals.size() - 1;
+    }
+    
+    int addFloatLiteral(double value) {
+        floatLiterals.push_back(value);
+        return floatLiterals.size() - 1;
     }
     
 public:
@@ -50,6 +67,7 @@ public:
         assembly.str("");
         assembly.clear();
         stringLiterals.clear();
+        floatLiterals.clear();
         globalVariables.clear();
         localVariables.clear();
         declaredGlobal.clear();
@@ -68,6 +86,7 @@ public:
         fullAssembly << ".section .data\n";
         fullAssembly << "format_int: .string \"%d\\n\"\n";
         fullAssembly << "format_str: .string \"%s\\n\"\n";
+        fullAssembly << "format_float: .string \"%.1f\\n\"\n";
         fullAssembly << "dtype_int: .string \"datatype: int\\n\"\n";
         fullAssembly << "dtype_string: .string \"datatype: string\\n\"\n";
         fullAssembly << "dtype_bool: .string \"datatype: bool\\n\"\n";
@@ -77,6 +96,11 @@ public:
         // String literals
         for (size_t i = 0; i < stringLiterals.size(); i++) {
             fullAssembly << "str_" << i << ": .string \"" << stringLiterals[i] << "\\n\"\n";
+        }
+        
+        // Add float literals  
+        for (size_t i = 0; i < floatLiterals.size(); ++i) {
+            fullAssembly << "float_" << i << ": .quad " << *reinterpret_cast<uint64_t*>(&floatLiterals[i]) << "\n";
         }
         
         // Text section
@@ -217,7 +241,12 @@ public:
                     case BinaryOp::MOD:
                     case BinaryOp::FLOOR_DIV:
                     case BinaryOp::POWER:
-                        varType = "int";  // Arithmetic operations result in int
+                        // Check if either operand is a float
+                        if (isFloatExpression(binExpr->left.get()) || isFloatExpression(binExpr->right.get())) {
+                            varType = "float";
+                        } else {
+                            varType = "int";
+                        }
                         break;
                     case BinaryOp::EQ:
                     case BinaryOp::NE:
@@ -341,13 +370,16 @@ public:
                         assembly << "    # Call out() with variable: " << id->name << " (type: " << it->type << ")\n";
                         assembly << "    mov -" << it->stackOffset << "(%rbp), %rsi\n";
                         
-                        if (it->type == "int" || it->type == "bool" || it->type == "float") {
+                        if (it->type == "int" || it->type == "bool") {
                             assembly << "    mov $format_int, %rdi\n";
+                        } else if (it->type == "float") {
+                            assembly << "    movq -" << it->stackOffset << "(%rbp), %xmm0\n";  // Load float into XMM register  
+                            assembly << "    mov $format_float, %rdi\n";
+                            assembly << "    mov $1, %rax\n";  // Number of vector registers used
                         } else {
                             assembly << "    mov $format_str, %rdi\n";
                         }
                         
-                        assembly << "    xor %rax, %rax\n";
                         assembly << "    call printf\n";
                     } else {
                         throw std::runtime_error("Error: Undefined variable '" + id->name + "'");
@@ -531,8 +563,9 @@ public:
     // Stub implementations for other visitors
     void visit(FloatLiteral& node) override { 
         assembly << "    # Float: " << node.value << "\n"; 
-        // For now, treat floats as truncated integers
-        assembly << "    mov $" << static_cast<int>(node.value) << ", %rax\n";
+        // Store float value as IEEE 754 in memory and load to rax
+        int floatIndex = addFloatLiteral(node.value);
+        assembly << "    movq float_" << floatIndex << "(%rip), %rax\n";
     }
     void visit(BoolLiteral& node) override { assembly << "    mov $" << (node.value ? 1 : 0) << ", %rax\n"; }
     void visit(UnaryExpression& node) override { node.operand->accept(*this); }
