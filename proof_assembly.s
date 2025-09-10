@@ -16,27 +16,7 @@ main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp
-    # Variable: a
-    mov $3, %rax
-    mov %rax, -8(%rbp)  # store global a
-    # Variable: b
-    mov $2, %rax
-    mov %rax, -16(%rbp)  # store global b
-    # Variable: c
-    mov -8(%rbp), %rax  # load global a
-    push %rax
-    mov -16(%rbp), %rax  # load global b
-    pop %rbx
-    mov %rax, %rcx
-    mov %rbx, %rax
-    xor %rdx, %rdx
-    idiv %rcx
-    mov %rdx, %rax
-    mov %rax, -24(%rbp)  # store global c
-    # Call out() with variable: c (type: int)
-    mov -24(%rbp), %rsi
-    mov $format_int, %rdi
-    call printf
+    # Function defined: main
     mov $0, %rax
     add $64, %rsp
     pop %rbp
