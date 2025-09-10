@@ -1,0 +1,9 @@
+fn main() {
+    const a = 10
+    const b = 5
+    out("Testing variables:")
+    out(a == 10)
+    out(b != 10)
+    out(a > b)
+    out(b <= a)
+}
