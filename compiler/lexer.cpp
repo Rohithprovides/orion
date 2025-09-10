@@ -346,6 +346,7 @@ std::unordered_map<std::string, TokenType> Lexer::keywords = {
     {"void", TokenType::VOID},
     {"global", TokenType::GLOBAL},
     {"local", TokenType::LOCAL},
+    {"const", TokenType::CONST},
 };
 
 } // namespace orion
