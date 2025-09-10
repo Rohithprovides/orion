@@ -27,11 +27,13 @@ private:
         int stackOffset;
         std::string type;
         bool isGlobal;
+        bool isConstant;
     };
     std::unordered_map<std::string, VariableInfo> globalVariables; // Global scope variables
     std::unordered_map<std::string, VariableInfo> localVariables; // Current function scope variables
     std::unordered_set<std::string> declaredGlobal; // Variables explicitly declared global with 'global' keyword
     std::unordered_set<std::string> declaredLocal;  // Variables explicitly declared local with 'local' keyword
+    std::unordered_set<std::string> constantVariables; // Variables declared as const
     std::unordered_map<std::string, FunctionDeclaration*> functions; // Store function definitions
     int stackOffset = 0;
     bool inFunction = false;
@@ -72,6 +74,7 @@ public:
         localVariables.clear();
         declaredGlobal.clear();
         declaredLocal.clear();
+        constantVariables.clear();
         inFunction = false;
         stackOffset = 0;
         labelCounter = 0;
@@ -276,7 +279,12 @@ public:
                 varInfo.stackOffset = stackOffset;
                 varInfo.type = varType;
                 varInfo.isGlobal = true;
+                varInfo.isConstant = node.isConstant;
                 globalVariables[node.name] = varInfo;
+                
+                if (node.isConstant) {
+                    constantVariables.insert(node.name);
+                }
                 assembly << "    mov %rax, -" << stackOffset << "(%rbp)  # store global " << node.name << "\n";
             } else {
                 // In function and not declared global - create local variable
@@ -285,7 +293,12 @@ public:
                 varInfo.stackOffset = stackOffset;
                 varInfo.type = varType;
                 varInfo.isGlobal = false;
+                varInfo.isConstant = node.isConstant;
                 localVariables[node.name] = varInfo;
+                
+                if (node.isConstant) {
+                    constantVariables.insert(node.name);
+                }
                 assembly << "    mov %rax, -" << stackOffset << "(%rbp)  # store local " << node.name << "\n";
             }
         }
@@ -645,6 +658,13 @@ public:
     void visit(ChainAssignment& node) override {
         assembly << "    # Chain assignment (simplified)\n";
         
+        // Check if any variables are const
+        for (const std::string& varName : node.variables) {
+            if (constantVariables.count(varName)) {
+                throw std::runtime_error("Error: You are trying to change the value of a constant variable '" + varName + "'");
+            }
+        }
+        
         // Evaluate the value expression
         node.value->accept(*this);
         
@@ -658,6 +678,7 @@ public:
             varInfo.stackOffset = stackOffset;
             varInfo.type = "unknown";
             varInfo.isGlobal = !inFunction;
+            varInfo.isConstant = false;
             
             if (inFunction && !declaredGlobal.count(varName)) {
                 localVariables[varName] = varInfo;

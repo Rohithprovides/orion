@@ -12,6 +12,7 @@ struct Scope {
     std::unordered_map<std::string, Type> variables;
     std::unordered_set<std::string> globalVars;  // declared global in this scope
     std::unordered_set<std::string> localVars;   // declared local in this scope
+    std::unordered_set<std::string> constVars;   // declared const in this scope
     bool isFunction = false;
 };
 
@@ -40,6 +41,12 @@ public:
     void declareLocal(const std::string& name) {
         if (!scopeStack.empty()) {
             scopeStack.back().localVars.insert(name);
+        }
+    }
+    
+    void declareConst(const std::string& name) {
+        if (!scopeStack.empty()) {
+            scopeStack.back().constVars.insert(name);
         }
     }
     
@@ -99,6 +106,17 @@ public:
     
     bool isGlobal() const {
         return scopeStack.empty();
+    }
+    
+    bool isConst(const std::string& name) const {
+        // Check from innermost to outermost scope
+        for (int i = scopeStack.size() - 1; i >= 0; i--) {
+            const auto& scope = scopeStack[i];
+            if (scope.constVars.count(name)) {
+                return true;
+            }
+        }
+        return false;
     }
 };
 
@@ -323,6 +341,12 @@ public:
     }
     
     void visit(VariableDeclaration& node) override {
+        // Check const variable requirements
+        if (node.isConstant && !node.initializer) {
+            addError("Constant variable '" + node.name + "' must be initialized", node.line);
+            return;
+        }
+        
         if (node.initializer) {
             node.initializer->accept(*this);
             
@@ -345,6 +369,11 @@ public:
             }
         } else if (!node.hasExplicitType) {
             addError("Variable " + node.name + " needs either explicit type or initializer");
+        }
+        
+        // Mark as const if needed
+        if (node.isConstant) {
+            scopeManager.declareConst(node.name);
         }
         
         scopeManager.setVariable(node.name, node.type);

@@ -213,6 +213,13 @@ private:
     }
 
     std::unique_ptr<Statement> parseVariableDeclarationOrExpression() {
+        // Check for const keyword first
+        bool isConstant = false;
+        if (check(TokenType::CONST)) {
+            advance(); // consume 'const'
+            isConstant = true;
+        }
+        
         // Check for chain assignment: a=b=5
         if (check(TokenType::IDENTIFIER)) {
             // Scan ahead to detect chain assignment pattern
@@ -257,8 +264,13 @@ private:
                 advance(); // consume '='
                 
                 auto init = parseExpression();
-                return std::make_unique<VariableDeclaration>(varName, Type(), std::move(init), false);
+                return std::make_unique<VariableDeclaration>(varName, Type(), std::move(init), false, isConstant);
             }
+        }
+        
+        // Handle case where const is used without assignment
+        if (isConstant) {
+            throw std::runtime_error("Constant variable must be initialized");
         }
         
         // Expression statement
