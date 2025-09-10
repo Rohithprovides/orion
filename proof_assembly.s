@@ -100,6 +100,12 @@ main:
     movsd (%rsp), %xmm0  # Restore left operand
     addq $8, %rsp
     divsd %xmm1, %xmm0  # Float division
+    # Apply floor function
+    subq $8, %rsp  # Align stack
+    movsd %xmm0, (%rsp)  # Save division result
+    movsd (%rsp), %xmm0  # Load argument for floor
+    call floor  # Call C library floor function
+    addq $8, %rsp  # Restore stack
     movq %xmm0, %rax  # Store float result
     # Call out() with expression result
     movq %rax, %xmm0  # Load float result into XMM register
