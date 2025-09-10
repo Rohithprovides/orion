@@ -386,11 +386,26 @@ public:
                     }
                 } else {
                     // Generic expression (like arithmetic operations)
+                    // Check if the expression result is a float
+                    bool isFloatResult = false;
+                    if (auto binExpr = dynamic_cast<BinaryExpression*>(arg.get())) {
+                        isFloatResult = isFloatExpression(binExpr->left.get()) || isFloatExpression(binExpr->right.get());
+                    } else if (auto floatLit = dynamic_cast<FloatLiteral*>(arg.get())) {
+                        isFloatResult = true;
+                    }
+                    
                     arg->accept(*this);
                     assembly << "    # Call out() with expression result\n";
-                    assembly << "    mov %rax, %rsi\n";
-                    assembly << "    mov $format_int, %rdi\n";  // Use integer format for computed results
-                    assembly << "    xor %rax, %rax\n";
+                    
+                    if (isFloatResult) {
+                        assembly << "    movq %rax, %xmm0  # Load float result into XMM register\n";
+                        assembly << "    mov $format_float, %rdi\n";
+                        assembly << "    mov $1, %rax  # Number of vector registers used\n";
+                    } else {
+                        assembly << "    mov %rax, %rsi\n";
+                        assembly << "    mov $format_int, %rdi\n";  // Use integer format for computed results
+                        assembly << "    xor %rax, %rax\n";
+                    }
                     assembly << "    call printf\n";
                 }
             }
