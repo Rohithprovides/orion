@@ -18,8 +18,74 @@ main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp
-    # Function defined: test_comparisons
-    # Function defined: main
+    # Integer binary operation
+    mov $5, %rax
+    push %rax
+    mov $5, %rax
+    pop %rbx
+    # Unsupported binary operation
+    # Call out() with expression result
+    mov %rax, %rsi
+    mov $format_int, %rdi
+    xor %rax, %rax
+    call printf
+    # Integer binary operation
+    mov $5, %rax
+    push %rax
+    mov $3, %rax
+    pop %rbx
+    # Unsupported binary operation
+    # Call out() with expression result
+    mov %rax, %rsi
+    mov $format_int, %rdi
+    xor %rax, %rax
+    call printf
+    # Integer binary operation
+    mov $10, %rax
+    push %rax
+    mov $5, %rax
+    pop %rbx
+    # Unsupported binary operation
+    # Call out() with expression result
+    mov %rax, %rsi
+    mov $format_int, %rdi
+    xor %rax, %rax
+    call printf
+    # Integer binary operation
+    mov $5, %rax
+    push %rax
+    mov $10, %rax
+    pop %rbx
+    # Unsupported binary operation
+    # Call out() with expression result
+    mov %rax, %rsi
+    mov $format_int, %rdi
+    xor %rax, %rax
+    call printf
+    # Integer binary operation
+    # Integer binary operation
+    mov $3, %rax
+    push %rax
+    mov $2, %rax
+    pop %rbx
+    add %rbx, %rax
+    push %rax
+    # Integer binary operation
+    mov $10, %rax
+    push %rax
+    mov $2, %rax
+    pop %rbx
+    mov %rax, %rcx
+    mov %rbx, %rax
+    xor %rdx, %rdx
+    idiv %rcx
+    pop %rbx
+    # Unsupported binary operation
+    # Call out() with expression result
+    mov %rax, %rsi
+    mov $format_int, %rdi
+    xor %rax, %rax
+    call printf
     mov $0, %rax
     add $64, %rsp
     pop %rbp
