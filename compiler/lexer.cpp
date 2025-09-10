@@ -32,6 +32,7 @@ std::string Token::typeToString() const {
         case TokenType::VOID: return "VOID";
         case TokenType::GLOBAL: return "GLOBAL";
         case TokenType::LOCAL: return "LOCAL";
+        case TokenType::CONST: return "CONST";
         case TokenType::PLUS: return "PLUS";
         case TokenType::MINUS: return "MINUS";
         case TokenType::MULTIPLY: return "MULTIPLY";

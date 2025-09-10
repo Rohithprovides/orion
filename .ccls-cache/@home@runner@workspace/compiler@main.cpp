@@ -497,8 +497,17 @@ public:
                     assembly << "    mulsd %xmm1, %xmm0  # Float multiplication\n";
                     break;
                 case BinaryOp::DIV:
-                case BinaryOp::FLOOR_DIV:
                     assembly << "    divsd %xmm1, %xmm0  # Float division\n";
+                    break;
+                case BinaryOp::FLOOR_DIV:
+                    // Floor division: divide then apply floor function
+                    assembly << "    divsd %xmm1, %xmm0  # Float division\n";
+                    assembly << "    # Apply floor function\n";
+                    assembly << "    subq $8, %rsp  # Align stack\n";
+                    assembly << "    movsd %xmm0, (%rsp)  # Save division result\n";
+                    assembly << "    movsd (%rsp), %xmm0  # Load argument for floor\n";
+                    assembly << "    call floor  # Call C library floor function\n";
+                    assembly << "    addq $8, %rsp  # Restore stack\n";
                     break;
                 case BinaryOp::MOD:
                     // Float modulo using fmod function

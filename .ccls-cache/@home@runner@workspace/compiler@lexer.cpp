@@ -32,6 +32,7 @@ std::string Token::typeToString() const {
         case TokenType::VOID: return "VOID";
         case TokenType::GLOBAL: return "GLOBAL";
         case TokenType::LOCAL: return "LOCAL";
+        case TokenType::CONST: return "CONST";
         case TokenType::PLUS: return "PLUS";
         case TokenType::MINUS: return "MINUS";
         case TokenType::MULTIPLY: return "MULTIPLY";
@@ -119,10 +120,16 @@ Token Lexer::nextToken() {
         int tokenColumn = column;
         char c = advance();
         
-        // Single-line comments
-        if (c == '/' && peek() == '/') {
+        // Single-line comments with #
+        if (c == '#') {
             skipLineComment();
             return nextToken();
+        }
+        
+        // Floor division operator //
+        if (c == '/' && peek() == '/') {
+            advance();
+            return Token(TokenType::FLOOR_DIVIDE, "//", tokenLine, tokenColumn);
         }
         
         // Multi-line comments
@@ -201,15 +208,6 @@ Token Lexer::nextToken() {
         if (c == '*' && peek() == '*') {
             advance();
             return Token(TokenType::POWER, "**", tokenLine, tokenColumn);
-        }
-        if (c == '/' && peek() == '/') {
-            // Check if this is a comment or floor division
-            if (peekNext() == ' ' || peekNext() == '\t' || std::isdigit(peekNext()) || 
-                std::isalpha(peekNext()) || peekNext() == '(' || peekNext() == '_') {
-                advance();
-                return Token(TokenType::FLOOR_DIVIDE, "//", tokenLine, tokenColumn);
-            }
-            // Otherwise, it's a comment, so skip
         }
         
         // Single-character tokens
