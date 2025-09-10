@@ -1,0 +1,13 @@
+fn main() {
+    a = 2.5
+    b = 2
+    out(a + b)
+    out(a - b)
+    out(a * b)
+    out(a / b)
+    out(b / a)
+    out(a ** b)
+    out(a % b)
+}
+
+main()

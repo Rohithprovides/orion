@@ -2,7 +2,7 @@
 
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -O2
-LDFLAGS = 
+LDFLAGS = -lm 
 
 # Source files
 SOURCES = main.cpp lexer.cpp parser.cpp types.cpp codegen.cpp ast_impl.cpp

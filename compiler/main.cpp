@@ -86,7 +86,7 @@ public:
         fullAssembly << ".section .data\n";
         fullAssembly << "format_int: .string \"%d\\n\"\n";
         fullAssembly << "format_str: .string \"%s\\n\"\n";
-        fullAssembly << "format_float: .string \"%.1f\\n\"\n";
+        fullAssembly << "format_float: .string \"%.2f\\n\"\n";
         fullAssembly << "dtype_int: .string \"datatype: int\\n\"\n";
         fullAssembly << "dtype_string: .string \"datatype: string\\n\"\n";
         fullAssembly << "dtype_bool: .string \"datatype: bool\\n\"\n";
@@ -106,7 +106,9 @@ public:
         // Text section
         fullAssembly << "\n.section .text\n";
         fullAssembly << ".global main\n";
-        fullAssembly << ".extern printf\n\n";
+        fullAssembly << ".extern printf\n";
+        fullAssembly << ".extern fmod\n";
+        fullAssembly << ".extern pow\n\n";
         
         // Main function
         fullAssembly << "main:\n";
@@ -498,9 +500,32 @@ public:
                 case BinaryOp::FLOOR_DIV:
                     assembly << "    divsd %xmm1, %xmm0  # Float division\n";
                     break;
+                case BinaryOp::MOD:
+                    // Float modulo using fmod function
+                    assembly << "    # Float modulo - save registers and call fmod\n";
+                    assembly << "    subq $16, %rsp  # Align stack\n";
+                    assembly << "    movsd %xmm0, (%rsp)  # Save first operand\n";
+                    assembly << "    movsd %xmm1, 8(%rsp)  # Save second operand\n";
+                    assembly << "    movsd (%rsp), %xmm0  # Load first arg for fmod\n";
+                    assembly << "    movsd 8(%rsp), %xmm1  # Load second arg for fmod\n";
+                    assembly << "    call fmod  # Call C library fmod function\n";
+                    assembly << "    addq $16, %rsp  # Restore stack\n";
+                    break;
+                case BinaryOp::POWER:
+                    // Float power using pow function
+                    assembly << "    # Float power - save registers and call pow\n";
+                    assembly << "    subq $16, %rsp  # Align stack\n";
+                    assembly << "    movsd %xmm0, (%rsp)  # Save base\n";
+                    assembly << "    movsd %xmm1, 8(%rsp)  # Save exponent\n";
+                    assembly << "    movsd (%rsp), %xmm0  # Load base for pow\n";
+                    assembly << "    movsd 8(%rsp), %xmm1  # Load exponent for pow\n";
+                    assembly << "    call pow  # Call C library pow function\n";
+                    assembly << "    addq $16, %rsp  # Restore stack\n";
+                    break;
                 default:
-                    assembly << "    # Unsupported float operation, defaulting to addition\n";
-                    assembly << "    addsd %xmm1, %xmm0\n";
+                    assembly << "    # Unsupported float operation - ERROR\n";
+                    assembly << "    mov $0, %rax  # Return 0 for unsupported operations\n";
+                    assembly << "    cvtsi2sd %rax, %xmm0  # Convert 0 to float\n";
                     break;
             }
             
@@ -727,7 +752,7 @@ int main(int argc, char* argv[]) {
         
         // Step 5: Use GCC to assemble and link (KEEP EXECUTABLE FOR PROOF)
         std::string exeFile = "proof_executable";
-        std::string gccCommand = "gcc -o " + exeFile + " " + asmFile;
+        std::string gccCommand = "gcc -o " + exeFile + " " + asmFile + " -lm";
         
         int result = system(gccCommand.c_str());
         if (result != 0) {

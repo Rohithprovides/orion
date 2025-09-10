@@ -386,11 +386,26 @@ public:
                     }
                 } else {
                     // Generic expression (like arithmetic operations)
+                    // Check if the expression result is a float
+                    bool isFloatResult = false;
+                    if (auto binExpr = dynamic_cast<BinaryExpression*>(arg.get())) {
+                        isFloatResult = isFloatExpression(binExpr->left.get()) || isFloatExpression(binExpr->right.get());
+                    } else if (auto floatLit = dynamic_cast<FloatLiteral*>(arg.get())) {
+                        isFloatResult = true;
+                    }
+                    
                     arg->accept(*this);
                     assembly << "    # Call out() with expression result\n";
-                    assembly << "    mov %rax, %rsi\n";
-                    assembly << "    mov $format_int, %rdi\n";  // Use integer format for computed results
-                    assembly << "    xor %rax, %rax\n";
+                    
+                    if (isFloatResult) {
+                        assembly << "    movq %rax, %xmm0  # Load float result into XMM register\n";
+                        assembly << "    mov $format_float, %rdi\n";
+                        assembly << "    mov $1, %rax  # Number of vector registers used\n";
+                    } else {
+                        assembly << "    mov %rax, %rsi\n";
+                        assembly << "    mov $format_int, %rdi\n";  // Use integer format for computed results
+                        assembly << "    xor %rax, %rax\n";
+                    }
                     assembly << "    call printf\n";
                 }
             }
@@ -437,62 +452,121 @@ public:
     }
     
     void visit(BinaryExpression& node) override {
-        // Evaluate left operand
-        node.left->accept(*this);
-        assembly << "    push %rax\n";
+        // Check if either operand is a float
+        bool leftIsFloat = isFloatExpression(node.left.get());
+        bool rightIsFloat = isFloatExpression(node.right.get());
+        bool isFloatOperation = leftIsFloat || rightIsFloat;
         
-        // Evaluate right operand
-        node.right->accept(*this);
-        assembly << "    pop %rbx\n";
-        
-        // Perform operation
-        switch (node.op) {
-            case BinaryOp::ADD:
-                assembly << "    add %rbx, %rax\n";
-                break;
-            case BinaryOp::SUB:
-                assembly << "    sub %rax, %rbx\n";
-                assembly << "    mov %rbx, %rax\n";
-                break;
-            case BinaryOp::MUL:
-                assembly << "    imul %rbx, %rax\n";
-                break;
-            case BinaryOp::DIV:
-                assembly << "    mov %rax, %rcx\n";
-                assembly << "    mov %rbx, %rax\n";
-                assembly << "    xor %rdx, %rdx\n";
-                assembly << "    idiv %rcx\n";
-                break;
-            case BinaryOp::MOD:
-                assembly << "    mov %rax, %rcx\n";
-                assembly << "    mov %rbx, %rax\n";
-                assembly << "    xor %rdx, %rdx\n";
-                assembly << "    idiv %rcx\n";
-                assembly << "    mov %rdx, %rax\n";
-                break;
-            case BinaryOp::FLOOR_DIV:
-                // Integer division (same as DIV for integers) - EXACT COPY OF DIV
-                assembly << "    mov %rax, %rcx\n";
-                assembly << "    mov %rbx, %rax\n";
-                assembly << "    xor %rdx, %rdx\n";
-                assembly << "    idiv %rcx\n";
-                break;
-            case BinaryOp::POWER:
-                // Simple power implementation for small integers
-                assembly << "    mov %rbx, %rcx  # base\n";
-                assembly << "    mov %rax, %rdx  # exponent\n";
-                assembly << "    mov $1, %rax    # result = 1\n";
-                assembly << "power_loop:\n";
-                assembly << "    test %rdx, %rdx\n";
-                assembly << "    jz power_done\n";
-                assembly << "    imul %rcx, %rax\n";
-                assembly << "    dec %rdx\n";
-                assembly << "    jmp power_loop\n";
-                assembly << "power_done:\n";
-                break;
-            default:
-                assembly << "    # Unsupported binary operation\n";
-                break;
+        if (isFloatOperation) {
+            // Handle floating-point arithmetic
+            assembly << "    # Floating-point binary operation\n";
+            
+            // Evaluate left operand
+            node.left->accept(*this);
+            if (leftIsFloat) {
+                assembly << "    movq %rax, %xmm0  # Load float left operand\n";
+            } else {
+                assembly << "    cvtsi2sd %rax, %xmm0  # Convert int to float (left)\n";
+            }
+            assembly << "    subq $8, %rsp\n";
+            assembly << "    movsd %xmm0, (%rsp)  # Save left operand on stack\n";
+            
+            // Evaluate right operand
+            node.right->accept(*this);
+            if (rightIsFloat) {
+                assembly << "    movq %rax, %xmm1  # Load float right operand\n";
+            } else {
+                assembly << "    cvtsi2sd %rax, %xmm1  # Convert int to float (right)\n";
+            }
+            
+            // Load left operand back
+            assembly << "    movsd (%rsp), %xmm0  # Restore left operand\n";
+            assembly << "    addq $8, %rsp\n";
+            
+            // Perform floating-point operation
+            switch (node.op) {
+                case BinaryOp::ADD:
+                    assembly << "    addsd %xmm1, %xmm0  # Float addition\n";
+                    break;
+                case BinaryOp::SUB:
+                    assembly << "    subsd %xmm1, %xmm0  # Float subtraction\n";
+                    break;
+                case BinaryOp::MUL:
+                    assembly << "    mulsd %xmm1, %xmm0  # Float multiplication\n";
+                    break;
+                case BinaryOp::DIV:
+                case BinaryOp::FLOOR_DIV:
+                    assembly << "    divsd %xmm1, %xmm0  # Float division\n";
+                    break;
+                default:
+                    assembly << "    # Unsupported float operation, defaulting to addition\n";
+                    assembly << "    addsd %xmm1, %xmm0\n";
+                    break;
+            }
+            
+            // Store result back to %rax as raw bits
+            assembly << "    movq %xmm0, %rax  # Store float result\n";
+        } else {
+            // Handle integer arithmetic (original code)
+            assembly << "    # Integer binary operation\n";
+            
+            // Evaluate left operand
+            node.left->accept(*this);
+            assembly << "    push %rax\n";
+            
+            // Evaluate right operand
+            node.right->accept(*this);
+            assembly << "    pop %rbx\n";
+            
+            // Perform operation
+            switch (node.op) {
+                case BinaryOp::ADD:
+                    assembly << "    add %rbx, %rax\n";
+                    break;
+                case BinaryOp::SUB:
+                    assembly << "    sub %rax, %rbx\n";
+                    assembly << "    mov %rbx, %rax\n";
+                    break;
+                case BinaryOp::MUL:
+                    assembly << "    imul %rbx, %rax\n";
+                    break;
+                case BinaryOp::DIV:
+                    assembly << "    mov %rax, %rcx\n";
+                    assembly << "    mov %rbx, %rax\n";
+                    assembly << "    xor %rdx, %rdx\n";
+                    assembly << "    idiv %rcx\n";
+                    break;
+                case BinaryOp::MOD:
+                    assembly << "    mov %rax, %rcx\n";
+                    assembly << "    mov %rbx, %rax\n";
+                    assembly << "    xor %rdx, %rdx\n";
+                    assembly << "    idiv %rcx\n";
+                    assembly << "    mov %rdx, %rax\n";
+                    break;
+                case BinaryOp::FLOOR_DIV:
+                    // Integer division (same as DIV for integers)
+                    assembly << "    mov %rax, %rcx\n";
+                    assembly << "    mov %rbx, %rax\n";
+                    assembly << "    xor %rdx, %rdx\n";
+                    assembly << "    idiv %rcx\n";
+                    break;
+                case BinaryOp::POWER:
+                    // Simple power implementation for small integers
+                    assembly << "    mov %rbx, %rcx  # base\n";
+                    assembly << "    mov %rax, %rdx  # exponent\n";
+                    assembly << "    mov $1, %rax    # result = 1\n";
+                    assembly << "power_loop:\n";
+                    assembly << "    test %rdx, %rdx\n";
+                    assembly << "    jz power_done\n";
+                    assembly << "    imul %rcx, %rax\n";
+                    assembly << "    dec %rdx\n";
+                    assembly << "    jmp power_loop\n";
+                    assembly << "power_done:\n";
+                    break;
+                default:
+                    assembly << "    # Unsupported binary operation\n";
+                    break;
+            }
         }
     }
     
