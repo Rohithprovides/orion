@@ -218,6 +218,11 @@ public:
     void visit(VariableDeclaration& node) override {
         assembly << "    # Variable: " << node.name << "\n";
         
+        // Check if this is an assignment to an existing const variable
+        if (!node.isConstant && constantVariables.count(node.name)) {
+            throw std::runtime_error("Error: You are trying to change the value of a constant variable '" + node.name + "'");
+        }
+        
         if (node.initializer) {
             // Determine variable type from initializer
             std::string varType = "unknown";

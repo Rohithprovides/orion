@@ -1,0 +1,6 @@
+fn main() {
+    const a = 5
+    out("Before reassignment")
+    a = 4
+    out("After reassignment") 
+}
