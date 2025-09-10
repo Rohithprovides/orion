@@ -1,6 +1,0 @@
-a = 5
-out(a)
-b = "hello"
-out(b)
-c = 42
-out(c)

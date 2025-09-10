@@ -1,1 +1,0 @@
-main() -> int { out("Hello, Orion!"); return 0; }

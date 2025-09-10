@@ -1,4 +1,0 @@
-fn main() {
-    out(42)
-    main()
-}

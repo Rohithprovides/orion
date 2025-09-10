@@ -60,6 +60,41 @@ Orion is designed as a pure compiled language with specific syntax choices that 
 
 ## Recent Updates (September 2025)
 
+### Complete `const` Keyword Implementation (September 10, 2025)
+Successfully implemented immutable variable support with the `const` keyword feature:
+
+**Core Implementation:**
+- **Lexer**: Added CONST token type and keyword recognition in lexer.h and lexer.cpp
+- **AST**: Modified VariableDeclaration node to include `isConstant` boolean field for tracking immutability
+- **Parser**: Enhanced simple_parser.h to handle const syntax with proper validation
+- **Code Generator**: Implemented const checking in main.cpp to prevent reassignment with comprehensive error messages
+- **Type Checker**: Added const validation in types.cpp for compile-time checking
+
+**Error Handling:**
+- ✅ "Constant variable must be initialized" - when declaring const without a value
+- ✅ "You are trying to change the value of a constant variable" - when attempting reassignment
+- ✅ Proper scope-aware const tracking for both global and function scopes
+
+**Usage Examples:**
+```orion
+// Valid const usage
+const message = "Hello World!"
+const count = 42
+const isActive = true
+
+// Invalid usage - compilation errors
+const name          // Error: must be initialized
+const age = 25; age = 26  // Error: cannot reassign const variable
+```
+
+**Technical Implementation:**
+- Global const variables tracked in `constantVariables` set
+- Function scope const handling with proper variable lifetime management
+- Integration with existing variable scoping system (global/local keywords)
+- Compile-time validation prevents const violations before code generation
+
+The Orion language now supports immutable variables with clear error messages and proper scope handling, enhancing type safety and code reliability.
+
 ### Complete Python-Style Arithmetic Operators Implementation (September 5, 2025)
 Successfully implemented all Python-style arithmetic operators with full parsing, code generation, and functionality:
 

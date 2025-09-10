@@ -1,8 +1,0 @@
-a = 'hello'
-out(a)
-b = "world"
-out(b)
-c = 'single quote test'
-out(c)
-d = "double quote test"
-out(d)

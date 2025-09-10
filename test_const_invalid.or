@@ -1,5 +1,0 @@
-fn main() {
-    const a = 5
-    a = 4
-    out(a)
-}
