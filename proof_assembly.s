@@ -19,22 +19,19 @@ main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp
-    # Function defined: main
-    # Explicit call to main()
-    # Executing function call: main
     # Variable: a
     # Float: 2.5
     movq float_0(%rip), %rax
-    mov %rax, -8(%rbp)  # store local a
+    mov %rax, -8(%rbp)  # store global a
     # Variable: b
     mov $2, %rax
-    mov %rax, -16(%rbp)  # store local b
+    mov %rax, -16(%rbp)  # store global b
     # Floating-point binary operation
-    mov -8(%rbp), %rax  # load local a
+    mov -8(%rbp), %rax  # load global a
     movq %rax, %xmm0  # Load float left operand
     subq $8, %rsp
     movsd %xmm0, (%rsp)  # Save left operand on stack
-    mov -16(%rbp), %rax  # load local b
+    mov -16(%rbp), %rax  # load global b
     cvtsi2sd %rax, %xmm1  # Convert int to float (right)
     movsd (%rsp), %xmm0  # Restore left operand
     addq $8, %rsp
@@ -46,11 +43,11 @@ main:
     mov $1, %rax  # Number of vector registers used
     call printf
     # Floating-point binary operation
-    mov -8(%rbp), %rax  # load local a
+    mov -8(%rbp), %rax  # load global a
     movq %rax, %xmm0  # Load float left operand
     subq $8, %rsp
     movsd %xmm0, (%rsp)  # Save left operand on stack
-    mov -16(%rbp), %rax  # load local b
+    mov -16(%rbp), %rax  # load global b
     cvtsi2sd %rax, %xmm1  # Convert int to float (right)
     movsd (%rsp), %xmm0  # Restore left operand
     addq $8, %rsp
@@ -62,11 +59,11 @@ main:
     mov $1, %rax  # Number of vector registers used
     call printf
     # Floating-point binary operation
-    mov -8(%rbp), %rax  # load local a
+    mov -8(%rbp), %rax  # load global a
     movq %rax, %xmm0  # Load float left operand
     subq $8, %rsp
     movsd %xmm0, (%rsp)  # Save left operand on stack
-    mov -16(%rbp), %rax  # load local b
+    mov -16(%rbp), %rax  # load global b
     cvtsi2sd %rax, %xmm1  # Convert int to float (right)
     movsd (%rsp), %xmm0  # Restore left operand
     addq $8, %rsp
@@ -78,11 +75,11 @@ main:
     mov $1, %rax  # Number of vector registers used
     call printf
     # Floating-point binary operation
-    mov -8(%rbp), %rax  # load local a
+    mov -8(%rbp), %rax  # load global a
     movq %rax, %xmm0  # Load float left operand
     subq $8, %rsp
     movsd %xmm0, (%rsp)  # Save left operand on stack
-    mov -16(%rbp), %rax  # load local b
+    mov -16(%rbp), %rax  # load global b
     cvtsi2sd %rax, %xmm1  # Convert int to float (right)
     movsd (%rsp), %xmm0  # Restore left operand
     addq $8, %rsp
@@ -94,12 +91,12 @@ main:
     mov $1, %rax  # Number of vector registers used
     call printf
     # Floating-point binary operation
-    mov -16(%rbp), %rax  # load local b
-    cvtsi2sd %rax, %xmm0  # Convert int to float (left)
+    mov -8(%rbp), %rax  # load global a
+    movq %rax, %xmm0  # Load float left operand
     subq $8, %rsp
     movsd %xmm0, (%rsp)  # Save left operand on stack
-    mov -8(%rbp), %rax  # load local a
-    movq %rax, %xmm1  # Load float right operand
+    mov -16(%rbp), %rax  # load global b
+    cvtsi2sd %rax, %xmm1  # Convert int to float (right)
     movsd (%rsp), %xmm0  # Restore left operand
     addq $8, %rsp
     divsd %xmm1, %xmm0  # Float division
@@ -110,11 +107,11 @@ main:
     mov $1, %rax  # Number of vector registers used
     call printf
     # Floating-point binary operation
-    mov -8(%rbp), %rax  # load local a
+    mov -8(%rbp), %rax  # load global a
     movq %rax, %xmm0  # Load float left operand
     subq $8, %rsp
     movsd %xmm0, (%rsp)  # Save left operand on stack
-    mov -16(%rbp), %rax  # load local b
+    mov -16(%rbp), %rax  # load global b
     cvtsi2sd %rax, %xmm1  # Convert int to float (right)
     movsd (%rsp), %xmm0  # Restore left operand
     addq $8, %rsp
@@ -133,11 +130,11 @@ main:
     mov $1, %rax  # Number of vector registers used
     call printf
     # Floating-point binary operation
-    mov -8(%rbp), %rax  # load local a
+    mov -8(%rbp), %rax  # load global a
     movq %rax, %xmm0  # Load float left operand
     subq $8, %rsp
     movsd %xmm0, (%rsp)  # Save left operand on stack
-    mov -16(%rbp), %rax  # load local b
+    mov -16(%rbp), %rax  # load global b
     cvtsi2sd %rax, %xmm1  # Convert int to float (right)
     movsd (%rsp), %xmm0  # Restore left operand
     addq $8, %rsp
