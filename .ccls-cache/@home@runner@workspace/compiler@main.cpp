@@ -753,6 +753,46 @@ public:
                     assembly << "ge_done_" << labelCounter << ":\n";
                     labelCounter++;
                     break;
+                case BinaryOp::AND:
+                    // Logical AND: both operands must be truthy
+                    // Check if left operand is falsy (0 or str_false)
+                    assembly << "    cmp $0, %rbx\n";
+                    assembly << "    je and_false_" << labelCounter << "\n";
+                    assembly << "    cmp $str_false, %rbx\n";
+                    assembly << "    je and_false_" << labelCounter << "\n";
+                    // Left is truthy, check right operand
+                    assembly << "    cmp $0, %rax\n";
+                    assembly << "    je and_false_" << labelCounter << "\n";
+                    assembly << "    cmp $str_false, %rax\n";
+                    assembly << "    je and_false_" << labelCounter << "\n";
+                    // Both are truthy
+                    assembly << "    mov $str_true, %rax\n";
+                    assembly << "    jmp and_done_" << labelCounter << "\n";
+                    assembly << "and_false_" << labelCounter << ":\n";
+                    assembly << "    mov $str_false, %rax\n";
+                    assembly << "and_done_" << labelCounter << ":\n";
+                    labelCounter++;
+                    break;
+                case BinaryOp::OR:
+                    // Logical OR: either operand can be truthy  
+                    // Check if left operand is truthy (not 0 and not str_false)
+                    assembly << "    cmp $0, %rbx\n";
+                    assembly << "    jne or_true_" << labelCounter << "\n";
+                    assembly << "    cmp $str_false, %rbx\n";
+                    assembly << "    jne or_true_" << labelCounter << "\n";
+                    // Left is falsy, check right operand
+                    assembly << "    cmp $0, %rax\n";
+                    assembly << "    jne or_true_" << labelCounter << "\n";
+                    assembly << "    cmp $str_false, %rax\n";
+                    assembly << "    jne or_true_" << labelCounter << "\n";
+                    // Both are falsy
+                    assembly << "    mov $str_false, %rax\n";
+                    assembly << "    jmp or_done_" << labelCounter << "\n";
+                    assembly << "or_true_" << labelCounter << ":\n";
+                    assembly << "    mov $str_true, %rax\n";
+                    assembly << "or_done_" << labelCounter << ":\n";
+                    labelCounter++;
+                    break;
                 default:
                     assembly << "    # Unsupported binary operation\n";
                     break;
@@ -918,13 +958,13 @@ int main(int argc, char* argv[]) {
         std::string assembly = codegen.generate(*ast);
         
         // Step 4: Write assembly to file (KEEP FOR PROOF)
-        std::string asmFile = "proof_assembly.s";
+        std::string asmFile = "orion_asm.s";
         std::ofstream asmOut(asmFile);
         asmOut << assembly;
         asmOut.close();
         
         // Step 5: Use GCC to assemble and link (KEEP EXECUTABLE FOR PROOF)
-        std::string exeFile = "proof_executable";
+        std::string exeFile = "orion_exec";
         std::string gccCommand = "gcc -o " + exeFile + " " + asmFile + " -lm";
         
         int result = system(gccCommand.c_str());
