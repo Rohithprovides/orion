@@ -694,7 +694,7 @@ public:
                     assembly << "power_done:\n";
                     break;
                 case BinaryOp::EQ:
-                    assembly << "    cmp %rbx, %rax\n";
+                    assembly << "    cmp %rax, %rbx\n";
                     assembly << "    je eq_true_" << labelCounter << "\n";
                     assembly << "    mov $str_false, %rax\n";
                     assembly << "    jmp eq_done_" << labelCounter << "\n";
@@ -704,7 +704,7 @@ public:
                     labelCounter++;
                     break;
                 case BinaryOp::NE:
-                    assembly << "    cmp %rbx, %rax\n";
+                    assembly << "    cmp %rax, %rbx\n";
                     assembly << "    jne ne_true_" << labelCounter << "\n";
                     assembly << "    mov $str_false, %rax\n";
                     assembly << "    jmp ne_done_" << labelCounter << "\n";
@@ -714,7 +714,7 @@ public:
                     labelCounter++;
                     break;
                 case BinaryOp::LT:
-                    assembly << "    cmp %rbx, %rax\n";
+                    assembly << "    cmp %rax, %rbx\n";
                     assembly << "    jl lt_true_" << labelCounter << "\n";
                     assembly << "    mov $str_false, %rax\n";
                     assembly << "    jmp lt_done_" << labelCounter << "\n";
@@ -724,7 +724,7 @@ public:
                     labelCounter++;
                     break;
                 case BinaryOp::LE:
-                    assembly << "    cmp %rbx, %rax\n";
+                    assembly << "    cmp %rax, %rbx\n";
                     assembly << "    jle le_true_" << labelCounter << "\n";
                     assembly << "    mov $str_false, %rax\n";
                     assembly << "    jmp le_done_" << labelCounter << "\n";
@@ -734,7 +734,7 @@ public:
                     labelCounter++;
                     break;
                 case BinaryOp::GT:
-                    assembly << "    cmp %rbx, %rax\n";
+                    assembly << "    cmp %rax, %rbx\n";
                     assembly << "    jg gt_true_" << labelCounter << "\n";
                     assembly << "    mov $str_false, %rax\n";
                     assembly << "    jmp gt_done_" << labelCounter << "\n";
@@ -744,13 +744,13 @@ public:
                     labelCounter++;
                     break;
                 case BinaryOp::GE:
-                    assembly << "    cmp %rbx, %rax\n";
+                    assembly << "    cmp %rax, %rbx\n";
                     assembly << "    jge ge_true_" << labelCounter << "\n";
                     assembly << "    mov $str_false, %rax\n";
                     assembly << "    jmp ge_done_" << labelCounter << "\n";
                     assembly << "ge_true_" << labelCounter << ":\n";
                     assembly << "    mov $str_true, %rax\n";
-                    assembly << "ge_done_" << labelCounter << "\n";
+                    assembly << "ge_done_" << labelCounter << ":\n";
                     labelCounter++;
                     break;
                 default:

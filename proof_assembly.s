@@ -21,17 +21,17 @@ main:
     mov %rsp, %rbp
     sub $64, %rsp
     # Integer binary operation
-    mov $5, %rax
+    mov $8, %rax
     push %rax
-    mov $3, %rax
+    mov $5, %rax
     pop %rbx
-    cmp %rbx, %rax
-    jg gt_true_0
+    cmp %rax, %rbx
+    jge ge_true_0
     mov $str_false, %rax
-    jmp gt_done_0
-gt_true_0:
+    jmp ge_done_0
+ge_true_0:
     mov $str_true, %rax
-gt_done_0:
+ge_done_0:
     # Call out() with expression result
     mov %rax, %rsi
     mov $format_str, %rdi
