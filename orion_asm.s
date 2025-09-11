@@ -21,45 +21,32 @@ main:
     mov %rsp, %rbp
     sub $64, %rsp
     # Integer binary operation
-    # Integer binary operation
-    mov $5, %rax
-    push %rax
-    mov $3, %rax
-    pop %rbx
-    cmp %rax, %rbx
-    jg gt_true_0
-    mov $str_false, %rax
-    jmp gt_done_0
-gt_true_0:
     mov $str_true, %rax
-gt_done_0:
     push %rax
-    # Integer binary operation
-    mov $2, %rax
-    push %rax
-    mov $4, %rax
-    pop %rbx
-    cmp %rax, %rbx
-    jl lt_true_1
     mov $str_false, %rax
-    jmp lt_done_1
-lt_true_1:
-    mov $str_true, %rax
-lt_done_1:
     pop %rbx
     cmp $0, %rbx
-    je and_false_2
+    je and_false_0
     cmp $str_false, %rbx
-    je and_false_2
+    je and_false_0
     cmp $0, %rax
-    je and_false_2
+    je and_false_0
     cmp $str_false, %rax
-    je and_false_2
+    je and_false_0
     mov $str_true, %rax
-    jmp and_done_2
-and_false_2:
+    jmp and_done_0
+and_false_0:
     mov $str_false, %rax
-and_done_2:
+and_done_0:
+    cmp $0, %rax
+    je not_true_1
+    cmp $str_false, %rax
+    je not_true_1
+    mov $str_false, %rax
+    jmp not_done_1
+not_true_1:
+    mov $str_true, %rax
+not_done_1:
     # Call out() with expression result
     mov %rax, %rsi
     mov $format_str, %rdi

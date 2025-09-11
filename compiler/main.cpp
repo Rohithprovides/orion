@@ -422,7 +422,7 @@ public:
                     bool isComparisonResult = false;
                     
                     if (auto binExpr = dynamic_cast<BinaryExpression*>(arg.get())) {
-                        // Check if it's a comparison operation
+                        // Check if it's a comparison or logical operation
                         if (binExpr->op == BinaryOp::EQ || binExpr->op == BinaryOp::NE ||
                             binExpr->op == BinaryOp::LT || binExpr->op == BinaryOp::LE ||
                             binExpr->op == BinaryOp::GT || binExpr->op == BinaryOp::GE ||
@@ -430,6 +430,11 @@ public:
                             isComparisonResult = true;
                         } else {
                             isFloatResult = isFloatExpression(binExpr->left.get()) || isFloatExpression(binExpr->right.get());
+                        }
+                    } else if (auto unaryExpr = dynamic_cast<UnaryExpression*>(arg.get())) {
+                        // Check if it's a NOT operation (returns string)
+                        if (unaryExpr->op == UnaryOp::NOT) {
+                            isComparisonResult = true;
                         }
                     } else if (auto floatLit = dynamic_cast<FloatLiteral*>(arg.get())) {
                         isFloatResult = true;
@@ -891,8 +896,39 @@ public:
         int floatIndex = addFloatLiteral(node.value);
         assembly << "    movq float_" << floatIndex << "(%rip), %rax\n";
     }
-    void visit(BoolLiteral& node) override { assembly << "    mov $" << (node.value ? 1 : 0) << ", %rax\n"; }
-    void visit(UnaryExpression& node) override { node.operand->accept(*this); }
+    void visit(BoolLiteral& node) override { 
+        assembly << "    mov $" << (node.value ? "str_true" : "str_false") << ", %rax\n";
+    }
+    void visit(UnaryExpression& node) override {
+        switch (node.op) {
+            case UnaryOp::NOT:
+                // Logical NOT: flip boolean result
+                node.operand->accept(*this);
+                // Check if operand result is falsy (0 or str_false)
+                assembly << "    cmp $0, %rax\n";
+                assembly << "    je not_true_" << labelCounter << "\n";
+                assembly << "    cmp $str_false, %rax\n";
+                assembly << "    je not_true_" << labelCounter << "\n";
+                // Operand is truthy, so NOT result is false
+                assembly << "    mov $str_false, %rax\n";
+                assembly << "    jmp not_done_" << labelCounter << "\n";
+                assembly << "not_true_" << labelCounter << ":\n";
+                // Operand is falsy, so NOT result is true
+                assembly << "    mov $str_true, %rax\n";
+                assembly << "not_done_" << labelCounter << ":\n";
+                labelCounter++;
+                break;
+            case UnaryOp::PLUS:
+                // Unary plus - just evaluate operand
+                node.operand->accept(*this);
+                break;
+            case UnaryOp::MINUS:
+                // Unary minus - negate the operand
+                node.operand->accept(*this);
+                assembly << "    neg %rax\n";
+                break;
+        }
+    }
     void visit(BlockStatement& node) override { 
         for (auto& stmt : node.statements) {
             stmt->accept(*this);

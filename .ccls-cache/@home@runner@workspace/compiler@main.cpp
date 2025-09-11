@@ -408,6 +408,13 @@ public:
                     } else {
                         throw std::runtime_error("Error: Undefined variable '" + id->name + "'");
                     }
+                } else if (auto boolLit = dynamic_cast<BoolLiteral*>(arg.get())) {
+                    // Boolean literal - output as string
+                    assembly << "    # Call out() with boolean literal\n";
+                    assembly << "    mov $" << (boolLit->value ? "str_true" : "str_false") << ", %rsi\n";
+                    assembly << "    mov $format_str, %rdi\n";
+                    assembly << "    xor %rax, %rax\n";
+                    assembly << "    call printf\n";
                 } else {
                     // Generic expression (like arithmetic operations or comparisons)
                     // Check if the expression result is a float
@@ -418,7 +425,8 @@ public:
                         // Check if it's a comparison operation
                         if (binExpr->op == BinaryOp::EQ || binExpr->op == BinaryOp::NE ||
                             binExpr->op == BinaryOp::LT || binExpr->op == BinaryOp::LE ||
-                            binExpr->op == BinaryOp::GT || binExpr->op == BinaryOp::GE) {
+                            binExpr->op == BinaryOp::GT || binExpr->op == BinaryOp::GE ||
+                            binExpr->op == BinaryOp::AND || binExpr->op == BinaryOp::OR) {
                             isComparisonResult = true;
                         } else {
                             isFloatResult = isFloatExpression(binExpr->left.get()) || isFloatExpression(binExpr->right.get());
@@ -755,7 +763,7 @@ public:
                     break;
                 case BinaryOp::AND:
                     // Logical AND: both operands must be truthy
-                    // Check if left operand is falsy (0 or str_false)
+                    // Left operand is falsy if it's 0 or str_false
                     assembly << "    cmp $0, %rbx\n";
                     assembly << "    je and_false_" << labelCounter << "\n";
                     assembly << "    cmp $str_false, %rbx\n";
@@ -774,22 +782,26 @@ public:
                     labelCounter++;
                     break;
                 case BinaryOp::OR:
-                    // Logical OR: either operand can be truthy  
+                    // Logical OR: either operand can be truthy
                     // Check if left operand is truthy (not 0 and not str_false)
                     assembly << "    cmp $0, %rbx\n";
-                    assembly << "    jne or_true_" << labelCounter << "\n";
+                    assembly << "    je or_check_right_" << labelCounter << "\n";
                     assembly << "    cmp $str_false, %rbx\n";
-                    assembly << "    jne or_true_" << labelCounter << "\n";
+                    assembly << "    je or_check_right_" << labelCounter << "\n";
+                    // Left is truthy
+                    assembly << "    mov $str_true, %rax\n";
+                    assembly << "    jmp or_done_" << labelCounter << "\n";
+                    assembly << "or_check_right_" << labelCounter << ":\n";
                     // Left is falsy, check right operand
                     assembly << "    cmp $0, %rax\n";
-                    assembly << "    jne or_true_" << labelCounter << "\n";
+                    assembly << "    je or_false_" << labelCounter << "\n";
                     assembly << "    cmp $str_false, %rax\n";
-                    assembly << "    jne or_true_" << labelCounter << "\n";
-                    // Both are falsy
-                    assembly << "    mov $str_false, %rax\n";
-                    assembly << "    jmp or_done_" << labelCounter << "\n";
-                    assembly << "or_true_" << labelCounter << ":\n";
+                    assembly << "    je or_false_" << labelCounter << "\n";
+                    // Right is truthy
                     assembly << "    mov $str_true, %rax\n";
+                    assembly << "    jmp or_done_" << labelCounter << "\n";
+                    assembly << "or_false_" << labelCounter << ":\n";
+                    assembly << "    mov $str_false, %rax\n";
                     assembly << "or_done_" << labelCounter << ":\n";
                     labelCounter++;
                     break;
