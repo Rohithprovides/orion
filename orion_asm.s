@@ -20,10 +20,21 @@ main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp
-    mov $1, %rax
+    # Integer binary operation
+    mov $5, %rax
+    push %rax
+    mov $3, %rax
+    pop %rbx
+    cmp %rax, %rbx
+    jg gt_true_0
+    mov $str_false, %rax
+    jmp gt_done_0
+gt_true_0:
+    mov $str_true, %rax
+gt_done_0:
     # Call out() with expression result
     mov %rax, %rsi
-    mov $format_int, %rdi
+    mov $format_str, %rdi
     xor %rax, %rax
     call printf
     mov $0, %rax

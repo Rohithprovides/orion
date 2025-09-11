@@ -918,7 +918,7 @@ int main(int argc, char* argv[]) {
         std::string assembly = codegen.generate(*ast);
         
         // Step 4: Write assembly to file (KEEP FOR PROOF)
-        std::string asmFile = "proof_assembly.s";
+        std::string asmFile = "orion_asm.s";
         std::ofstream asmOut(asmFile);
         asmOut << assembly;
         asmOut.close();
