@@ -88,13 +88,15 @@ public:
         // Data section
         fullAssembly << ".section .data\n";
         fullAssembly << "format_int: .string \"%d\\n\"\n";
-        fullAssembly << "format_str: .string \"%s\\n\"\n";
+        fullAssembly << "format_str: .string \"%s\"\n";
         fullAssembly << "format_float: .string \"%.2f\\n\"\n";
         fullAssembly << "dtype_int: .string \"datatype: int\\n\"\n";
         fullAssembly << "dtype_string: .string \"datatype: string\\n\"\n";
         fullAssembly << "dtype_bool: .string \"datatype: bool\\n\"\n";
         fullAssembly << "dtype_float: .string \"datatype: float\\n\"\n";
         fullAssembly << "dtype_unknown: .string \"datatype: unknown\\n\"\n";
+        fullAssembly << "str_true: .string \"True\\n\"\n";
+        fullAssembly << "str_false: .string \"False\\n\"\n";
         
         // String literals
         for (size_t i = 0; i < stringLiterals.size(); i++) {
@@ -390,8 +392,10 @@ public:
                         assembly << "    # Call out() with variable: " << id->name << " (type: " << it->type << ")\n";
                         assembly << "    mov -" << it->stackOffset << "(%rbp), %rsi\n";
                         
-                        if (it->type == "int" || it->type == "bool") {
+                        if (it->type == "int") {
                             assembly << "    mov $format_int, %rdi\n";
+                        } else if (it->type == "bool") {
+                            assembly << "    mov $format_str, %rdi\n";
                         } else if (it->type == "float") {
                             assembly << "    movq -" << it->stackOffset << "(%rbp), %xmm0\n";  // Load float into XMM register  
                             assembly << "    mov $format_float, %rdi\n";
@@ -405,11 +409,20 @@ public:
                         throw std::runtime_error("Error: Undefined variable '" + id->name + "'");
                     }
                 } else {
-                    // Generic expression (like arithmetic operations)
+                    // Generic expression (like arithmetic operations or comparisons)
                     // Check if the expression result is a float
                     bool isFloatResult = false;
+                    bool isComparisonResult = false;
+                    
                     if (auto binExpr = dynamic_cast<BinaryExpression*>(arg.get())) {
-                        isFloatResult = isFloatExpression(binExpr->left.get()) || isFloatExpression(binExpr->right.get());
+                        // Check if it's a comparison operation
+                        if (binExpr->op == BinaryOp::EQ || binExpr->op == BinaryOp::NE ||
+                            binExpr->op == BinaryOp::LT || binExpr->op == BinaryOp::LE ||
+                            binExpr->op == BinaryOp::GT || binExpr->op == BinaryOp::GE) {
+                            isComparisonResult = true;
+                        } else {
+                            isFloatResult = isFloatExpression(binExpr->left.get()) || isFloatExpression(binExpr->right.get());
+                        }
                     } else if (auto floatLit = dynamic_cast<FloatLiteral*>(arg.get())) {
                         isFloatResult = true;
                     }
@@ -417,7 +430,12 @@ public:
                     arg->accept(*this);
                     assembly << "    # Call out() with expression result\n";
                     
-                    if (isFloatResult) {
+                    if (isComparisonResult) {
+                        // Comparison results are string addresses (str_true/str_false)
+                        assembly << "    mov %rax, %rsi\n";
+                        assembly << "    mov $format_str, %rdi\n";  // Use string format for comparison results
+                        assembly << "    xor %rax, %rax\n";
+                    } else if (isFloatResult) {
                         assembly << "    movq %rax, %xmm0  # Load float result into XMM register\n";
                         assembly << "    mov $format_float, %rdi\n";
                         assembly << "    mov $1, %rax  # Number of vector registers used\n";
@@ -549,6 +567,66 @@ public:
                     assembly << "    call pow  # Call C library pow function\n";
                     assembly << "    addq $16, %rsp  # Restore stack\n";
                     break;
+                case BinaryOp::EQ:
+                    assembly << "    comisd %xmm1, %xmm0\n";
+                    assembly << "    je feq_true_" << labelCounter << "\n";
+                    assembly << "    mov $str_false, %rax\n";
+                    assembly << "    jmp feq_done_" << labelCounter << "\n";
+                    assembly << "feq_true_" << labelCounter << ":\n";
+                    assembly << "    mov $str_true, %rax\n";
+                    assembly << "feq_done_" << labelCounter << ":\n";
+                    labelCounter++;
+                    return;
+                case BinaryOp::NE:
+                    assembly << "    comisd %xmm1, %xmm0\n";
+                    assembly << "    jne fne_true_" << labelCounter << "\n";
+                    assembly << "    mov $str_false, %rax\n";
+                    assembly << "    jmp fne_done_" << labelCounter << "\n";
+                    assembly << "fne_true_" << labelCounter << ":\n";
+                    assembly << "    mov $str_true, %rax\n";
+                    assembly << "fne_done_" << labelCounter << ":\n";
+                    labelCounter++;
+                    return;
+                case BinaryOp::LT:
+                    assembly << "    comisd %xmm1, %xmm0\n";
+                    assembly << "    jb flt_true_" << labelCounter << "\n";
+                    assembly << "    mov $str_false, %rax\n";
+                    assembly << "    jmp flt_done_" << labelCounter << "\n";
+                    assembly << "flt_true_" << labelCounter << ":\n";
+                    assembly << "    mov $str_true, %rax\n";
+                    assembly << "flt_done_" << labelCounter << ":\n";
+                    labelCounter++;
+                    return;
+                case BinaryOp::LE:
+                    assembly << "    comisd %xmm1, %xmm0\n";
+                    assembly << "    jbe fle_true_" << labelCounter << "\n";
+                    assembly << "    mov $str_false, %rax\n";
+                    assembly << "    jmp fle_done_" << labelCounter << "\n";
+                    assembly << "fle_true_" << labelCounter << ":\n";
+                    assembly << "    mov $str_true, %rax\n";
+                    assembly << "fle_done_" << labelCounter << ":\n";
+                    labelCounter++;
+                    return;
+                case BinaryOp::GT:
+                    assembly << "    comisd %xmm1, %xmm0\n";
+                    assembly << "    ja fgt_true_" << labelCounter << "\n";
+                    assembly << "    mov $str_false, %rax\n";
+                    assembly << "    jmp fgt_done_" << labelCounter << "\n";
+                    assembly << "fgt_true_" << labelCounter << ":\n";
+                    assembly << "    mov $str_true, %rax\n";
+                    assembly << "fgt_done_" << labelCounter << ":\n";
+                    labelCounter++;
+                    return;
+                case BinaryOp::GE:
+                    assembly << "    comisd %xmm1, %xmm0\n";
+                    assembly << "    jae fge_true_" << labelCounter << "\n";
+                    assembly << "    mov $str_false, %rax\n";
+                    assembly << "    jmp fge_done_" << labelCounter << "\n";
+                    assembly << "fge_true_" << labelCounter << ":\n";
+                    assembly << "    mov $str_true, %rax\n";
+                    assembly << "fge_done_" << labelCounter << ":\n";
+                    labelCounter++;
+                    return;
                 default:
                     assembly << "    # Unsupported float operation - ERROR\n";
                     assembly << "    mov $0, %rax  # Return 0 for unsupported operations\n";
@@ -614,6 +692,66 @@ public:
                     assembly << "    dec %rdx\n";
                     assembly << "    jmp power_loop\n";
                     assembly << "power_done:\n";
+                    break;
+                case BinaryOp::EQ:
+                    assembly << "    cmp %rbx, %rax\n";
+                    assembly << "    je eq_true_" << labelCounter << "\n";
+                    assembly << "    mov $str_false, %rax\n";
+                    assembly << "    jmp eq_done_" << labelCounter << "\n";
+                    assembly << "eq_true_" << labelCounter << ":\n";
+                    assembly << "    mov $str_true, %rax\n";
+                    assembly << "eq_done_" << labelCounter << ":\n";
+                    labelCounter++;
+                    break;
+                case BinaryOp::NE:
+                    assembly << "    cmp %rbx, %rax\n";
+                    assembly << "    jne ne_true_" << labelCounter << "\n";
+                    assembly << "    mov $str_false, %rax\n";
+                    assembly << "    jmp ne_done_" << labelCounter << "\n";
+                    assembly << "ne_true_" << labelCounter << ":\n";
+                    assembly << "    mov $str_true, %rax\n";
+                    assembly << "ne_done_" << labelCounter << ":\n";
+                    labelCounter++;
+                    break;
+                case BinaryOp::LT:
+                    assembly << "    cmp %rbx, %rax\n";
+                    assembly << "    jl lt_true_" << labelCounter << "\n";
+                    assembly << "    mov $str_false, %rax\n";
+                    assembly << "    jmp lt_done_" << labelCounter << "\n";
+                    assembly << "lt_true_" << labelCounter << ":\n";
+                    assembly << "    mov $str_true, %rax\n";
+                    assembly << "lt_done_" << labelCounter << ":\n";
+                    labelCounter++;
+                    break;
+                case BinaryOp::LE:
+                    assembly << "    cmp %rbx, %rax\n";
+                    assembly << "    jle le_true_" << labelCounter << "\n";
+                    assembly << "    mov $str_false, %rax\n";
+                    assembly << "    jmp le_done_" << labelCounter << "\n";
+                    assembly << "le_true_" << labelCounter << ":\n";
+                    assembly << "    mov $str_true, %rax\n";
+                    assembly << "le_done_" << labelCounter << ":\n";
+                    labelCounter++;
+                    break;
+                case BinaryOp::GT:
+                    assembly << "    cmp %rbx, %rax\n";
+                    assembly << "    jg gt_true_" << labelCounter << "\n";
+                    assembly << "    mov $str_false, %rax\n";
+                    assembly << "    jmp gt_done_" << labelCounter << "\n";
+                    assembly << "gt_true_" << labelCounter << ":\n";
+                    assembly << "    mov $str_true, %rax\n";
+                    assembly << "gt_done_" << labelCounter << ":\n";
+                    labelCounter++;
+                    break;
+                case BinaryOp::GE:
+                    assembly << "    cmp %rbx, %rax\n";
+                    assembly << "    jge ge_true_" << labelCounter << "\n";
+                    assembly << "    mov $str_false, %rax\n";
+                    assembly << "    jmp ge_done_" << labelCounter << "\n";
+                    assembly << "ge_true_" << labelCounter << ":\n";
+                    assembly << "    mov $str_true, %rax\n";
+                    assembly << "ge_done_" << labelCounter << "\n";
+                    labelCounter++;
                     break;
                 default:
                     assembly << "    # Unsupported binary operation\n";

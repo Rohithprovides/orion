@@ -1,4 +1,0 @@
-fn main() {
-    out("This is compiled native code!")
-    out(12345)
-}
