@@ -924,7 +924,7 @@ int main(int argc, char* argv[]) {
         asmOut.close();
         
         // Step 5: Use GCC to assemble and link (KEEP EXECUTABLE FOR PROOF)
-        std::string exeFile = "proof_executable";
+        std::string exeFile = "orion_exec";
         std::string gccCommand = "gcc -o " + exeFile + " " + asmFile + " -lm";
         
         int result = system(gccCommand.c_str());
