@@ -1,0 +1,19 @@
+fn main() { 
+    # Test direct list literal concatenation
+    result1 = [1, 2] + [3, 4]
+    out(len(result1))
+    out(result1[0])
+    out(result1[3])
+    
+    # Test list literal repetition
+    result2 = 3 * [10, 20]
+    out(len(result2))
+    out(result2[0])
+    out(result2[5])
+    
+    # Test mixed (variable + literal)
+    mylist = [100, 200]
+    result3 = mylist + [300, 400]
+    out(len(result3))
+    out(result3[2])
+}

@@ -54,6 +54,60 @@ private:
         return false;
     }
     
+    // Expression kind inference for type safety
+    enum class ExprKind { INT, FLOAT, BOOL, STRING, LIST, UNKNOWN };
+    
+    ExprKind inferExprKind(Expression* expr) {
+        if (auto intLit = dynamic_cast<IntLiteral*>(expr)) {
+            return ExprKind::INT;
+        }
+        if (auto floatLit = dynamic_cast<FloatLiteral*>(expr)) {
+            return ExprKind::FLOAT;
+        }
+        if (auto boolLit = dynamic_cast<BoolLiteral*>(expr)) {
+            return ExprKind::BOOL;
+        }
+        if (auto strLit = dynamic_cast<StringLiteral*>(expr)) {
+            return ExprKind::STRING;
+        }
+        if (auto listLit = dynamic_cast<ListLiteral*>(expr)) {
+            return ExprKind::LIST;
+        }
+        if (auto id = dynamic_cast<Identifier*>(expr)) {
+            auto var = lookupVariable(id->name);
+            if (var) {
+                if (var->type == "int") return ExprKind::INT;
+                if (var->type == "float") return ExprKind::FLOAT;
+                if (var->type == "bool") return ExprKind::BOOL;
+                if (var->type == "string") return ExprKind::STRING;
+                if (var->type == "list") return ExprKind::LIST;
+            }
+        }
+        if (auto binExpr = dynamic_cast<BinaryExpression*>(expr)) {
+            ExprKind leftKind = inferExprKind(binExpr->left.get());
+            ExprKind rightKind = inferExprKind(binExpr->right.get());
+            
+            if (binExpr->op == BinaryOp::ADD) {
+                if (leftKind == ExprKind::LIST && rightKind == ExprKind::LIST) {
+                    return ExprKind::LIST;  // List concatenation
+                }
+            }
+            if (binExpr->op == BinaryOp::MUL) {
+                if ((leftKind == ExprKind::LIST && rightKind == ExprKind::INT) ||
+                    (leftKind == ExprKind::INT && rightKind == ExprKind::LIST)) {
+                    return ExprKind::LIST;  // List repetition
+                }
+            }
+            
+            // Default to numeric operations
+            if (leftKind == ExprKind::FLOAT || rightKind == ExprKind::FLOAT) {
+                return ExprKind::FLOAT;
+            }
+            return ExprKind::INT;
+        }
+        return ExprKind::UNKNOWN;
+    }
+    
     int addStringLiteral(const std::string& str) {
         stringLiterals.push_back(str);
         return stringLiterals.size() - 1;
@@ -582,6 +636,88 @@ public:
     }
     
     void visit(BinaryExpression& node) override {
+        // Check for list operations first
+        if (node.op == BinaryOp::ADD) {
+            // Use type inference for robust two-sided validation
+            ExprKind leftKind = inferExprKind(node.left.get());
+            ExprKind rightKind = inferExprKind(node.right.get());
+            
+            // If either operand is a list, require both to be lists
+            if (leftKind == ExprKind::LIST || rightKind == ExprKind::LIST) {
+                if (leftKind != ExprKind::LIST || rightKind != ExprKind::LIST) {
+                    throw std::runtime_error("Error: Cannot concatenate list with non-list. Both operands of '+' must be lists.");
+                }
+                
+                // This is list concatenation: list + list
+                assembly << "    # List concatenation: list + list\n";
+                
+                // Evaluate left list
+                node.left->accept(*this);
+                assembly << "    mov %rax, %rdi  # First list as first argument\n";
+                assembly << "    push %rdi  # Save first list\n";
+                
+                // Evaluate right list
+                node.right->accept(*this);
+                assembly << "    mov %rax, %rsi  # Second list as second argument\n";
+                assembly << "    pop %rdi  # Restore first list\n";
+                
+                assembly << "    call list_concat  # Concatenate lists\n";
+                return;
+            }
+        }
+        
+        if (node.op == BinaryOp::MUL) {
+            // Use type inference for robust validation
+            ExprKind leftKind = inferExprKind(node.left.get());
+            ExprKind rightKind = inferExprKind(node.right.get());
+            
+            // Check for list * int or int * list (valid repetition)
+            if (leftKind == ExprKind::LIST && rightKind == ExprKind::INT) {
+                // This is list * n
+                assembly << "    # List repetition: list * n\n";
+                
+                // Evaluate list
+                node.left->accept(*this);
+                assembly << "    mov %rax, %rdi  # List as first argument\n";
+                assembly << "    push %rdi  # Save list\n";
+                
+                // Evaluate repeat count
+                node.right->accept(*this);
+                assembly << "    mov %rax, %rsi  # Repeat count as second argument\n";
+                assembly << "    pop %rdi  # Restore list\n";
+                
+                assembly << "    call list_repeat  # Repeat list\n";
+                return;
+            }
+            
+            if (leftKind == ExprKind::INT && rightKind == ExprKind::LIST) {
+                // This is n * list
+                assembly << "    # List repetition: n * list\n";
+                
+                // Evaluate repeat count
+                node.left->accept(*this);
+                assembly << "    mov %rax, %rsi  # Repeat count as second argument\n";
+                assembly << "    push %rsi  # Save repeat count\n";
+                
+                // Evaluate list
+                node.right->accept(*this);
+                assembly << "    mov %rax, %rdi  # List as first argument\n";
+                assembly << "    pop %rsi  # Restore repeat count\n";
+                
+                assembly << "    call list_repeat  # Repeat list\n";
+                return;
+            }
+            
+            // Check for invalid list operations
+            if (leftKind == ExprKind::LIST || rightKind == ExprKind::LIST) {
+                if (leftKind == ExprKind::LIST && rightKind == ExprKind::LIST) {
+                    throw std::runtime_error("Error: Cannot multiply two lists. Use + for concatenation or * with an integer for repetition.");
+                } else {
+                    throw std::runtime_error("Error: List repetition requires an integer. Valid operations: list * int or int * list.");
+                }
+            }
+        }
+        
         // Check if either operand is a float
         bool leftIsFloat = isFloatExpression(node.left.get());
         bool rightIsFloat = isFloatExpression(node.right.get());

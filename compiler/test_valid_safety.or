@@ -1,0 +1,10 @@
+fn main() { 
+    # Valid operations should work fine
+    good1 = [1, 2] + [3, 4]
+    good2 = [1, 2] * 3  
+    good3 = 2 * [10, 20]
+    out(len(good1))
+    out(len(good2))
+    out(len(good3))
+    out("All valid operations completed successfully")
+}
