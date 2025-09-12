@@ -212,6 +212,12 @@ private:
             addError("Undefined function: " + call->name);
             return Type(TypeKind::UNKNOWN);
         }
+        if (auto listLit = dynamic_cast<ListLiteral*>(&expr)) {
+            return inferListType(*listLit);
+        }
+        if (auto indexExpr = dynamic_cast<IndexExpression*>(&expr)) {
+            return inferIndexType(*indexExpr);
+        }
         
         return Type(TypeKind::UNKNOWN);
     }
@@ -271,6 +277,13 @@ private:
         }
         
         if (expected.kind == actual.kind) {
+            // For LIST types, recursively check element types
+            if (expected.kind == TypeKind::LIST) {
+                if (!expected.elementType || !actual.elementType) {
+                    return true; // Allow if either has unknown element type
+                }
+                return isCompatible(*expected.elementType, *actual.elementType);
+            }
             return true;
         }
         
@@ -285,6 +298,108 @@ private:
         }
         
         return false;
+    }
+    
+    // Type unification for lists - handles order-independent type promotion
+    Type unifyTypes(const Type& type1, const Type& type2) {
+        if (type1.kind == TypeKind::UNKNOWN) {
+            return type2;
+        }
+        if (type2.kind == TypeKind::UNKNOWN) {
+            return type1;
+        }
+        
+        // If types are identical, return either one
+        if (type1.kind == type2.kind) {
+            if (type1.kind == TypeKind::LIST) {
+                // Recursively unify element types
+                if (!type1.elementType || !type2.elementType) {
+                    Type result(TypeKind::LIST);
+                    result.elementType = std::make_unique<Type>(TypeKind::UNKNOWN);
+                    return result;
+                }
+                Type unifiedElement = unifyTypes(*type1.elementType, *type2.elementType);
+                Type result(TypeKind::LIST);
+                result.elementType = std::make_unique<Type>(unifiedElement);
+                return result;
+            }
+            return type1;
+        }
+        
+        // Handle numeric type promotion (order-independent)
+        if ((type1.kind == TypeKind::INT32 || type1.kind == TypeKind::INT64) &&
+            (type2.kind == TypeKind::FLOAT32 || type2.kind == TypeKind::FLOAT64)) {
+            return type2; // promote int to float
+        }
+        if ((type2.kind == TypeKind::INT32 || type2.kind == TypeKind::INT64) &&
+            (type1.kind == TypeKind::FLOAT32 || type1.kind == TypeKind::FLOAT64)) {
+            return type1; // promote int to float
+        }
+        
+        if (type1.kind == TypeKind::INT32 && type2.kind == TypeKind::INT64) {
+            return type2; // promote int32 to int64
+        }
+        if (type2.kind == TypeKind::INT32 && type1.kind == TypeKind::INT64) {
+            return type1; // promote int32 to int64
+        }
+        
+        // Types cannot be unified
+        return Type(TypeKind::UNKNOWN);
+    }
+    
+    Type inferListType(ListLiteral& listLit) {
+        if (listLit.elements.empty()) {
+            // Empty list - return generic list type
+            Type listType(TypeKind::LIST);
+            listType.elementType = std::make_unique<Type>(TypeKind::UNKNOWN);
+            return listType;
+        }
+        
+        // Start with the first element's type
+        Type unifiedType = inferType(*listLit.elements[0]);
+        
+        // Unify types of all elements (order-independent)
+        for (size_t i = 1; i < listLit.elements.size(); i++) {
+            Type elemType = inferType(*listLit.elements[i]);
+            Type newUnified = unifyTypes(unifiedType, elemType);
+            
+            if (newUnified.kind == TypeKind::UNKNOWN) {
+                addError("List elements must have compatible types: cannot unify " + 
+                        unifiedType.toString() + " and " + elemType.toString());
+                return Type(TypeKind::UNKNOWN);
+            }
+            
+            unifiedType = newUnified;
+        }
+        
+        // Create list type with unified element type
+        Type listType(TypeKind::LIST);
+        listType.elementType = std::make_unique<Type>(unifiedType);
+        return listType;
+    }
+    
+    Type inferIndexType(IndexExpression& indexExpr) {
+        Type objectType = inferType(*indexExpr.object);
+        Type indexType = inferType(*indexExpr.index);
+        
+        // Check that index is integer
+        if (indexType.kind != TypeKind::INT32 && indexType.kind != TypeKind::INT64) {
+            addError("List index must be an integer, got " + indexType.toString());
+            return Type(TypeKind::UNKNOWN);
+        }
+        
+        // Check that object is a list
+        if (objectType.kind != TypeKind::LIST) {
+            addError("Cannot index non-list type " + objectType.toString());
+            return Type(TypeKind::UNKNOWN);
+        }
+        
+        // Return element type
+        if (objectType.elementType) {
+            return *objectType.elementType;
+        } else {
+            return Type(TypeKind::UNKNOWN);
+        }
     }
     
 public:
@@ -302,7 +417,7 @@ public:
     void visit(BinaryExpression& node) override {
         node.left->accept(*this);
         node.right->accept(*this);
-        inferBinaryType(node);
+        // Note: inferBinaryType is called implicitly in inferType when needed
     }
     
     void visit(UnaryExpression& node) override {
@@ -316,16 +431,18 @@ public:
     }
     
     void visit(ListLiteral& node) override {
-        // TODO: Implement list type checking
+        // Visit all elements for type checking
         for (auto& element : node.elements) {
             element->accept(*this);
         }
+        // Note: inferListType is called implicitly in inferType when needed
     }
     
     void visit(IndexExpression& node) override {
-        // TODO: Implement index expression type checking
+        // Check object and index types
         node.object->accept(*this);
         node.index->accept(*this);
+        // Note: inferIndexType is called implicitly in inferType when needed
     }
     
     void visit(FunctionCall& node) override {
