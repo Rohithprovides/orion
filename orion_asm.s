@@ -9,6 +9,7 @@ dtype_float: .string "datatype: float\n"
 dtype_unknown: .string "datatype: unknown\n"
 str_true: .string "True\n"
 str_false: .string "False\n"
+str_0: .string "Hello from web interface!\n"
 
 .section .text
 .global main
@@ -20,35 +21,11 @@ main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp
-    # Integer binary operation
-    mov $str_true, %rax
-    push %rax
-    mov $str_false, %rax
-    pop %rbx
-    cmp $0, %rbx
-    je and_false_0
-    cmp $str_false, %rbx
-    je and_false_0
-    cmp $0, %rax
-    je and_false_0
-    cmp $str_false, %rax
-    je and_false_0
-    mov $str_true, %rax
-    jmp and_done_0
-and_false_0:
-    mov $str_false, %rax
-and_done_0:
-    cmp $0, %rax
-    je not_true_1
-    cmp $str_false, %rax
-    je not_true_1
-    mov $str_false, %rax
-    jmp not_done_1
-not_true_1:
-    mov $str_true, %rax
-not_done_1:
-    # Call out() with expression result
-    mov %rax, %rsi
+    # Function defined: main
+    # Explicit call to main()
+    # Executing function call: main
+    # Call out() with string
+    mov $str_0, %rsi
     mov $format_str, %rdi
     xor %rax, %rax
     call printf
