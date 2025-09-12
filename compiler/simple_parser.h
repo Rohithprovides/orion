@@ -220,6 +220,49 @@ private:
             isConstant = true;
         }
         
+        // Check for index assignment first: list[index] = value
+        if (check(TokenType::IDENTIFIER)) {
+            // Look ahead to see if this is an index assignment
+            size_t lookahead = current + 1;
+            if (lookahead < tokens.size() && tokens[lookahead].type == TokenType::LBRACKET) {
+                // Find the matching closing bracket
+                size_t bracketCount = 0;
+                size_t closeBracket = lookahead;
+                while (closeBracket < tokens.size()) {
+                    if (tokens[closeBracket].type == TokenType::LBRACKET) {
+                        bracketCount++;
+                    } else if (tokens[closeBracket].type == TokenType::RBRACKET) {
+                        bracketCount--;
+                        if (bracketCount == 0) break;
+                    }
+                    closeBracket++;
+                }
+                
+                // Check if there's an assignment after the closing bracket
+                if (closeBracket + 1 < tokens.size() && tokens[closeBracket + 1].type == TokenType::ASSIGN) {
+                    // This is an index assignment: list[index] = value
+                    std::string listName = advance().value; // consume identifier
+                    advance(); // consume '['
+                    
+                    auto indexExpr = parseExpression();
+                    
+                    if (!check(TokenType::RBRACKET)) {
+                        throw std::runtime_error("Expected ']' after index expression");
+                    }
+                    advance(); // consume ']'
+                    
+                    if (!check(TokenType::ASSIGN)) {
+                        throw std::runtime_error("Expected '=' after index expression");
+                    }
+                    advance(); // consume '='
+                    
+                    auto valueExpr = parseExpression();
+                    auto listExpr = std::make_unique<Identifier>(listName);
+                    return std::make_unique<IndexAssignment>(std::move(listExpr), std::move(indexExpr), std::move(valueExpr));
+                }
+            }
+        }
+        
         // Check for assignment patterns: chain assignment (a=b=5) and compound assignment (a+=5)
         if (check(TokenType::IDENTIFIER)) {
             // Scan ahead to detect chain assignment pattern

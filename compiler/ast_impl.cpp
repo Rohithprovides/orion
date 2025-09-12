@@ -185,6 +185,10 @@ std::string ChainAssignment::toString(int indent) const {
     return result;
 }
 
+void IndexAssignment::accept(ASTVisitor& visitor) {
+    visitor.visit(*this);
+}
+
 void GlobalStatement::accept(ASTVisitor& visitor) {
     visitor.visit(*this);
 }

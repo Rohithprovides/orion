@@ -968,6 +968,28 @@ public:
         }
     }
 
+    void visit(IndexAssignment& node) override {
+        assembly << "    # Index assignment: list[index] = value\n";
+        
+        // Evaluate the list expression
+        node.object->accept(*this);
+        assembly << "    mov %rax, %r12  # Save list pointer in %r12\n";
+        
+        // Evaluate the index expression
+        node.index->accept(*this);
+        assembly << "    mov %rax, %r13  # Save index in %r13\n";
+        
+        // Evaluate the value expression  
+        node.value->accept(*this);
+        assembly << "    mov %rax, %rdx  # Value in %rdx (third argument)\n";
+        
+        // Call list_set(list, index, value)
+        assembly << "    mov %r12, %rdi  # List pointer as first argument\n";
+        assembly << "    mov %r13, %rsi  # Index as second argument\n";
+        assembly << "    # Value already in %rdx as third argument\n";
+        assembly << "    call list_set  # Set list[index] = value\n";
+    }
+
     // Stub implementations for other visitors
     void visit(FloatLiteral& node) override { 
         assembly << "    # Float: " << node.value << "\n"; 

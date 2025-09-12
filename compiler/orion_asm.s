@@ -68,45 +68,58 @@ main:
     call free  # Free temporary array
     pop %rax  # Restore list pointer
     mov %rax, -8(%rbp)  # store local x
-    # len() function call
-    mov -8(%rbp), %rax  # load local x
-    mov %rax, %rdi  # List pointer as argument
-    call list_len  # Get list length
-    # Call out() with expression result
-    mov %rax, %rsi
-    mov $format_int, %rdi
-    xor %rax, %rax
-    call printf
-    # append() function call
+    # Enhanced index expression with negative indexing support
     mov -8(%rbp), %rax  # load local x
     mov %rax, %rdi  # List pointer as first argument
-    push %rdi  # Save list pointer
-    mov $4, %rax
-    mov %rax, %rsi  # Element value as second argument
-    pop %rdi  # Restore list pointer
-    call list_append  # Append element to list
-    # len() function call
-    mov -8(%rbp), %rax  # load local x
-    mov %rax, %rdi  # List pointer as argument
-    call list_len  # Get list length
+    mov $0, %rax
+    mov %rax, %rsi  # Index as second argument
+    call list_get  # Get element with bounds checking
     # Call out() with expression result
     mov %rax, %rsi
     mov $format_int, %rdi
     xor %rax, %rax
     call printf
-    # pop() function call
+    # Index assignment: list[index] = value
     mov -8(%rbp), %rax  # load local x
-    mov %rax, %rdi  # List pointer as argument
-    call list_pop  # Pop last element
+    mov %rax, %r12  # Save list pointer in %r12
+    mov $0, %rax
+    mov %rax, %r13  # Save index in %r13
+    mov $99, %rax
+    mov %rax, %rdx  # Value in %rdx (third argument)
+    mov %r12, %rdi  # List pointer as first argument
+    mov %r13, %rsi  # Index as second argument
+    # Value already in %rdx as third argument
+    call list_set  # Set list[index] = value
+    # Enhanced index expression with negative indexing support
+    mov -8(%rbp), %rax  # load local x
+    mov %rax, %rdi  # List pointer as first argument
+    mov $0, %rax
+    mov %rax, %rsi  # Index as second argument
+    call list_get  # Get element with bounds checking
     # Call out() with expression result
     mov %rax, %rsi
     mov $format_int, %rdi
     xor %rax, %rax
     call printf
-    # len() function call
+    # Index assignment: list[index] = value
     mov -8(%rbp), %rax  # load local x
-    mov %rax, %rdi  # List pointer as argument
-    call list_len  # Get list length
+    mov %rax, %r12  # Save list pointer in %r12
+    mov $1, %rax
+    neg %rax
+    mov %rax, %r13  # Save index in %r13
+    mov $77, %rax
+    mov %rax, %rdx  # Value in %rdx (third argument)
+    mov %r12, %rdi  # List pointer as first argument
+    mov %r13, %rsi  # Index as second argument
+    # Value already in %rdx as third argument
+    call list_set  # Set list[index] = value
+    # Enhanced index expression with negative indexing support
+    mov -8(%rbp), %rax  # load local x
+    mov %rax, %rdi  # List pointer as first argument
+    mov $1, %rax
+    neg %rax
+    mov %rax, %rsi  # Index as second argument
+    call list_get  # Get element with bounds checking
     # Call out() with expression result
     mov %rax, %rsi
     mov $format_int, %rdi

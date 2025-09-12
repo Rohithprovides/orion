@@ -339,6 +339,21 @@ public:
     std::string toString(int indent = 0) const override;
 };
 
+// Index assignment: list[0] = value
+class IndexAssignment : public Statement {
+public:
+    std::unique_ptr<Expression> object;  // The list being indexed
+    std::unique_ptr<Expression> index;   // The index expression
+    std::unique_ptr<Expression> value;   // The value to assign
+    
+    IndexAssignment(std::unique_ptr<Expression> obj, std::unique_ptr<Expression> idx, std::unique_ptr<Expression> val)
+        : object(std::move(obj)), index(std::move(idx)), value(std::move(val)) {}
+    void accept(ASTVisitor& visitor) override;
+    std::string toString(int indent = 0) const override {
+        return "IndexAssignment(" + object->toString(0) + "[" + index->toString(0) + "] = " + value->toString(0) + ")";
+    }
+};
+
 // Global statement
 class GlobalStatement : public Statement {
 public:
@@ -486,6 +501,7 @@ public:
     virtual void visit(ExpressionStatement& node) = 0;
     virtual void visit(TupleAssignment& node) = 0;
     virtual void visit(ChainAssignment& node) = 0;
+    virtual void visit(IndexAssignment& node) = 0;
     virtual void visit(GlobalStatement& node) = 0;
     virtual void visit(LocalStatement& node) = 0;
     virtual void visit(ReturnStatement& node) = 0;
