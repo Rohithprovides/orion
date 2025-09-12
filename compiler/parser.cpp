@@ -191,17 +191,42 @@ private:
         if (first.type == TokenType::IDENTIFIER) {
             std::string varName = first.value;
             
-            if (match({TokenType::ASSIGN})) {
-                // a = expr or a = type expr
-                if (isTypeKeyword(peek().type)) {
-                    // a = type expr
-                    Type type = parseType();
-                    auto init = parseExpression();
-                    return std::make_unique<VariableDeclaration>(varName, type, std::move(init), true);
+            if (match({TokenType::ASSIGN, TokenType::PLUS_ASSIGN, TokenType::MINUS_ASSIGN, 
+                      TokenType::MULTIPLY_ASSIGN, TokenType::DIVIDE_ASSIGN, TokenType::MODULO_ASSIGN})) {
+                TokenType assignOp = tokens[current - 1].type; // Get the operator token
+                
+                if (assignOp == TokenType::ASSIGN) {
+                    // a = expr or a = type expr
+                    if (isTypeKeyword(peek().type)) {
+                        // a = type expr
+                        Type type = parseType();
+                        auto init = parseExpression();
+                        return std::make_unique<VariableDeclaration>(varName, type, std::move(init), true);
+                    } else {
+                        // a = expr (type inference)
+                        auto init = parseExpression();
+                        return std::make_unique<VariableDeclaration>(varName, Type(), std::move(init), false);
+                    }
                 } else {
-                    // a = expr (type inference)
-                    auto init = parseExpression();
-                    return std::make_unique<VariableDeclaration>(varName, Type(), std::move(init), false);
+                    // Compound assignment: a += expr becomes a = a + expr
+                    BinaryOp binaryOp;
+                    switch (assignOp) {
+                        case TokenType::PLUS_ASSIGN: binaryOp = BinaryOp::ADD; break;
+                        case TokenType::MINUS_ASSIGN: binaryOp = BinaryOp::SUB; break;
+                        case TokenType::MULTIPLY_ASSIGN: binaryOp = BinaryOp::MUL; break;
+                        case TokenType::DIVIDE_ASSIGN: binaryOp = BinaryOp::DIV; break;
+                        case TokenType::MODULO_ASSIGN: binaryOp = BinaryOp::MOD; break;
+                        default: throw std::runtime_error("Invalid compound assignment operator");
+                    }
+                    
+                    // Parse the right-hand side
+                    auto rightExpr = parseExpression();
+                    
+                    // Create desugared assignment: x op= y becomes x = x op y
+                    auto leftId = std::make_unique<Identifier>(varName);
+                    auto binaryExpr = std::make_unique<BinaryExpression>(std::move(leftId), binaryOp, std::move(rightExpr));
+                    
+                    return std::make_unique<VariableDeclaration>(varName, Type(), std::move(binaryExpr), false);
                 }
             } else if (isTypeKeyword(peek().type)) {
                 // a int = expr
@@ -226,8 +251,12 @@ private:
         // Parse what looks like a tuple
         auto tupleExpr = parseExpression();
         
-        // Check if it's followed by assignment
-        if (match({TokenType::ASSIGN})) {
+        // Check if it's followed by assignment (including compound assignment)
+        if (match({TokenType::ASSIGN, TokenType::PLUS_ASSIGN, TokenType::MINUS_ASSIGN, 
+                  TokenType::MULTIPLY_ASSIGN, TokenType::DIVIDE_ASSIGN, TokenType::MODULO_ASSIGN})) {
+            TokenType assignOp = tokens[current - 1].type; // Get the operator token
+            
+            if (assignOp == TokenType::ASSIGN) {
             // This is a tuple assignment
             auto assignment = std::make_unique<TupleAssignment>();
             
@@ -258,6 +287,10 @@ private:
             
             match({TokenType::NEWLINE, TokenType::SEMICOLON}); // Optional terminator
             return std::move(assignment);
+            } else {
+                // Compound assignment on tuple/expression: not supported for now
+                throw std::runtime_error("Compound assignment is only supported for simple variables");
+            }
         } else {
             // Not an assignment, just a regular expression statement
             match({TokenType::NEWLINE, TokenType::SEMICOLON}); // Optional terminator

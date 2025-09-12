@@ -487,18 +487,31 @@ private:
     }
     
     std::unique_ptr<Expression> parseFactor() {
-        auto expr = parseUnary();
+        auto expr = parsePower();
         
-        while (match({TokenType::MULTIPLY, TokenType::DIVIDE, TokenType::MODULO})) {
+        while (match({TokenType::MULTIPLY, TokenType::DIVIDE, TokenType::MODULO, TokenType::FLOOR_DIVIDE})) {
             BinaryOp op;
             switch (previous().type) {
                 case TokenType::MULTIPLY: op = BinaryOp::MUL; break;
                 case TokenType::DIVIDE: op = BinaryOp::DIV; break;
                 case TokenType::MODULO: op = BinaryOp::MOD; break;
+                case TokenType::FLOOR_DIVIDE: op = BinaryOp::FLOOR_DIV; break;
                 default: throw std::runtime_error("Invalid factor operator");
             }
-            auto right = parseUnary();
+            auto right = parsePower();
             expr = std::make_unique<BinaryExpression>(std::move(expr), op, std::move(right));
+        }
+        
+        return expr;
+    }
+    
+    std::unique_ptr<Expression> parsePower() {
+        auto expr = parseUnary();
+        
+        // Exponentiation is right-associative, so we handle it differently
+        if (match({TokenType::POWER})) {
+            auto right = parsePower(); // Right-associative: a**b**c = a**(b**c)
+            expr = std::make_unique<BinaryExpression>(std::move(expr), BinaryOp::POWER, std::move(right));
         }
         
         return expr;
