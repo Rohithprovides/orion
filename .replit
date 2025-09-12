@@ -7,28 +7,6 @@ channel = "stable-25_05"
 packages = ["openssl", "postgresql"]
 
 [workflows]
-runButton = "Project"
-
-[[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Orion Web Interface"
-
-[[workflows.workflow]]
-name = "Orion Web Interface"
-author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "webview"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "python -m flask --app app run --host=0.0.0.0 --port=5000 --reload"
-waitForPort = 5000
 
 [[ports]]
 localPort = 5000
@@ -36,4 +14,4 @@ externalPort = 80
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["gunicorn", "--bind", "0.0.0.0:5000", "--reuse-port", "main:app"]
+run = ["gunicorn", "--bind", "0.0.0.0:5000", "main:app"]

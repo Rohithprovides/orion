@@ -6,15 +6,17 @@ dtype_int: .string "datatype: int\n"
 dtype_string: .string "datatype: string\n"
 dtype_bool: .string "datatype: bool\n"
 dtype_float: .string "datatype: float\n"
+dtype_list: .string "datatype: list\n"
 dtype_unknown: .string "datatype: unknown\n"
 str_true: .string "True\n"
 str_false: .string "False\n"
-str_0: .string "Hello, Orion World!\n"
-str_1: .string "Fast as C, readable as Python!\n"
+str_index_error: .string "Index Error\n"
 
 .section .text
 .global main
 .extern printf
+.extern malloc
+.extern exit
 .extern fmod
 .extern pow
 
@@ -22,19 +24,7 @@ main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp
-    # Function defined: main
-    # Explicit call to main()
-    # Executing function call: main
-    # Call out() with string
-    mov $str_0, %rsi
-    mov $format_str, %rdi
-    xor %rax, %rax
-    call printf
-    # Call out() with string
-    mov $str_1, %rsi
-    mov $format_str, %rdi
-    xor %rax, %rax
-    call printf
+    mov $42, %rax
     mov $0, %rax
     add $64, %rsp
     pop %rbp
