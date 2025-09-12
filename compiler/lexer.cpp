@@ -41,6 +41,11 @@ std::string Token::typeToString() const {
         case TokenType::POWER: return "POWER";
         case TokenType::FLOOR_DIVIDE: return "FLOOR_DIVIDE";
         case TokenType::ASSIGN: return "ASSIGN";
+        case TokenType::PLUS_ASSIGN: return "PLUS_ASSIGN";
+        case TokenType::MINUS_ASSIGN: return "MINUS_ASSIGN";
+        case TokenType::MULTIPLY_ASSIGN: return "MULTIPLY_ASSIGN";
+        case TokenType::DIVIDE_ASSIGN: return "DIVIDE_ASSIGN";
+        case TokenType::MODULO_ASSIGN: return "MODULO_ASSIGN";
         case TokenType::EQ: return "EQ";
         case TokenType::NE: return "NE";
         case TokenType::LT: return "LT";
@@ -196,6 +201,18 @@ Token Lexer::nextToken() {
         if (c == '-' && peek() == '=') {
             advance();
             return Token(TokenType::MINUS_ASSIGN, "-=", tokenLine, tokenColumn);
+        }
+        if (c == '*' && peek() == '=') {
+            advance();
+            return Token(TokenType::MULTIPLY_ASSIGN, "*=", tokenLine, tokenColumn);
+        }
+        if (c == '/' && peek() == '=') {
+            advance();
+            return Token(TokenType::DIVIDE_ASSIGN, "/=", tokenLine, tokenColumn);
+        }
+        if (c == '%' && peek() == '=') {
+            advance();
+            return Token(TokenType::MODULO_ASSIGN, "%=", tokenLine, tokenColumn);
         }
         if (c == '-' && peek() == '>') {
             advance();
