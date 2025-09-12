@@ -94,6 +94,7 @@ public:
         fullAssembly << "dtype_string: .string \"datatype: string\\n\"\n";
         fullAssembly << "dtype_bool: .string \"datatype: bool\\n\"\n";
         fullAssembly << "dtype_float: .string \"datatype: float\\n\"\n";
+        fullAssembly << "dtype_list: .string \"datatype: list\\n\"\n";
         fullAssembly << "dtype_unknown: .string \"datatype: unknown\\n\"\n";
         fullAssembly << "str_true: .string \"True\\n\"\n";
         fullAssembly << "str_false: .string \"False\\n\"\n";
@@ -145,6 +146,13 @@ public:
             if (dynamic_cast<FunctionDeclaration*>(stmt.get()) == nullptr) {
                 stmt->accept(*this);
             }
+        }
+        
+        // Third pass: if a user-defined main() function exists, call it
+        if (findFunction("main") != nullptr) {
+            assembly << "    # Calling user-defined main() function\n";
+            std::vector<std::unique_ptr<Expression>> emptyArgs;
+            executeFunctionCall("main", emptyArgs);
         }
     }
     
@@ -239,6 +247,8 @@ public:
                 varType = "bool";
             } else if (auto floatLit = dynamic_cast<FloatLiteral*>(node.initializer.get())) {
                 varType = "float";
+            } else if (auto listLit = dynamic_cast<ListLiteral*>(node.initializer.get())) {
+                varType = "list";
             } else if (auto id = dynamic_cast<Identifier*>(node.initializer.get())) {
                 // Variable assignment: copy type from source variable
                 auto varInfo = lookupVariable(id->name);
@@ -279,9 +289,7 @@ public:
                 }
             }
             
-            node.initializer->accept(*this);
-            
-            // Python-style scoping rules
+            // Python-style scoping rules - PRE-DECLARE variable before evaluating initializer
             if (declaredGlobal.count(node.name) || (!inFunction)) {
                 // Explicitly declared global OR not in function - use global scope
                 stackOffset += 8;
@@ -295,7 +303,6 @@ public:
                 if (node.isConstant) {
                     constantVariables.insert(node.name);
                 }
-                assembly << "    mov %rax, -" << stackOffset << "(%rbp)  # store global " << node.name << "\n";
             } else {
                 // In function and not declared global - create local variable
                 stackOffset += 8;
@@ -309,7 +316,15 @@ public:
                 if (node.isConstant) {
                     constantVariables.insert(node.name);
                 }
-                assembly << "    mov %rax, -" << stackOffset << "(%rbp)  # store local " << node.name << "\n";
+            }
+            
+            // Now evaluate initializer - variable is already declared
+            node.initializer->accept(*this);
+            
+            // Store the result in the pre-allocated variable slot using recorded offset
+            VariableInfo* varInfo = lookupVariable(node.name);
+            if (varInfo != nullptr) {
+                assembly << "    mov %rax, -" << varInfo->stackOffset << "(%rbp)  # store " << (varInfo->isGlobal ? "global" : "local") << " " << node.name << "\n";
             }
         }
     }
@@ -359,6 +374,8 @@ public:
                                     dtypeLabel = "dtype_bool";
                                 } else if (varIt->type == "float") {
                                     dtypeLabel = "dtype_float";
+                                } else if (varIt->type == "list") {
+                                    dtypeLabel = "dtype_list";
                                 } else {
                                     dtypeLabel = "dtype_unknown";
                                 }
@@ -979,10 +996,12 @@ public:
         // Store list size at the beginning
         assembly << "    movq $" << node.elements.size() << ", (%rbx)  # Store list size\n";
         
-        // Store each element
+        // Store each element - preserve %rbx across evaluations
         for (size_t i = 0; i < node.elements.size(); i++) {
             assembly << "    # Store element " << i << "\n";
+            assembly << "    push %rbx  # Save list pointer\n";
             node.elements[i]->accept(*this);  // Element value in %rax
+            assembly << "    pop %rbx  # Restore list pointer\n";
             assembly << "    movq %rax, " << (8 + i * 8) << "(%rbx)  # Store element " << i << "\n";
         }
         

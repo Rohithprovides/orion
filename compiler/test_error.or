@@ -1,0 +1,1 @@
+fn main() { numbers = [5, 15, 25] bad_index = numbers[10] }

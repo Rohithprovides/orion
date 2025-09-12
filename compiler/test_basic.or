@@ -1,0 +1,1 @@
+fn main() { simple = [10, 20, 30] result = simple[1] out(result) }
