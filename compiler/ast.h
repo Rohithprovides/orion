@@ -478,6 +478,8 @@ public:
     virtual void visit(UnaryExpression& node) = 0;
     virtual void visit(FunctionCall& node) = 0;
     virtual void visit(TupleExpression& node) = 0;
+    virtual void visit(ListLiteral& node) = 0;
+    virtual void visit(IndexExpression& node) = 0;
     virtual void visit(VariableDeclaration& node) = 0;
     virtual void visit(FunctionDeclaration& node) = 0;
     virtual void visit(BlockStatement& node) = 0;

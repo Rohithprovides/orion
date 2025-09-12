@@ -309,6 +309,25 @@ public:
         node.operand->accept(*this);
     }
     
+    void visit(TupleExpression& node) override {
+        for (auto& element : node.elements) {
+            element->accept(*this);
+        }
+    }
+    
+    void visit(ListLiteral& node) override {
+        // TODO: Implement list type checking
+        for (auto& element : node.elements) {
+            element->accept(*this);
+        }
+    }
+    
+    void visit(IndexExpression& node) override {
+        // TODO: Implement index expression type checking
+        node.object->accept(*this);
+        node.index->accept(*this);
+    }
+    
     void visit(FunctionCall& node) override {
         auto it = functions.find(node.name);
         if (it == functions.end()) {

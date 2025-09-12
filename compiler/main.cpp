@@ -954,6 +954,16 @@ public:
         }
     }
     
+    void visit(ListLiteral& node) override {
+        // TODO: Implement list literal code generation
+        assembly << "    # List literal - not implemented\n";
+    }
+    
+    void visit(IndexExpression& node) override {
+        // TODO: Implement index expression code generation
+        assembly << "    # Index expression - not implemented\n";
+    }
+    
     void visit(StructDeclaration& node) override { }
     void visit(EnumDeclaration& node) override { }
 };

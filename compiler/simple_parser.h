@@ -467,6 +467,19 @@ private:
                 } else {
                     throw std::runtime_error("Invalid function call");
                 }
+            } else if (check(TokenType::LBRACKET)) {
+                // Index access: expr[index]
+                advance(); // consume '['
+                auto index = parseExpression();
+                
+                if (!check(TokenType::RBRACKET)) {
+                    throw std::runtime_error("Expected ']' after index expression");
+                }
+                advance(); // consume ']'
+                
+                // Create IndexExpression and transfer ownership
+                auto indexExpr = std::make_unique<IndexExpression>(std::move(expr), std::move(index));
+                expr = std::move(indexExpr);
             } else {
                 break;
             }
@@ -497,6 +510,25 @@ private:
             Token token = advance();
             bool value = (token.value == "True");
             return std::make_unique<BoolLiteral>(value, token.line, token.column);
+        }
+        
+        if (check(TokenType::LBRACKET)) {
+            Token token = advance(); // consume '['
+            auto list = std::make_unique<ListLiteral>(token.line, token.column);
+            
+            // Parse list elements
+            if (!check(TokenType::RBRACKET)) {
+                do {
+                    // Use parseLogicalOr instead of parseExpression to avoid infinite recursion
+                    list->elements.push_back(parseLogicalOr());
+                } while (check(TokenType::COMMA) && (advance(), true));
+            }
+            
+            if (!check(TokenType::RBRACKET)) {
+                throw std::runtime_error("Expected ']' after list elements");
+            }
+            advance(); // consume ']'
+            return std::move(list);
         }
         
         if (check(TokenType::LPAREN)) {
