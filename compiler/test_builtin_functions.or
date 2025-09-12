@@ -1,0 +1,8 @@
+fn main() { 
+    x = [1, 2, 3]
+    out(len(x))
+    append(x, 4)
+    out(len(x))
+    out(pop(x))
+    out(len(x))
+}

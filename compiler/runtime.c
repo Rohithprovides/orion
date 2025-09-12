@@ -1,0 +1,274 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+
+// Enhanced list structure for dynamic operations
+typedef struct {
+    int64_t size;        // Current number of elements
+    int64_t capacity;    // Total allocated space
+    int64_t* data;       // Pointer to element array (8 bytes per element)
+} OrionList;
+
+// Create a new empty list with initial capacity
+OrionList* list_new(int64_t initial_capacity) {
+    if (initial_capacity < 4) initial_capacity = 4; // Minimum capacity
+    
+    OrionList* list = (OrionList*)malloc(sizeof(OrionList));
+    if (!list) {
+        fprintf(stderr, "Error: Failed to allocate memory for list\n");
+        exit(1);
+    }
+    
+    list->size = 0;
+    list->capacity = initial_capacity;
+    list->data = (int64_t*)malloc(sizeof(int64_t) * initial_capacity);
+    if (!list->data) {
+        fprintf(stderr, "Error: Failed to allocate memory for list data\n");
+        exit(1);
+    }
+    
+    return list;
+}
+
+// Create a list from existing data (used by list literals)
+OrionList* list_from_data(int64_t* elements, int64_t count) {
+    OrionList* list = list_new(count > 4 ? count : 4);
+    list->size = count;
+    
+    // Copy elements
+    for (int64_t i = 0; i < count; i++) {
+        list->data[i] = elements[i];
+    }
+    
+    return list;
+}
+
+// Get list length
+int64_t list_len(OrionList* list) {
+    if (!list) {
+        fprintf(stderr, "Error: Cannot get length of null list\n");
+        exit(1);
+    }
+    return list->size;
+}
+
+// Normalize negative index to positive (Python-style)
+int64_t normalize_index(OrionList* list, int64_t index) {
+    if (!list) {
+        fprintf(stderr, "Error: Cannot normalize index on null list\n");
+        exit(1);
+    }
+    
+    if (index < 0) {
+        index += list->size;
+    }
+    
+    if (index < 0 || index >= list->size) {
+        fprintf(stderr, "Error: List index out of range\n");
+        exit(1);
+    }
+    
+    return index;
+}
+
+// Get element at index (supports negative indexing)
+int64_t list_get(OrionList* list, int64_t index) {
+    if (!list) {
+        fprintf(stderr, "Error: Cannot access null list\n");
+        exit(1);
+    }
+    
+    index = normalize_index(list, index);
+    return list->data[index];
+}
+
+// Set element at index (supports negative indexing)
+void list_set(OrionList* list, int64_t index, int64_t value) {
+    if (!list) {
+        fprintf(stderr, "Error: Cannot modify null list\n");
+        exit(1);
+    }
+    
+    index = normalize_index(list, index);
+    list->data[index] = value;
+}
+
+// Resize list capacity (internal function)
+void list_resize(OrionList* list, int64_t new_capacity) {
+    if (!list) return;
+    
+    // Protect against integer overflow
+    if (new_capacity > INT64_MAX / sizeof(int64_t)) {
+        fprintf(stderr, "Error: List capacity too large\n");
+        exit(1);
+    }
+    
+    int64_t* new_data = (int64_t*)realloc(list->data, sizeof(int64_t) * new_capacity);
+    if (!new_data) {
+        fprintf(stderr, "Error: Failed to resize list\n");
+        exit(1);
+    }
+    
+    list->data = new_data;
+    list->capacity = new_capacity;
+}
+
+// Append element to end of list
+void list_append(OrionList* list, int64_t value) {
+    if (!list) {
+        fprintf(stderr, "Error: Cannot append to null list\n");
+        exit(1);
+    }
+    
+    // Resize if needed (double capacity)
+    if (list->size >= list->capacity) {
+        int64_t new_capacity = list->capacity * 2;
+        list_resize(list, new_capacity);
+    }
+    
+    list->data[list->size] = value;
+    list->size++;
+}
+
+// Remove and return last element
+int64_t list_pop(OrionList* list) {
+    if (!list) {
+        fprintf(stderr, "Error: Cannot pop from null list\n");
+        exit(1);
+    }
+    
+    if (list->size == 0) {
+        fprintf(stderr, "Error: Cannot pop from empty list\n");
+        exit(1);
+    }
+    
+    list->size--;
+    int64_t value = list->data[list->size];
+    
+    // Shrink capacity if list becomes much smaller (optional optimization)
+    if (list->size < list->capacity / 4 && list->capacity > 8) {
+        list_resize(list, list->capacity / 2);
+    }
+    
+    return value;
+}
+
+// Insert element at specific index
+void list_insert(OrionList* list, int64_t index, int64_t value) {
+    if (!list) {
+        fprintf(stderr, "Error: Cannot insert into null list\n");
+        exit(1);
+    }
+    
+    // Allow inserting at end (index == size)
+    if (index < 0) {
+        index += list->size;
+    }
+    if (index < 0 || index > list->size) {
+        fprintf(stderr, "Error: Insert index out of range\n");
+        exit(1);
+    }
+    
+    // Resize if needed
+    if (list->size >= list->capacity) {
+        int64_t new_capacity = list->capacity * 2;
+        list_resize(list, new_capacity);
+    }
+    
+    // Shift elements to make room
+    memmove(&list->data[index + 1], &list->data[index], 
+            sizeof(int64_t) * (list->size - index));
+    
+    list->data[index] = value;
+    list->size++;
+}
+
+// Concatenate two lists (returns new list)
+OrionList* list_concat(OrionList* list1, OrionList* list2) {
+    if (!list1 || !list2) {
+        fprintf(stderr, "Error: Cannot concatenate null lists\n");
+        exit(1);
+    }
+    
+    int64_t total_size = list1->size + list2->size;
+    OrionList* result = list_new(total_size);
+    result->size = total_size;
+    
+    // Copy elements from both lists
+    memcpy(result->data, list1->data, sizeof(int64_t) * list1->size);
+    memcpy(&result->data[list1->size], list2->data, sizeof(int64_t) * list2->size);
+    
+    return result;
+}
+
+// Repeat list n times (returns new list)
+OrionList* list_repeat(OrionList* list, int64_t count) {
+    if (!list) {
+        fprintf(stderr, "Error: Cannot repeat null list\n");
+        exit(1);
+    }
+    
+    if (count < 0) {
+        fprintf(stderr, "Error: Cannot repeat list negative times\n");
+        exit(1);
+    }
+    
+    if (count == 0 || list->size == 0) {
+        return list_new(4);
+    }
+    
+    // Protect against overflow
+    if (list->size > INT64_MAX / count) {
+        fprintf(stderr, "Error: Repeated list would be too large\n");
+        exit(1);
+    }
+    
+    int64_t total_size = list->size * count;
+    OrionList* result = list_new(total_size);
+    result->size = total_size;
+    
+    // Copy the list data count times
+    for (int64_t i = 0; i < count; i++) {
+        memcpy(&result->data[i * list->size], list->data, sizeof(int64_t) * list->size);
+    }
+    
+    return result;
+}
+
+// Extend list with elements from another list (modifies first list)
+void list_extend(OrionList* list1, OrionList* list2) {
+    if (!list1 || !list2) {
+        fprintf(stderr, "Error: Cannot extend null lists\n");
+        exit(1);
+    }
+    
+    // Resize if needed
+    int64_t new_size = list1->size + list2->size;
+    if (new_size > list1->capacity) {
+        int64_t new_capacity = list1->capacity;
+        while (new_capacity < new_size) {
+            new_capacity *= 2;
+        }
+        list_resize(list1, new_capacity);
+    }
+    
+    // Copy elements from list2
+    memcpy(&list1->data[list1->size], list2->data, sizeof(int64_t) * list2->size);
+    list1->size = new_size;
+}
+
+// Print list for debugging (optional)
+void list_print(OrionList* list) {
+    if (!list) {
+        printf("null\n");
+        return;
+    }
+    
+    printf("[");
+    for (int64_t i = 0; i < list->size; i++) {
+        if (i > 0) printf(", ");
+        printf("%ld", list->data[i]);
+    }
+    printf("]\n");
+}

@@ -11,15 +11,26 @@ dtype_unknown: .string "datatype: unknown\n"
 str_true: .string "True\n"
 str_false: .string "False\n"
 str_index_error: .string "Index Error\n"
-str_0: .string "Empty list created\n"
 
 .section .text
 .global main
 .extern printf
 .extern malloc
+.extern free
 .extern exit
 .extern fmod
 .extern pow
+.extern list_new
+.extern list_from_data
+.extern list_len
+.extern list_get
+.extern list_set
+.extern list_append
+.extern list_pop
+.extern list_insert
+.extern list_concat
+.extern list_repeat
+.extern list_extend
 
 main:
     push %rbp
@@ -28,17 +39,77 @@ main:
     # Function defined: main
     # Calling user-defined main() function
     # Executing function call: main
-    # Variable: empty
-    # List literal with 0 elements
-    mov $8, %rdi  # Allocation size for empty list (just size header)
-    call malloc  # Allocate memory for empty list
-    mov %rax, %rbx  # Save list pointer
-    movq $0, (%rbx)  # Store list size = 0
-    mov %rbx, %rax  # Return list pointer
-    mov %rax, -8(%rbp)  # store local empty
-    # Call out() with string
-    mov $str_0, %rsi
-    mov $format_str, %rdi
+    # Variable: x
+    # Enhanced list literal with 3 elements
+    # Allocating temporary array for 3 elements
+    mov $24, %rdi
+    call malloc  # Allocate temporary array
+    mov %rax, %r12  # Save temp array pointer in %r12
+    # Evaluating element 0
+    push %r12  # Save temp array pointer
+    mov $1, %rax
+    pop %r12  # Restore temp array pointer
+    movq %rax, 0(%r12)  # Store in temp array
+    # Evaluating element 1
+    push %r12  # Save temp array pointer
+    mov $2, %rax
+    pop %r12  # Restore temp array pointer
+    movq %rax, 8(%r12)  # Store in temp array
+    # Evaluating element 2
+    push %r12  # Save temp array pointer
+    mov $3, %rax
+    pop %r12  # Restore temp array pointer
+    movq %rax, 16(%r12)  # Store in temp array
+    mov %r12, %rdi  # Temp array pointer
+    mov $3, %rsi  # Element count
+    call list_from_data  # Create list from data
+    push %rax  # Save list pointer
+    mov %r12, %rdi  # Temp array pointer
+    call free  # Free temporary array
+    pop %rax  # Restore list pointer
+    mov %rax, -8(%rbp)  # store local x
+    # len() function call
+    mov -8(%rbp), %rax  # load local x
+    mov %rax, %rdi  # List pointer as argument
+    call list_len  # Get list length
+    # Call out() with expression result
+    mov %rax, %rsi
+    mov $format_int, %rdi
+    xor %rax, %rax
+    call printf
+    # append() function call
+    mov -8(%rbp), %rax  # load local x
+    mov %rax, %rdi  # List pointer as first argument
+    push %rdi  # Save list pointer
+    mov $4, %rax
+    mov %rax, %rsi  # Element value as second argument
+    pop %rdi  # Restore list pointer
+    call list_append  # Append element to list
+    # len() function call
+    mov -8(%rbp), %rax  # load local x
+    mov %rax, %rdi  # List pointer as argument
+    call list_len  # Get list length
+    # Call out() with expression result
+    mov %rax, %rsi
+    mov $format_int, %rdi
+    xor %rax, %rax
+    call printf
+    # pop() function call
+    mov -8(%rbp), %rax  # load local x
+    mov %rax, %rdi  # List pointer as argument
+    call list_pop  # Pop last element
+    # Call out() with expression result
+    mov %rax, %rsi
+    mov $format_int, %rdi
+    xor %rax, %rax
+    call printf
+    # len() function call
+    mov -8(%rbp), %rax  # load local x
+    mov %rax, %rdi  # List pointer as argument
+    call list_len  # Get list length
+    # Call out() with expression result
+    mov %rax, %rsi
+    mov $format_int, %rdi
     xor %rax, %rax
     call printf
     mov $0, %rax

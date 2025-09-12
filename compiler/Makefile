@@ -7,22 +7,29 @@ LDFLAGS = -lm
 # Source files
 SOURCES = main.cpp lexer.cpp parser.cpp types.cpp codegen.cpp ast_impl.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
+C_SOURCES = runtime.c
+C_OBJECTS = $(C_SOURCES:.c=.o)
+ALL_OBJECTS = $(OBJECTS) $(C_OBJECTS)
 TARGET = orion
 
 # Default target
 all: $(TARGET)
 
 # Build the compiler
-$(TARGET): $(OBJECTS)
-	$(CXX) $(OBJECTS) -o $(TARGET) $(LDFLAGS)
+$(TARGET): $(ALL_OBJECTS)
+	$(CXX) $(ALL_OBJECTS) -o $(TARGET) $(LDFLAGS)
 
 # Compile individual source files
 %.o: %.cpp ast.h lexer.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
+# Compile C runtime files
+%.o: %.c
+	gcc -std=c99 -Wall -O2 -c $< -o $@
+
 # Clean build artifacts
 clean:
-	rm -f $(OBJECTS) $(TARGET)
+	rm -f $(OBJECTS) $(C_OBJECTS) $(TARGET)
 
 # Install the compiler (optional)
 install: $(TARGET)

@@ -115,9 +115,22 @@ public:
         fullAssembly << ".global main\n";
         fullAssembly << ".extern printf\n";
         fullAssembly << ".extern malloc\n";
+        fullAssembly << ".extern free\n";
         fullAssembly << ".extern exit\n";
         fullAssembly << ".extern fmod\n";
-        fullAssembly << ".extern pow\n\n";
+        fullAssembly << ".extern pow\n";
+        // Enhanced list runtime functions
+        fullAssembly << ".extern list_new\n";
+        fullAssembly << ".extern list_from_data\n";
+        fullAssembly << ".extern list_len\n";
+        fullAssembly << ".extern list_get\n";
+        fullAssembly << ".extern list_set\n";
+        fullAssembly << ".extern list_append\n";
+        fullAssembly << ".extern list_pop\n";
+        fullAssembly << ".extern list_insert\n";
+        fullAssembly << ".extern list_concat\n";
+        fullAssembly << ".extern list_repeat\n";
+        fullAssembly << ".extern list_extend\n\n";
         
         // Main function
         fullAssembly << "main:\n";
@@ -351,6 +364,52 @@ public:
     }
     
     void visit(FunctionCall& node) override {
+        // Handle built-in list functions
+        if (node.name == "len") {
+            if (node.arguments.size() != 1) {
+                throw std::runtime_error("len() function requires exactly 1 argument");
+            }
+            assembly << "    # len() function call\n";
+            node.arguments[0]->accept(*this);  // Evaluate list argument
+            assembly << "    mov %rax, %rdi  # List pointer as argument\n";
+            assembly << "    call list_len  # Get list length\n";
+            // Result in %rax
+            return;
+        }
+        
+        if (node.name == "append") {
+            if (node.arguments.size() != 2) {
+                throw std::runtime_error("append() function requires exactly 2 arguments (list, element)");
+            }
+            assembly << "    # append() function call\n";
+            
+            // Evaluate list argument
+            node.arguments[0]->accept(*this);
+            assembly << "    mov %rax, %rdi  # List pointer as first argument\n";
+            assembly << "    push %rdi  # Save list pointer\n";
+            
+            // Evaluate element argument
+            node.arguments[1]->accept(*this);
+            assembly << "    mov %rax, %rsi  # Element value as second argument\n";
+            assembly << "    pop %rdi  # Restore list pointer\n";
+            
+            assembly << "    call list_append  # Append element to list\n";
+            // append returns void, so no return value
+            return;
+        }
+        
+        if (node.name == "pop") {
+            if (node.arguments.size() != 1) {
+                throw std::runtime_error("pop() function requires exactly 1 argument");
+            }
+            assembly << "    # pop() function call\n";
+            node.arguments[0]->accept(*this);  // Evaluate list argument
+            assembly << "    mov %rax, %rdi  # List pointer as argument\n";
+            assembly << "    call list_pop  # Pop last element\n";
+            // Result (popped element) in %rax
+            return;
+        }
+        
         if (node.name == "out") {
             // Handle out() function calls
             if (!node.arguments.empty()) {
@@ -975,81 +1034,57 @@ public:
     }
     
     void visit(ListLiteral& node) override {
-        assembly << "    # List literal with " << node.elements.size() << " elements\n";
+        assembly << "    # Enhanced list literal with " << node.elements.size() << " elements\n";
         
         if (node.elements.empty()) {
-            // Empty list - allocate memory with size 0 for consistency
-            assembly << "    mov $8, %rdi  # Allocation size for empty list (just size header)\n";
-            assembly << "    call malloc  # Allocate memory for empty list\n";
-            assembly << "    mov %rax, %rbx  # Save list pointer\n";
-            assembly << "    movq $0, (%rbx)  # Store list size = 0\n";
-            assembly << "    mov %rbx, %rax  # Return list pointer\n";
+            // Create empty list using runtime
+            assembly << "    mov $4, %rdi  # Initial capacity for empty list\n";
+            assembly << "    call list_new  # Create new empty list\n";
             return;
         }
         
-        // Allocate memory: size = 8 bytes (size) + 8 * element_count bytes (elements)
-        size_t totalSize = 8 + (8 * node.elements.size());
-        assembly << "    mov $" << totalSize << ", %rdi  # Allocation size\n";
-        assembly << "    call malloc  # Allocate memory for list\n";
-        assembly << "    mov %rax, %rbx  # Save list pointer\n";
+        // For non-empty lists, collect elements in temporary array first
+        assembly << "    # Allocating temporary array for " << node.elements.size() << " elements\n";
+        size_t tempArraySize = node.elements.size() * 8;  // 8 bytes per element
+        assembly << "    mov $" << tempArraySize << ", %rdi\n";
+        assembly << "    call malloc  # Allocate temporary array\n";
+        assembly << "    mov %rax, %r12  # Save temp array pointer in %r12\n";
         
-        // Store list size at the beginning
-        assembly << "    movq $" << node.elements.size() << ", (%rbx)  # Store list size\n";
-        
-        // Store each element - preserve %rbx across evaluations
+        // Store each element in temporary array
         for (size_t i = 0; i < node.elements.size(); i++) {
-            assembly << "    # Store element " << i << "\n";
-            assembly << "    push %rbx  # Save list pointer\n";
+            assembly << "    # Evaluating element " << i << "\n";
+            assembly << "    push %r12  # Save temp array pointer\n";
             node.elements[i]->accept(*this);  // Element value in %rax
-            assembly << "    pop %rbx  # Restore list pointer\n";
-            assembly << "    movq %rax, " << (8 + i * 8) << "(%rbx)  # Store element " << i << "\n";
+            assembly << "    pop %r12  # Restore temp array pointer\n";
+            assembly << "    movq %rax, " << (i * 8) << "(%r12)  # Store in temp array\n";
         }
         
-        // Return list pointer in %rax
-        assembly << "    mov %rbx, %rax  # List pointer\n";
+        // Create list from temporary data
+        assembly << "    mov %r12, %rdi  # Temp array pointer\n";
+        assembly << "    mov $" << node.elements.size() << ", %rsi  # Element count\n";
+        assembly << "    call list_from_data  # Create list from data\n";
+        
+        // Free temporary array - list_from_data made a copy
+        assembly << "    push %rax  # Save list pointer\n";
+        assembly << "    mov %r12, %rdi  # Temp array pointer\n";
+        assembly << "    call free  # Free temporary array\n";
+        assembly << "    pop %rax  # Restore list pointer\n";
     }
     
     void visit(IndexExpression& node) override {
-        assembly << "    # Index expression: array[index]\n";
+        assembly << "    # Enhanced index expression with negative indexing support\n";
         
         // Evaluate the object (list) - result in %rax
         node.object->accept(*this);
-        assembly << "    mov %rax, %rbx  # Save list pointer\n";
-        
-        // Check for null list
-        assembly << "    test %rbx, %rbx\n";
-        assembly << "    jz index_error_" << labelCounter << "  # Jump if null list\n";
+        assembly << "    mov %rax, %rdi  # List pointer as first argument\n";
         
         // Evaluate the index - result in %rax
         node.index->accept(*this);
-        assembly << "    mov %rax, %rcx  # Save index\n";
+        assembly << "    mov %rax, %rsi  # Index as second argument\n";
         
-        // Bounds checking: get list size
-        assembly << "    movq (%rbx), %rdx  # Load list size\n";
-        assembly << "    cmp %rdx, %rcx\n";
-        assembly << "    jge index_error_" << labelCounter << "  # Jump if index >= size\n";
-        assembly << "    test %rcx, %rcx\n";
-        assembly << "    js index_error_" << labelCounter << "  # Jump if index < 0\n";
-        
-        // Calculate element address: base + 8 + (index * 8)
-        assembly << "    imul $8, %rcx  # index * 8\n";
-        assembly << "    add $8, %rcx  # Add header offset\n";
-        assembly << "    add %rbx, %rcx  # base + offset\n";
-        assembly << "    movq (%rcx), %rax  # Load element value\n";
-        assembly << "    jmp index_done_" << labelCounter << "\n";
-        
-        // Error handling
-        assembly << "index_error_" << labelCounter << ":\n";
-        assembly << "    # Print index error message and terminate\n";
-        assembly << "    mov $str_index_error, %rsi\n";
-        assembly << "    mov $format_str, %rdi\n";
-        assembly << "    xor %rax, %rax\n";
-        assembly << "    call printf\n";
-        assembly << "    mov $1, %rdi  # Exit code 1 for error\n";
-        assembly << "    call exit  # Terminate program\n";
-        
-        assembly << "index_done_" << labelCounter << ":\n";
-        labelCounter++;
+        // Call runtime function for safe indexing with negative support
+        assembly << "    call list_get  # Get element with bounds checking\n";
+        // Result is in %rax - no additional handling needed
     }
     
     void visit(StructDeclaration& node) override { }
@@ -1109,9 +1144,9 @@ int main(int argc, char* argv[]) {
         asmOut << assembly;
         asmOut.close();
         
-        // Step 5: Use GCC to assemble and link (KEEP EXECUTABLE FOR PROOF)
+        // Step 5: Use GCC to assemble and link with runtime (KEEP EXECUTABLE FOR PROOF)
         std::string exeFile = "orion_exec";
-        std::string gccCommand = "gcc -o " + exeFile + " " + asmFile + " -lm";
+        std::string gccCommand = "gcc -o " + exeFile + " " + asmFile + " runtime.o -lm";
         
         int result = system(gccCommand.c_str());
         if (result != 0) {

@@ -94,9 +94,11 @@ public:
         fullAssembly << "dtype_string: .string \"datatype: string\\n\"\n";
         fullAssembly << "dtype_bool: .string \"datatype: bool\\n\"\n";
         fullAssembly << "dtype_float: .string \"datatype: float\\n\"\n";
+        fullAssembly << "dtype_list: .string \"datatype: list\\n\"\n";
         fullAssembly << "dtype_unknown: .string \"datatype: unknown\\n\"\n";
         fullAssembly << "str_true: .string \"True\\n\"\n";
         fullAssembly << "str_false: .string \"False\\n\"\n";
+        fullAssembly << "str_index_error: .string \"Index Error\\n\"\n";
         
         // String literals
         for (size_t i = 0; i < stringLiterals.size(); i++) {
@@ -112,6 +114,8 @@ public:
         fullAssembly << "\n.section .text\n";
         fullAssembly << ".global main\n";
         fullAssembly << ".extern printf\n";
+        fullAssembly << ".extern malloc\n";
+        fullAssembly << ".extern exit\n";
         fullAssembly << ".extern fmod\n";
         fullAssembly << ".extern pow\n\n";
         
@@ -142,6 +146,13 @@ public:
             if (dynamic_cast<FunctionDeclaration*>(stmt.get()) == nullptr) {
                 stmt->accept(*this);
             }
+        }
+        
+        // Third pass: if a user-defined main() function exists, call it
+        if (findFunction("main") != nullptr) {
+            assembly << "    # Calling user-defined main() function\n";
+            std::vector<std::unique_ptr<Expression>> emptyArgs;
+            executeFunctionCall("main", emptyArgs);
         }
     }
     
@@ -236,6 +247,8 @@ public:
                 varType = "bool";
             } else if (auto floatLit = dynamic_cast<FloatLiteral*>(node.initializer.get())) {
                 varType = "float";
+            } else if (auto listLit = dynamic_cast<ListLiteral*>(node.initializer.get())) {
+                varType = "list";
             } else if (auto id = dynamic_cast<Identifier*>(node.initializer.get())) {
                 // Variable assignment: copy type from source variable
                 auto varInfo = lookupVariable(id->name);
@@ -276,9 +289,7 @@ public:
                 }
             }
             
-            node.initializer->accept(*this);
-            
-            // Python-style scoping rules
+            // Python-style scoping rules - PRE-DECLARE variable before evaluating initializer
             if (declaredGlobal.count(node.name) || (!inFunction)) {
                 // Explicitly declared global OR not in function - use global scope
                 stackOffset += 8;
@@ -292,7 +303,6 @@ public:
                 if (node.isConstant) {
                     constantVariables.insert(node.name);
                 }
-                assembly << "    mov %rax, -" << stackOffset << "(%rbp)  # store global " << node.name << "\n";
             } else {
                 // In function and not declared global - create local variable
                 stackOffset += 8;
@@ -306,7 +316,15 @@ public:
                 if (node.isConstant) {
                     constantVariables.insert(node.name);
                 }
-                assembly << "    mov %rax, -" << stackOffset << "(%rbp)  # store local " << node.name << "\n";
+            }
+            
+            // Now evaluate initializer - variable is already declared
+            node.initializer->accept(*this);
+            
+            // Store the result in the pre-allocated variable slot using recorded offset
+            VariableInfo* varInfo = lookupVariable(node.name);
+            if (varInfo != nullptr) {
+                assembly << "    mov %rax, -" << varInfo->stackOffset << "(%rbp)  # store " << (varInfo->isGlobal ? "global" : "local") << " " << node.name << "\n";
             }
         }
     }
@@ -356,6 +374,8 @@ public:
                                     dtypeLabel = "dtype_bool";
                                 } else if (varIt->type == "float") {
                                     dtypeLabel = "dtype_float";
+                                } else if (varIt->type == "list") {
+                                    dtypeLabel = "dtype_list";
                                 } else {
                                     dtypeLabel = "dtype_unknown";
                                 }
@@ -952,6 +972,84 @@ public:
             declaredLocal.insert(varName);
             assembly << "    # Local declaration: " << varName << "\n";
         }
+    }
+    
+    void visit(ListLiteral& node) override {
+        assembly << "    # List literal with " << node.elements.size() << " elements\n";
+        
+        if (node.elements.empty()) {
+            // Empty list - allocate memory with size 0 for consistency
+            assembly << "    mov $8, %rdi  # Allocation size for empty list (just size header)\n";
+            assembly << "    call malloc  # Allocate memory for empty list\n";
+            assembly << "    mov %rax, %rbx  # Save list pointer\n";
+            assembly << "    movq $0, (%rbx)  # Store list size = 0\n";
+            assembly << "    mov %rbx, %rax  # Return list pointer\n";
+            return;
+        }
+        
+        // Allocate memory: size = 8 bytes (size) + 8 * element_count bytes (elements)
+        size_t totalSize = 8 + (8 * node.elements.size());
+        assembly << "    mov $" << totalSize << ", %rdi  # Allocation size\n";
+        assembly << "    call malloc  # Allocate memory for list\n";
+        assembly << "    mov %rax, %rbx  # Save list pointer\n";
+        
+        // Store list size at the beginning
+        assembly << "    movq $" << node.elements.size() << ", (%rbx)  # Store list size\n";
+        
+        // Store each element - preserve %rbx across evaluations
+        for (size_t i = 0; i < node.elements.size(); i++) {
+            assembly << "    # Store element " << i << "\n";
+            assembly << "    push %rbx  # Save list pointer\n";
+            node.elements[i]->accept(*this);  // Element value in %rax
+            assembly << "    pop %rbx  # Restore list pointer\n";
+            assembly << "    movq %rax, " << (8 + i * 8) << "(%rbx)  # Store element " << i << "\n";
+        }
+        
+        // Return list pointer in %rax
+        assembly << "    mov %rbx, %rax  # List pointer\n";
+    }
+    
+    void visit(IndexExpression& node) override {
+        assembly << "    # Index expression: array[index]\n";
+        
+        // Evaluate the object (list) - result in %rax
+        node.object->accept(*this);
+        assembly << "    mov %rax, %rbx  # Save list pointer\n";
+        
+        // Check for null list
+        assembly << "    test %rbx, %rbx\n";
+        assembly << "    jz index_error_" << labelCounter << "  # Jump if null list\n";
+        
+        // Evaluate the index - result in %rax
+        node.index->accept(*this);
+        assembly << "    mov %rax, %rcx  # Save index\n";
+        
+        // Bounds checking: get list size
+        assembly << "    movq (%rbx), %rdx  # Load list size\n";
+        assembly << "    cmp %rdx, %rcx\n";
+        assembly << "    jge index_error_" << labelCounter << "  # Jump if index >= size\n";
+        assembly << "    test %rcx, %rcx\n";
+        assembly << "    js index_error_" << labelCounter << "  # Jump if index < 0\n";
+        
+        // Calculate element address: base + 8 + (index * 8)
+        assembly << "    imul $8, %rcx  # index * 8\n";
+        assembly << "    add $8, %rcx  # Add header offset\n";
+        assembly << "    add %rbx, %rcx  # base + offset\n";
+        assembly << "    movq (%rcx), %rax  # Load element value\n";
+        assembly << "    jmp index_done_" << labelCounter << "\n";
+        
+        // Error handling
+        assembly << "index_error_" << labelCounter << ":\n";
+        assembly << "    # Print index error message and terminate\n";
+        assembly << "    mov $str_index_error, %rsi\n";
+        assembly << "    mov $format_str, %rdi\n";
+        assembly << "    xor %rax, %rax\n";
+        assembly << "    call printf\n";
+        assembly << "    mov $1, %rdi  # Exit code 1 for error\n";
+        assembly << "    call exit  # Terminate program\n";
+        
+        assembly << "index_done_" << labelCounter << ":\n";
+        labelCounter++;
     }
     
     void visit(StructDeclaration& node) override { }

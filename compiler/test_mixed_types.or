@@ -1,0 +1,1 @@
+mixed = [1, 2.5, 3]; out(mixed[1])
