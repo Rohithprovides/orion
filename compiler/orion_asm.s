@@ -9,10 +9,13 @@ dtype_float: .string "datatype: float\n"
 dtype_unknown: .string "datatype: unknown\n"
 str_true: .string "True\n"
 str_false: .string "False\n"
+str_index_error: .string "Index Error\n"
 
 .section .text
 .global main
 .extern printf
+.extern malloc
+.extern exit
 .extern fmod
 .extern pow
 
