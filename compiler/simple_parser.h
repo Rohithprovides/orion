@@ -220,7 +220,7 @@ private:
             isConstant = true;
         }
         
-        // Check for chain assignment: a=b=5
+        // Check for assignment patterns: chain assignment (a=b=5) and compound assignment (a+=5)
         if (check(TokenType::IDENTIFIER)) {
             // Scan ahead to detect chain assignment pattern
             std::vector<size_t> assignPositions;
@@ -265,6 +265,45 @@ private:
                 
                 auto init = parseExpression();
                 return std::make_unique<VariableDeclaration>(varName, Type(), std::move(init), false, isConstant);
+            }
+            
+            // Check for compound assignment operators
+            if (check(TokenType::IDENTIFIER)) {
+                std::string varName = advance().value;
+                
+                // Check for compound assignment operators
+                if (check(TokenType::PLUS_ASSIGN) || check(TokenType::MINUS_ASSIGN) || 
+                    check(TokenType::MULTIPLY_ASSIGN) || check(TokenType::DIVIDE_ASSIGN) || 
+                    check(TokenType::MODULO_ASSIGN)) {
+                    
+                    // Map compound operator to binary operator
+                    BinaryOp binaryOp;
+                    TokenType compoundToken = peek().type;
+                    switch (compoundToken) {
+                        case TokenType::PLUS_ASSIGN: binaryOp = BinaryOp::ADD; break;
+                        case TokenType::MINUS_ASSIGN: binaryOp = BinaryOp::SUB; break;
+                        case TokenType::MULTIPLY_ASSIGN: binaryOp = BinaryOp::MUL; break;
+                        case TokenType::DIVIDE_ASSIGN: binaryOp = BinaryOp::DIV; break;
+                        case TokenType::MODULO_ASSIGN: binaryOp = BinaryOp::MOD; break;
+                        default: throw std::runtime_error("Invalid compound assignment operator");
+                    }
+                    
+                    advance(); // consume compound operator
+                    
+                    // Parse the right-hand side expression
+                    auto rightExpr = parseExpression();
+                    
+                    // Create desugared assignment: x op= y becomes x = x op y
+                    auto leftId = std::make_unique<Identifier>(varName);
+                    auto binaryExpr = std::make_unique<BinaryExpression>(std::move(leftId), binaryOp, std::move(rightExpr));
+                    
+                    // Create the assignment statement
+                    return std::make_unique<VariableDeclaration>(varName, Type(), std::move(binaryExpr), false, isConstant);
+                }
+                
+                // If we consumed the identifier but didn't find compound assignment,
+                // we need to backtrack and handle as expression
+                current--; // backtrack
             }
         }
         
