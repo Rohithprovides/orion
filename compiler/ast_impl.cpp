@@ -71,6 +71,14 @@ void TupleExpression::accept(ASTVisitor& visitor) {
     visitor.visit(*this);
 }
 
+void ListLiteral::accept(ASTVisitor& visitor) {
+    visitor.visit(*this);
+}
+
+void IndexExpression::accept(ASTVisitor& visitor) {
+    visitor.visit(*this);
+}
+
 std::string FunctionCall::toString(int indent) const {
     std::string indentStr(indent, ' ');
     std::string result = indentStr + "FunctionCall(" + name + "):\n";

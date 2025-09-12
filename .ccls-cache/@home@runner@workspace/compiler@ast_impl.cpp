@@ -177,6 +177,36 @@ std::string ChainAssignment::toString(int indent) const {
     return result;
 }
 
+void GlobalStatement::accept(ASTVisitor& visitor) {
+    visitor.visit(*this);
+}
+
+std::string GlobalStatement::toString(int indent) const {
+    std::string indentStr(indent, ' ');
+    std::string result = indentStr + "GlobalStatement: ";
+    for (size_t i = 0; i < variables.size(); i++) {
+        if (i > 0) result += ", ";
+        result += variables[i];
+    }
+    result += "\n";
+    return result;
+}
+
+void LocalStatement::accept(ASTVisitor& visitor) {
+    visitor.visit(*this);
+}
+
+std::string LocalStatement::toString(int indent) const {
+    std::string indentStr(indent, ' ');
+    std::string result = indentStr + "LocalStatement: ";
+    for (size_t i = 0; i < variables.size(); i++) {
+        if (i > 0) result += ", ";
+        result += variables[i];
+    }
+    result += "\n";
+    return result;
+}
+
 void ReturnStatement::accept(ASTVisitor& visitor) {
     visitor.visit(*this);
 }

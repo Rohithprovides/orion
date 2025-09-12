@@ -49,15 +49,41 @@ enum class TypeKind {
     STRUCT,
     ENUM,
     FUNCTION,
+    LIST,
     UNKNOWN
 };
 
 struct Type {
     TypeKind kind;
     std::string name;
+    std::unique_ptr<Type> elementType;  // For LIST: element type
     
     Type(TypeKind k = TypeKind::UNKNOWN, const std::string& n = "") 
-        : kind(k), name(n) {}
+        : kind(k), name(n), elementType(nullptr) {}
+    
+    Type(TypeKind k, std::unique_ptr<Type> elemType)
+        : kind(k), name(""), elementType(std::move(elemType)) {}
+    
+    // Copy constructor
+    Type(const Type& other) : kind(other.kind), name(other.name) {
+        if (other.elementType) {
+            elementType = std::make_unique<Type>(*other.elementType);
+        }
+    }
+    
+    // Assignment operator
+    Type& operator=(const Type& other) {
+        if (this != &other) {
+            kind = other.kind;
+            name = other.name;
+            if (other.elementType) {
+                elementType = std::make_unique<Type>(*other.elementType);
+            } else {
+                elementType = nullptr;
+            }
+        }
+        return *this;
+    }
     
     std::string toString() const {
         switch (kind) {
@@ -70,6 +96,8 @@ struct Type {
             case TypeKind::VOID: return "void";
             case TypeKind::STRUCT: return "struct " + name;
             case TypeKind::ENUM: return "enum " + name;
+            case TypeKind::LIST: 
+                return "list[" + (elementType ? elementType->toString() : "unknown") + "]";
             default: return "unknown";
         }
     }
@@ -190,6 +218,38 @@ public:
     TupleExpression() {}
     void accept(ASTVisitor& visitor) override;
     std::string toString(int indent = 0) const override;
+};
+
+// List literal: [1, 2, 3, "hello"]
+class ListLiteral : public Expression {
+public:
+    std::vector<std::unique_ptr<Expression>> elements;
+    
+    ListLiteral(int line = 0, int column = 0) : Expression(line, column) {}
+    void accept(ASTVisitor& visitor) override;
+    std::string toString(int indent = 0) const override {
+        std::string result = std::string(indent, ' ') + "ListLiteral([";
+        for (size_t i = 0; i < elements.size(); ++i) {
+            if (i > 0) result += ", ";
+            result += elements[i]->toString(0);
+        }
+        result += "])";
+        return result;
+    }
+};
+
+// Index access: list[0]
+class IndexExpression : public Expression {
+public:
+    std::unique_ptr<Expression> object;  // The list being indexed
+    std::unique_ptr<Expression> index;   // The index expression
+    
+    IndexExpression(std::unique_ptr<Expression> obj, std::unique_ptr<Expression> idx, int line = 0, int column = 0)
+        : Expression(line, column), object(std::move(obj)), index(std::move(idx)) {}
+    void accept(ASTVisitor& visitor) override;
+    std::string toString(int indent = 0) const override {
+        return std::string(indent, ' ') + "IndexExpression(" + object->toString(0) + "[" + index->toString(0) + "])";
+    }
 };
 
 // Variable declaration
