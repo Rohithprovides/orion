@@ -9,6 +9,8 @@ dtype_float: .string "datatype: float\n"
 dtype_unknown: .string "datatype: unknown\n"
 str_true: .string "True\n"
 str_false: .string "False\n"
+str_0: .string "Hello, Orion World!\n"
+str_1: .string "Fast as C, readable as Python!\n"
 
 .section .text
 .global main
@@ -21,6 +23,18 @@ main:
     mov %rsp, %rbp
     sub $64, %rsp
     # Function defined: main
+    # Explicit call to main()
+    # Executing function call: main
+    # Call out() with string
+    mov $str_0, %rsi
+    mov $format_str, %rdi
+    xor %rax, %rax
+    call printf
+    # Call out() with string
+    mov $str_1, %rsi
+    mov $format_str, %rdi
+    xor %rax, %rax
+    call printf
     mov $0, %rax
     add $64, %rsp
     pop %rbp
