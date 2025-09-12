@@ -1,0 +1,5 @@
+fn main() {
+    # Test error handling - should fail properly
+    bad = 5 + [1, 2]
+    out("This should not print")
+}
