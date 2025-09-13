@@ -1387,7 +1387,28 @@ public:
     void visit(ReturnStatement& node) override { 
         if (node.value) node.value->accept(*this);
     }
-    void visit(IfStatement& node) override { }
+    void visit(IfStatement& node) override {
+        std::string elseLabel = "else_" + std::to_string(labelCounter);
+        std::string endLabel = "end_if_" + std::to_string(labelCounter);
+        labelCounter++;
+        
+        // Evaluate condition
+        node.condition->accept(*this);
+        assembly << "    test %rax, %rax\n";
+        assembly << "    jz " << elseLabel << "\n";
+        
+        // Then branch
+        node.thenBranch->accept(*this);
+        assembly << "    jmp " << endLabel << "\n";
+        
+        // Else branch
+        assembly << elseLabel << ":\n";
+        if (node.elseBranch) {
+            node.elseBranch->accept(*this);
+        }
+        
+        assembly << endLabel << ":\n";
+    }
     void visit(WhileStatement& node) override { }
     void visit(ForStatement& node) override { }
     void visit(GlobalStatement& node) override {

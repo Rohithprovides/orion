@@ -1,0 +1,6 @@
+x = 10
+if x > 5 {
+    out("x is greater than 5")
+} else {
+    out("x is 5 or less")
+}

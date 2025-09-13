@@ -79,6 +79,11 @@ private:
             return parseFunctionDeclaration();
         }
         
+        // If statement
+        if (check(TokenType::IF)) {
+            return parseIfStatement();
+        }
+        
         // Variable declaration or expression
         return parseVariableDeclarationOrExpression();
     }
@@ -167,6 +172,75 @@ private:
         } while (check(TokenType::COMMA) && (advance(), true));
         
         return localStmt;
+    }
+    
+    std::unique_ptr<IfStatement> parseIfStatement() {
+        advance(); // consume 'if'
+        
+        // Parse condition
+        auto condition = parseExpression();
+        
+        // Expect opening brace
+        if (!check(TokenType::LBRACE)) {
+            throw std::runtime_error("Expected '{' after if condition");
+        }
+        advance(); // consume '{'
+        
+        // Parse then branch (statements until '}')
+        auto thenBlock = std::make_unique<BlockStatement>();
+        while (!check(TokenType::RBRACE) && !isAtEnd()) {
+            if (check(TokenType::NEWLINE)) {
+                advance();
+                continue;
+            }
+            
+            auto stmt = parseStatement();
+            if (stmt) {
+                thenBlock->statements.push_back(std::move(stmt));
+            }
+        }
+        
+        if (!check(TokenType::RBRACE)) {
+            throw std::runtime_error("Expected '}' after if block");
+        }
+        advance(); // consume '}'
+        
+        auto ifStmt = std::make_unique<IfStatement>(std::move(condition), std::move(thenBlock));
+        
+        // Handle elif/else
+        if (check(TokenType::ELIF)) {
+            // Parse elif as nested if
+            ifStmt->elseBranch = parseIfStatement();
+        } else if (check(TokenType::ELSE)) {
+            advance(); // consume 'else'
+            
+            if (!check(TokenType::LBRACE)) {
+                throw std::runtime_error("Expected '{' after else");
+            }
+            advance(); // consume '{'
+            
+            auto elseBlock = std::make_unique<BlockStatement>();
+            while (!check(TokenType::RBRACE) && !isAtEnd()) {
+                if (check(TokenType::NEWLINE)) {
+                    advance();
+                    continue;
+                }
+                
+                auto stmt = parseStatement();
+                if (stmt) {
+                    elseBlock->statements.push_back(std::move(stmt));
+                }
+            }
+            
+            if (!check(TokenType::RBRACE)) {
+                throw std::runtime_error("Expected '}' after else block");
+            }
+            advance(); // consume '}'
+            
+            ifStmt->elseBranch = std::move(elseBlock);
+        }
+        
+        return ifStmt;
     }
     
     std::unique_ptr<Statement> parseTupleAssignmentOrExpression() {

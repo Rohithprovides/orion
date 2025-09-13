@@ -34,7 +34,16 @@ private:
     std::unordered_set<std::string> declaredGlobal; // Variables explicitly declared global with 'global' keyword
     std::unordered_set<std::string> declaredLocal;  // Variables explicitly declared local with 'local' keyword
     std::unordered_set<std::string> constantVariables; // Variables declared as const
-    std::unordered_map<std::string, FunctionDeclaration*> functions; // Store function definitions
+    
+    // Hierarchical function storage for proper scoping
+    struct FunctionScope {
+        std::unordered_map<std::string, FunctionDeclaration*> functions;
+        std::string parentFunction; // Name of parent function (empty for global scope)
+    };
+    
+    std::unordered_map<std::string, FunctionScope> functionScopes; // Scope name -> functions in that scope
+    std::vector<std::string> functionCallStack; // Track current function execution stack
+    
     int stackOffset = 0;
     bool inFunction = false;
     int labelCounter = 0;
@@ -205,8 +214,8 @@ public:
     }
     
     void visit(Program& node) override {
-        // First pass: collect all function definitions (including nested ones)
-        collectFunctions(node.statements);
+        // First pass: collect all function definitions with proper scoping
+        collectFunctions(node.statements, ""); // Start with global scope
         
         // Second pass: execute only non-function statements and function calls
         for (auto& stmt : node.statements) {
@@ -215,28 +224,28 @@ public:
             }
         }
         
-        // Third pass: if a user-defined main() function exists, call it
-        if (findFunction("main") != nullptr) {
-            assembly << "    # Calling user-defined main() function\n";
-            std::vector<std::unique_ptr<Expression>> emptyArgs;
-            executeFunctionCall("main", emptyArgs);
-        }
+        // Note: main() functions now only execute when explicitly called (Python-style behavior)
     }
     
-    void collectFunctions(const std::vector<std::unique_ptr<Statement>>& statements) {
+    void collectFunctions(const std::vector<std::unique_ptr<Statement>>& statements, const std::string& currentScope = "") {
         for (auto& stmt : statements) {
             if (auto func = dynamic_cast<FunctionDeclaration*>(stmt.get())) {
-                // Store function definition
-                functions[func->name] = func;
-                assembly << "    # Function defined: " << func->name << "\n";
+                // Store function definition in the appropriate scope
+                if (functionScopes.find(currentScope) == functionScopes.end()) {
+                    functionScopes[currentScope] = FunctionScope{};
+                }
                 
-                // Recursively collect nested functions from this function's body
+                functionScopes[currentScope].functions[func->name] = func;
+                assembly << "    # Function '" << func->name << "' defined in scope '" << currentScope << "'\n";
+                
+                // Recursively collect nested functions from this function's body with proper scope
                 if (!func->isSingleExpression) {
-                    collectFunctions(func->body);
+                    std::string nestedScope = currentScope.empty() ? func->name : currentScope + "::" + func->name;
+                    collectFunctions(func->body, nestedScope);
                 }
             } else if (auto block = dynamic_cast<BlockStatement*>(stmt.get())) {
-                // Recursively collect nested functions
-                collectFunctions(block->statements);
+                // Recursively collect nested functions in same scope
+                collectFunctions(block->statements, currentScope);
             }
         }
     }
@@ -256,7 +265,7 @@ public:
         // Find the function in the current scope
         FunctionDeclaration* func = findFunction(functionName);
         if (!func) {
-            throw std::runtime_error("Error: Undefined function '" + functionName + "'");
+            throw std::runtime_error("Error: Undefined function '" + functionName + "' in current scope");
         }
         
         // Save current function state
@@ -264,6 +273,14 @@ public:
         auto savedLocalVars = localVariables;
         auto savedDeclaredGlobal = declaredGlobal;
         auto savedDeclaredLocal = declaredLocal;
+        
+        // Push function onto call stack for proper scoping
+        std::string currentScope = "";
+        if (!functionCallStack.empty()) {
+            currentScope = functionCallStack.back();
+        }
+        std::string newScope = currentScope.empty() ? functionName : currentScope + "::" + functionName;
+        functionCallStack.push_back(newScope);
         
         // Enter new function scope
         inFunction = true;
@@ -280,7 +297,8 @@ public:
             }
         }
         
-        // Exit function scope - restore previous state
+        // Exit function scope - restore previous state and pop call stack
+        functionCallStack.pop_back();
         inFunction = wasInFunction;
         localVariables = savedLocalVars; // Restore previous local scope
         declaredGlobal = savedDeclaredGlobal;
@@ -288,11 +306,40 @@ public:
     }
     
     FunctionDeclaration* findFunction(const std::string& name) {
-        auto it = functions.find(name);
-        if (it != functions.end()) {
-            return it->second;
+        // Implement Python-style function scoping: look in current scope, then parent scopes, then global
+        
+        // Start from current function context (if any)
+        std::string currentScope = "";
+        if (!functionCallStack.empty()) {
+            currentScope = functionCallStack.back();
         }
-        return nullptr;
+        
+        // Search in current scope hierarchy (from innermost to outermost)
+        std::string searchScope = currentScope;
+        while (true) {
+            auto scopeIt = functionScopes.find(searchScope);
+            if (scopeIt != functionScopes.end()) {
+                auto funcIt = scopeIt->second.functions.find(name);
+                if (funcIt != scopeIt->second.functions.end()) {
+                    return funcIt->second;
+                }
+            }
+            
+            // Move to parent scope
+            if (searchScope.empty()) {
+                break; // Already at global scope
+            }
+            
+            // Extract parent scope (remove last "::function" part)
+            size_t pos = searchScope.find_last_of("::");
+            if (pos == std::string::npos) {
+                searchScope = ""; // Move to global scope
+            } else {
+                searchScope = searchScope.substr(0, pos-1); // Remove "::function" part
+            }
+        }
+        
+        return nullptr; // Function not found in any accessible scope
     }
     
     void visit(VariableDeclaration& node) override {
