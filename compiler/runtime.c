@@ -3,6 +3,19 @@
 #include <string.h>
 #include <stdint.h>
 
+// Orion-specific memory allocation wrappers to avoid symbol collision
+void* orion_malloc(size_t size) {
+    return malloc(size);
+}
+
+void orion_free(void* ptr) {
+    free(ptr);
+}
+
+void* orion_realloc(void* ptr, size_t size) {
+    return realloc(ptr, size);
+}
+
 // Enhanced list structure for dynamic operations
 typedef struct {
     int64_t size;        // Current number of elements
@@ -14,7 +27,7 @@ typedef struct {
 OrionList* list_new(int64_t initial_capacity) {
     if (initial_capacity < 4) initial_capacity = 4; // Minimum capacity
     
-    OrionList* list = (OrionList*)malloc(sizeof(OrionList));
+    OrionList* list = (OrionList*)orion_malloc(sizeof(OrionList));
     if (!list) {
         fprintf(stderr, "Error: Failed to allocate memory for list\n");
         exit(1);
@@ -22,7 +35,7 @@ OrionList* list_new(int64_t initial_capacity) {
     
     list->size = 0;
     list->capacity = initial_capacity;
-    list->data = (int64_t*)malloc(sizeof(int64_t) * initial_capacity);
+    list->data = (int64_t*)orion_malloc(sizeof(int64_t) * initial_capacity);
     if (!list->data) {
         fprintf(stderr, "Error: Failed to allocate memory for list data\n");
         exit(1);
@@ -104,7 +117,7 @@ void list_resize(OrionList* list, int64_t new_capacity) {
         exit(1);
     }
     
-    int64_t* new_data = (int64_t*)realloc(list->data, sizeof(int64_t) * new_capacity);
+    int64_t* new_data = (int64_t*)orion_realloc(list->data, sizeof(int64_t) * new_capacity);
     if (!new_data) {
         fprintf(stderr, "Error: Failed to resize list\n");
         exit(1);

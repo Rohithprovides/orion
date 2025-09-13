@@ -54,6 +54,60 @@ private:
         return false;
     }
     
+    // Expression kind inference for type safety
+    enum class ExprKind { INT, FLOAT, BOOL, STRING, LIST, UNKNOWN };
+    
+    ExprKind inferExprKind(Expression* expr) {
+        if (auto intLit = dynamic_cast<IntLiteral*>(expr)) {
+            return ExprKind::INT;
+        }
+        if (auto floatLit = dynamic_cast<FloatLiteral*>(expr)) {
+            return ExprKind::FLOAT;
+        }
+        if (auto boolLit = dynamic_cast<BoolLiteral*>(expr)) {
+            return ExprKind::BOOL;
+        }
+        if (auto strLit = dynamic_cast<StringLiteral*>(expr)) {
+            return ExprKind::STRING;
+        }
+        if (auto listLit = dynamic_cast<ListLiteral*>(expr)) {
+            return ExprKind::LIST;
+        }
+        if (auto id = dynamic_cast<Identifier*>(expr)) {
+            auto var = lookupVariable(id->name);
+            if (var) {
+                if (var->type == "int") return ExprKind::INT;
+                if (var->type == "float") return ExprKind::FLOAT;
+                if (var->type == "bool") return ExprKind::BOOL;
+                if (var->type == "string") return ExprKind::STRING;
+                if (var->type == "list") return ExprKind::LIST;
+            }
+        }
+        if (auto binExpr = dynamic_cast<BinaryExpression*>(expr)) {
+            ExprKind leftKind = inferExprKind(binExpr->left.get());
+            ExprKind rightKind = inferExprKind(binExpr->right.get());
+            
+            if (binExpr->op == BinaryOp::ADD) {
+                if (leftKind == ExprKind::LIST && rightKind == ExprKind::LIST) {
+                    return ExprKind::LIST;  // List concatenation
+                }
+            }
+            if (binExpr->op == BinaryOp::MUL) {
+                if ((leftKind == ExprKind::LIST && rightKind == ExprKind::INT) ||
+                    (leftKind == ExprKind::INT && rightKind == ExprKind::LIST)) {
+                    return ExprKind::LIST;  // List repetition
+                }
+            }
+            
+            // Default to numeric operations
+            if (leftKind == ExprKind::FLOAT || rightKind == ExprKind::FLOAT) {
+                return ExprKind::FLOAT;
+            }
+            return ExprKind::INT;
+        }
+        return ExprKind::UNKNOWN;
+    }
+    
     int addStringLiteral(const std::string& str) {
         stringLiterals.push_back(str);
         return stringLiterals.size() - 1;
@@ -115,9 +169,22 @@ public:
         fullAssembly << ".global main\n";
         fullAssembly << ".extern printf\n";
         fullAssembly << ".extern malloc\n";
+        fullAssembly << ".extern free\n";
         fullAssembly << ".extern exit\n";
         fullAssembly << ".extern fmod\n";
-        fullAssembly << ".extern pow\n\n";
+        fullAssembly << ".extern pow\n";
+        // Enhanced list runtime functions
+        fullAssembly << ".extern list_new\n";
+        fullAssembly << ".extern list_from_data\n";
+        fullAssembly << ".extern list_len\n";
+        fullAssembly << ".extern list_get\n";
+        fullAssembly << ".extern list_set\n";
+        fullAssembly << ".extern list_append\n";
+        fullAssembly << ".extern list_pop\n";
+        fullAssembly << ".extern list_insert\n";
+        fullAssembly << ".extern list_concat\n";
+        fullAssembly << ".extern list_repeat\n";
+        fullAssembly << ".extern list_extend\n\n";
         
         // Main function
         fullAssembly << "main:\n";
@@ -351,6 +418,52 @@ public:
     }
     
     void visit(FunctionCall& node) override {
+        // Handle built-in list functions
+        if (node.name == "len") {
+            if (node.arguments.size() != 1) {
+                throw std::runtime_error("len() function requires exactly 1 argument");
+            }
+            assembly << "    # len() function call\n";
+            node.arguments[0]->accept(*this);  // Evaluate list argument
+            assembly << "    mov %rax, %rdi  # List pointer as argument\n";
+            assembly << "    call list_len  # Get list length\n";
+            // Result in %rax
+            return;
+        }
+        
+        if (node.name == "append") {
+            if (node.arguments.size() != 2) {
+                throw std::runtime_error("append() function requires exactly 2 arguments (list, element)");
+            }
+            assembly << "    # append() function call\n";
+            
+            // Evaluate list argument
+            node.arguments[0]->accept(*this);
+            assembly << "    mov %rax, %rdi  # List pointer as first argument\n";
+            assembly << "    push %rdi  # Save list pointer\n";
+            
+            // Evaluate element argument
+            node.arguments[1]->accept(*this);
+            assembly << "    mov %rax, %rsi  # Element value as second argument\n";
+            assembly << "    pop %rdi  # Restore list pointer\n";
+            
+            assembly << "    call list_append  # Append element to list\n";
+            // append returns void, so no return value
+            return;
+        }
+        
+        if (node.name == "pop") {
+            if (node.arguments.size() != 1) {
+                throw std::runtime_error("pop() function requires exactly 1 argument");
+            }
+            assembly << "    # pop() function call\n";
+            node.arguments[0]->accept(*this);  // Evaluate list argument
+            assembly << "    mov %rax, %rdi  # List pointer as argument\n";
+            assembly << "    call list_pop  # Pop last element\n";
+            // Result (popped element) in %rax
+            return;
+        }
+        
         if (node.name == "out") {
             // Handle out() function calls
             if (!node.arguments.empty()) {
@@ -523,6 +636,88 @@ public:
     }
     
     void visit(BinaryExpression& node) override {
+        // Check for list operations first
+        if (node.op == BinaryOp::ADD) {
+            // Use type inference for robust two-sided validation
+            ExprKind leftKind = inferExprKind(node.left.get());
+            ExprKind rightKind = inferExprKind(node.right.get());
+            
+            // If either operand is a list, require both to be lists
+            if (leftKind == ExprKind::LIST || rightKind == ExprKind::LIST) {
+                if (leftKind != ExprKind::LIST || rightKind != ExprKind::LIST) {
+                    throw std::runtime_error("Error: Cannot concatenate list with non-list. Both operands of '+' must be lists.");
+                }
+                
+                // This is list concatenation: list + list
+                assembly << "    # List concatenation: list + list\n";
+                
+                // Evaluate left list
+                node.left->accept(*this);
+                assembly << "    mov %rax, %rdi  # First list as first argument\n";
+                assembly << "    push %rdi  # Save first list\n";
+                
+                // Evaluate right list
+                node.right->accept(*this);
+                assembly << "    mov %rax, %rsi  # Second list as second argument\n";
+                assembly << "    pop %rdi  # Restore first list\n";
+                
+                assembly << "    call list_concat  # Concatenate lists\n";
+                return;
+            }
+        }
+        
+        if (node.op == BinaryOp::MUL) {
+            // Use type inference for robust validation
+            ExprKind leftKind = inferExprKind(node.left.get());
+            ExprKind rightKind = inferExprKind(node.right.get());
+            
+            // Check for list * int or int * list (valid repetition)
+            if (leftKind == ExprKind::LIST && rightKind == ExprKind::INT) {
+                // This is list * n
+                assembly << "    # List repetition: list * n\n";
+                
+                // Evaluate list
+                node.left->accept(*this);
+                assembly << "    mov %rax, %rdi  # List as first argument\n";
+                assembly << "    push %rdi  # Save list\n";
+                
+                // Evaluate repeat count
+                node.right->accept(*this);
+                assembly << "    mov %rax, %rsi  # Repeat count as second argument\n";
+                assembly << "    pop %rdi  # Restore list\n";
+                
+                assembly << "    call list_repeat  # Repeat list\n";
+                return;
+            }
+            
+            if (leftKind == ExprKind::INT && rightKind == ExprKind::LIST) {
+                // This is n * list
+                assembly << "    # List repetition: n * list\n";
+                
+                // Evaluate repeat count
+                node.left->accept(*this);
+                assembly << "    mov %rax, %rsi  # Repeat count as second argument\n";
+                assembly << "    push %rsi  # Save repeat count\n";
+                
+                // Evaluate list
+                node.right->accept(*this);
+                assembly << "    mov %rax, %rdi  # List as first argument\n";
+                assembly << "    pop %rsi  # Restore repeat count\n";
+                
+                assembly << "    call list_repeat  # Repeat list\n";
+                return;
+            }
+            
+            // Check for invalid list operations
+            if (leftKind == ExprKind::LIST || rightKind == ExprKind::LIST) {
+                if (leftKind == ExprKind::LIST && rightKind == ExprKind::LIST) {
+                    throw std::runtime_error("Error: Cannot multiply two lists. Use + for concatenation or * with an integer for repetition.");
+                } else {
+                    throw std::runtime_error("Error: List repetition requires an integer. Valid operations: list * int or int * list.");
+                }
+            }
+        }
+        
         // Check if either operand is a float
         bool leftIsFloat = isFloatExpression(node.left.get());
         bool rightIsFloat = isFloatExpression(node.right.get());
@@ -909,6 +1104,28 @@ public:
         }
     }
 
+    void visit(IndexAssignment& node) override {
+        assembly << "    # Index assignment: list[index] = value\n";
+        
+        // Evaluate the list expression
+        node.object->accept(*this);
+        assembly << "    mov %rax, %r12  # Save list pointer in %r12\n";
+        
+        // Evaluate the index expression
+        node.index->accept(*this);
+        assembly << "    mov %rax, %r13  # Save index in %r13\n";
+        
+        // Evaluate the value expression  
+        node.value->accept(*this);
+        assembly << "    mov %rax, %rdx  # Value in %rdx (third argument)\n";
+        
+        // Call list_set(list, index, value)
+        assembly << "    mov %r12, %rdi  # List pointer as first argument\n";
+        assembly << "    mov %r13, %rsi  # Index as second argument\n";
+        assembly << "    # Value already in %rdx as third argument\n";
+        assembly << "    call list_set  # Set list[index] = value\n";
+    }
+
     // Stub implementations for other visitors
     void visit(FloatLiteral& node) override { 
         assembly << "    # Float: " << node.value << "\n"; 
@@ -975,81 +1192,57 @@ public:
     }
     
     void visit(ListLiteral& node) override {
-        assembly << "    # List literal with " << node.elements.size() << " elements\n";
+        assembly << "    # Enhanced list literal with " << node.elements.size() << " elements\n";
         
         if (node.elements.empty()) {
-            // Empty list - allocate memory with size 0 for consistency
-            assembly << "    mov $8, %rdi  # Allocation size for empty list (just size header)\n";
-            assembly << "    call malloc  # Allocate memory for empty list\n";
-            assembly << "    mov %rax, %rbx  # Save list pointer\n";
-            assembly << "    movq $0, (%rbx)  # Store list size = 0\n";
-            assembly << "    mov %rbx, %rax  # Return list pointer\n";
+            // Create empty list using runtime
+            assembly << "    mov $4, %rdi  # Initial capacity for empty list\n";
+            assembly << "    call list_new  # Create new empty list\n";
             return;
         }
         
-        // Allocate memory: size = 8 bytes (size) + 8 * element_count bytes (elements)
-        size_t totalSize = 8 + (8 * node.elements.size());
-        assembly << "    mov $" << totalSize << ", %rdi  # Allocation size\n";
-        assembly << "    call malloc  # Allocate memory for list\n";
-        assembly << "    mov %rax, %rbx  # Save list pointer\n";
+        // For non-empty lists, collect elements in temporary array first
+        assembly << "    # Allocating temporary array for " << node.elements.size() << " elements\n";
+        size_t tempArraySize = node.elements.size() * 8;  // 8 bytes per element
+        assembly << "    mov $" << tempArraySize << ", %rdi\n";
+        assembly << "    call malloc  # Allocate temporary array\n";
+        assembly << "    mov %rax, %r12  # Save temp array pointer in %r12\n";
         
-        // Store list size at the beginning
-        assembly << "    movq $" << node.elements.size() << ", (%rbx)  # Store list size\n";
-        
-        // Store each element - preserve %rbx across evaluations
+        // Store each element in temporary array
         for (size_t i = 0; i < node.elements.size(); i++) {
-            assembly << "    # Store element " << i << "\n";
-            assembly << "    push %rbx  # Save list pointer\n";
+            assembly << "    # Evaluating element " << i << "\n";
+            assembly << "    push %r12  # Save temp array pointer\n";
             node.elements[i]->accept(*this);  // Element value in %rax
-            assembly << "    pop %rbx  # Restore list pointer\n";
-            assembly << "    movq %rax, " << (8 + i * 8) << "(%rbx)  # Store element " << i << "\n";
+            assembly << "    pop %r12  # Restore temp array pointer\n";
+            assembly << "    movq %rax, " << (i * 8) << "(%r12)  # Store in temp array\n";
         }
         
-        // Return list pointer in %rax
-        assembly << "    mov %rbx, %rax  # List pointer\n";
+        // Create list from temporary data
+        assembly << "    mov %r12, %rdi  # Temp array pointer\n";
+        assembly << "    mov $" << node.elements.size() << ", %rsi  # Element count\n";
+        assembly << "    call list_from_data  # Create list from data\n";
+        
+        // Free temporary array - list_from_data made a copy
+        assembly << "    push %rax  # Save list pointer\n";
+        assembly << "    mov %r12, %rdi  # Temp array pointer\n";
+        assembly << "    call free  # Free temporary array\n";
+        assembly << "    pop %rax  # Restore list pointer\n";
     }
     
     void visit(IndexExpression& node) override {
-        assembly << "    # Index expression: array[index]\n";
+        assembly << "    # Enhanced index expression with negative indexing support\n";
         
         // Evaluate the object (list) - result in %rax
         node.object->accept(*this);
-        assembly << "    mov %rax, %rbx  # Save list pointer\n";
-        
-        // Check for null list
-        assembly << "    test %rbx, %rbx\n";
-        assembly << "    jz index_error_" << labelCounter << "  # Jump if null list\n";
+        assembly << "    mov %rax, %rdi  # List pointer as first argument\n";
         
         // Evaluate the index - result in %rax
         node.index->accept(*this);
-        assembly << "    mov %rax, %rcx  # Save index\n";
+        assembly << "    mov %rax, %rsi  # Index as second argument\n";
         
-        // Bounds checking: get list size
-        assembly << "    movq (%rbx), %rdx  # Load list size\n";
-        assembly << "    cmp %rdx, %rcx\n";
-        assembly << "    jge index_error_" << labelCounter << "  # Jump if index >= size\n";
-        assembly << "    test %rcx, %rcx\n";
-        assembly << "    js index_error_" << labelCounter << "  # Jump if index < 0\n";
-        
-        // Calculate element address: base + 8 + (index * 8)
-        assembly << "    imul $8, %rcx  # index * 8\n";
-        assembly << "    add $8, %rcx  # Add header offset\n";
-        assembly << "    add %rbx, %rcx  # base + offset\n";
-        assembly << "    movq (%rcx), %rax  # Load element value\n";
-        assembly << "    jmp index_done_" << labelCounter << "\n";
-        
-        // Error handling
-        assembly << "index_error_" << labelCounter << ":\n";
-        assembly << "    # Print index error message and terminate\n";
-        assembly << "    mov $str_index_error, %rsi\n";
-        assembly << "    mov $format_str, %rdi\n";
-        assembly << "    xor %rax, %rax\n";
-        assembly << "    call printf\n";
-        assembly << "    mov $1, %rdi  # Exit code 1 for error\n";
-        assembly << "    call exit  # Terminate program\n";
-        
-        assembly << "index_done_" << labelCounter << ":\n";
-        labelCounter++;
+        // Call runtime function for safe indexing with negative support
+        assembly << "    call list_get  # Get element with bounds checking\n";
+        // Result is in %rax - no additional handling needed
     }
     
     void visit(StructDeclaration& node) override { }
@@ -1109,9 +1302,9 @@ int main(int argc, char* argv[]) {
         asmOut << assembly;
         asmOut.close();
         
-        // Step 5: Use GCC to assemble and link (KEEP EXECUTABLE FOR PROOF)
+        // Step 5: Use GCC to assemble and link with runtime (KEEP EXECUTABLE FOR PROOF)
         std::string exeFile = "orion_exec";
-        std::string gccCommand = "gcc -o " + exeFile + " " + asmFile + " -lm";
+        std::string gccCommand = "gcc -o " + exeFile + " " + asmFile + " runtime.o -lm";
         
         int result = system(gccCommand.c_str());
         if (result != 0) {
