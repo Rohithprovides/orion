@@ -417,13 +417,13 @@ public:
             }
         }
         
-        if (hasMain) {
-            output << "    call main\n";
-        } else {
-            // Generate code for top-level statements
-            for (auto& stmt : node.statements) {
-                stmt->accept(*this);
+        // Generate code for top-level statements only (main() must be explicitly called)
+        for (auto& stmt : node.statements) {
+            if (auto func = dynamic_cast<FunctionDeclaration*>(stmt.get())) {
+                // Skip function declarations - they're handled separately
+                continue;
             }
+            stmt->accept(*this);
         }
         
         output << "    call exit\n";

@@ -168,8 +168,8 @@ public:
         fullAssembly << "\n.section .text\n";
         fullAssembly << ".global main\n";
         fullAssembly << ".extern printf\n";
-        fullAssembly << ".extern malloc\n";
-        fullAssembly << ".extern free\n";
+        fullAssembly << ".extern orion_malloc\n";
+        fullAssembly << ".extern orion_free\n";
         fullAssembly << ".extern exit\n";
         fullAssembly << ".extern fmod\n";
         fullAssembly << ".extern pow\n";
@@ -1025,6 +1025,50 @@ public:
                     assembly << "or_done_" << labelCounter << ":\n";
                     labelCounter++;
                     break;
+                case BinaryOp::ASSIGN:
+                    // Chain assignment: a = (b = 5)
+                    // Evaluate RHS -> store to LHS -> return value in RAX
+                    assembly << "    # Chain assignment\n";
+                    
+                    // Evaluate RHS expression
+                    node.right->accept(*this);
+                    // Result is now in %rax - we'll use it directly
+                    
+                    // Extract LHS variable name and perform assignment
+                    if (auto id = dynamic_cast<Identifier*>(node.left.get())) {
+                        // Check if this is an assignment to an existing const variable
+                        if (constantVariables.count(id->name)) {
+                            throw std::runtime_error("Error: You are trying to change the value of a constant variable '" + id->name + "'");
+                        }
+                        
+                        // Find or create variable
+                        VariableInfo* varInfo = lookupVariable(id->name);
+                        if (!varInfo) {
+                            // Variable doesn't exist, create it
+                            stackOffset += 8;
+                            VariableInfo newVarInfo;
+                            newVarInfo.stackOffset = stackOffset;
+                            newVarInfo.type = "unknown";
+                            newVarInfo.isGlobal = (!inFunction) || declaredGlobal.count(id->name);
+                            newVarInfo.isConstant = false;
+                            
+                            if (inFunction && !declaredGlobal.count(id->name)) {
+                                localVariables[id->name] = newVarInfo;
+                                varInfo = &localVariables[id->name];
+                            } else {
+                                globalVariables[id->name] = newVarInfo;
+                                varInfo = &globalVariables[id->name];
+                            }
+                        }
+                        
+                        // Store value to variable directly from %rax
+                        assembly << "    mov %rax, -" << varInfo->stackOffset << "(%rbp)  # store " << id->name << "\n";
+                    } else {
+                        throw std::runtime_error("Error: Left side of assignment must be a variable");
+                    }
+                    
+                    // RAX already contains the assigned value for chaining - no need to modify it
+                    break;
                 default:
                     assembly << "    # Unsupported binary operation\n";
                     break;
@@ -1065,13 +1109,72 @@ public:
     
     void visit(TupleAssignment& node) override {
         // Handle tuple assignment like (a, b) = (c, d)
-        // Simplified implementation for now
-        assembly << "    # Tuple assignment (simplified)\n";
-        // TODO: Implement proper tuple assignment with new scoping
+        // Algorithm: evaluate all RHS values first into stack temporaries,
+        // then assign to LHS variables to prevent overwriting during swaps
+        assembly << "    # Tuple assignment\n";
+        
+        if (node.targets.size() != node.values.size()) {
+            throw std::runtime_error("Error: Tuple assignment mismatch - number of targets (" + 
+                std::to_string(node.targets.size()) + ") doesn't match number of values (" + 
+                std::to_string(node.values.size()) + ")");
+        }
+        
+        // Check if any target variables are const before doing anything
+        for (const auto& target : node.targets) {
+            if (auto id = dynamic_cast<Identifier*>(target.get())) {
+                if (constantVariables.count(id->name)) {
+                    throw std::runtime_error("Error: You are trying to change the value of a constant variable '" + id->name + "'");
+                }
+            }
+        }
+        
+        // Step 1: Evaluate all RHS values and push them onto the stack
+        assembly << "    # Step 1: Evaluate all RHS values\n";
+        for (size_t i = 0; i < node.values.size(); i++) {
+            assembly << "    # Evaluating RHS value " << i << "\n";
+            node.values[i]->accept(*this);
+            assembly << "    push %rax  # Save RHS value " << i << " on stack\n";
+        }
+        
+        // Step 2: Assign to LHS variables in reverse order (since stack is LIFO)
+        assembly << "    # Step 2: Assign to LHS variables\n";
+        for (int i = node.targets.size() - 1; i >= 0; i--) {
+            assembly << "    # Assigning to LHS target " << i << "\n";
+            assembly << "    pop %rax  # Get value " << i << " from stack\n";
+            
+            if (auto id = dynamic_cast<Identifier*>(node.targets[i].get())) {
+                // Find or create variable
+                VariableInfo* varInfo = lookupVariable(id->name);
+                if (!varInfo) {
+                    // Variable doesn't exist, create it
+                    stackOffset += 8;
+                    VariableInfo newVarInfo;
+                    newVarInfo.stackOffset = stackOffset;
+                    newVarInfo.type = "unknown";
+                    newVarInfo.isGlobal = (!inFunction) || declaredGlobal.count(id->name);
+                    newVarInfo.isConstant = false;
+                    
+                    if (inFunction && !declaredGlobal.count(id->name)) {
+                        localVariables[id->name] = newVarInfo;
+                        varInfo = &localVariables[id->name];
+                    } else {
+                        globalVariables[id->name] = newVarInfo;
+                        varInfo = &globalVariables[id->name];
+                    }
+                }
+                
+                // Store the value
+                assembly << "    mov %rax, -" << varInfo->stackOffset << "(%rbp)  # store " << id->name << "\n";
+            } else {
+                throw std::runtime_error("Error: Left side of tuple assignment must be variables");
+            }
+        }
+        
+        assembly << "    # Tuple assignment complete\n";
     }
 
     void visit(ChainAssignment& node) override {
-        assembly << "    # Chain assignment (simplified)\n";
+        assembly << "    # Chain assignment\n";
         
         // Check if any variables are const
         for (const std::string& varName : node.variables) {
@@ -1080,28 +1183,91 @@ public:
             }
         }
         
-        // Evaluate the value expression
+        // Evaluate the value expression once
         node.value->accept(*this);
+        // Value is now in %rax - no need to push/pop, just assign directly to each variable
         
-        // TODO: Implement proper chain assignment with new scoping
-        // For now, just handle as simple assignment to first variable
-        if (!node.variables.empty()) {
-            const std::string& varName = node.variables[0];
-            // Create variable using new scoping system
-            stackOffset += 8;
-            VariableInfo varInfo;
-            varInfo.stackOffset = stackOffset;
-            varInfo.type = "unknown";
-            varInfo.isGlobal = !inFunction;
-            varInfo.isConstant = false;
-            
-            if (inFunction && !declaredGlobal.count(varName)) {
-                localVariables[varName] = varInfo;
-            } else {
-                globalVariables[varName] = varInfo;
+        // Determine variable type from the value expression
+        std::string varType = "unknown";
+        if (auto intLit = dynamic_cast<IntLiteral*>(node.value.get())) {
+            varType = "int";
+        } else if (auto strLit = dynamic_cast<StringLiteral*>(node.value.get())) {
+            varType = "string";
+        } else if (auto boolLit = dynamic_cast<BoolLiteral*>(node.value.get())) {
+            varType = "bool";
+        } else if (auto floatLit = dynamic_cast<FloatLiteral*>(node.value.get())) {
+            varType = "float";
+        } else if (auto listLit = dynamic_cast<ListLiteral*>(node.value.get())) {
+            varType = "list";
+        } else if (auto id = dynamic_cast<Identifier*>(node.value.get())) {
+            // Variable assignment: copy type from source variable
+            auto varInfo = lookupVariable(id->name);
+            if (varInfo != nullptr) {
+                varType = varInfo->type;
             }
-            assembly << "    mov %rax, -" << stackOffset << "(%rbp)  # assign to " << varName << "\n";
+        } else if (auto binExpr = dynamic_cast<BinaryExpression*>(node.value.get())) {
+            // Binary expression: infer type from operands
+            switch (binExpr->op) {
+                case BinaryOp::ADD:
+                case BinaryOp::SUB:
+                case BinaryOp::MUL:
+                case BinaryOp::DIV:
+                case BinaryOp::MOD:
+                case BinaryOp::FLOOR_DIV:
+                case BinaryOp::POWER:
+                    // Check if either operand is a float
+                    if (isFloatExpression(binExpr->left.get()) || isFloatExpression(binExpr->right.get())) {
+                        varType = "float";
+                    } else {
+                        varType = "int";
+                    }
+                    break;
+                case BinaryOp::EQ:
+                case BinaryOp::NE:
+                case BinaryOp::LT:
+                case BinaryOp::LE:
+                case BinaryOp::GT:
+                case BinaryOp::GE:
+                case BinaryOp::AND:
+                case BinaryOp::OR:
+                    varType = "bool";  // Comparison/logical operations result in bool
+                    break;
+                default:
+                    varType = "int";  // Default to int for unknown operations
+                    break;
+            }
         }
+        
+        // Assign the same value to ALL variables in the chain
+        for (const std::string& varName : node.variables) {
+            // Find or create variable
+            VariableInfo* varInfo = lookupVariable(varName);
+            if (!varInfo) {
+                // Variable doesn't exist, create it
+                stackOffset += 8;
+                VariableInfo newVarInfo;
+                newVarInfo.stackOffset = stackOffset;
+                newVarInfo.type = varType;  // Use inferred type
+                newVarInfo.isGlobal = (!inFunction) || declaredGlobal.count(varName);
+                newVarInfo.isConstant = false;
+                
+                if (inFunction && !declaredGlobal.count(varName)) {
+                    localVariables[varName] = newVarInfo;
+                    varInfo = &localVariables[varName];
+                } else {
+                    globalVariables[varName] = newVarInfo;
+                    varInfo = &globalVariables[varName];
+                }
+            } else {
+                // Variable exists, update its type
+                varInfo->type = varType;
+            }
+            
+            // Store the value directly from %rax to this variable
+            assembly << "    mov %rax, -" << varInfo->stackOffset << "(%rbp)  # assign to " << varName << "\n";
+        }
+        
+        // Value remains in %rax for potential nested assignments or return
     }
 
     void visit(IndexAssignment& node) override {
@@ -1205,7 +1371,7 @@ public:
         assembly << "    # Allocating temporary array for " << node.elements.size() << " elements\n";
         size_t tempArraySize = node.elements.size() * 8;  // 8 bytes per element
         assembly << "    mov $" << tempArraySize << ", %rdi\n";
-        assembly << "    call malloc  # Allocate temporary array\n";
+        assembly << "    call orion_malloc  # Allocate temporary array\n";
         assembly << "    mov %rax, %r12  # Save temp array pointer in %r12\n";
         
         // Store each element in temporary array
@@ -1225,7 +1391,7 @@ public:
         // Free temporary array - list_from_data made a copy
         assembly << "    push %rax  # Save list pointer\n";
         assembly << "    mov %r12, %rdi  # Temp array pointer\n";
-        assembly << "    call free  # Free temporary array\n";
+        assembly << "    call orion_free  # Free temporary array\n";
         assembly << "    pop %rax  # Restore list pointer\n";
     }
     

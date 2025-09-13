@@ -1,0 +1,7 @@
+fn main() {
+    out("Main called explicitly")
+}
+
+out("Before main")
+main()
+out("After main")
