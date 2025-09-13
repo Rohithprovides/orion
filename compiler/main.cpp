@@ -970,63 +970,33 @@ public:
                     break;
                 case BinaryOp::EQ:
                     assembly << "    cmp %rax, %rbx\n";
-                    assembly << "    je eq_true_" << labelCounter << "\n";
-                    assembly << "    mov $str_false, %rax\n";
-                    assembly << "    jmp eq_done_" << labelCounter << "\n";
-                    assembly << "eq_true_" << labelCounter << ":\n";
-                    assembly << "    mov $str_true, %rax\n";
-                    assembly << "eq_done_" << labelCounter << ":\n";
-                    labelCounter++;
+                    assembly << "    sete %al\n";
+                    assembly << "    movzx %al, %rax\n";
                     break;
                 case BinaryOp::NE:
                     assembly << "    cmp %rax, %rbx\n";
-                    assembly << "    jne ne_true_" << labelCounter << "\n";
-                    assembly << "    mov $str_false, %rax\n";
-                    assembly << "    jmp ne_done_" << labelCounter << "\n";
-                    assembly << "ne_true_" << labelCounter << ":\n";
-                    assembly << "    mov $str_true, %rax\n";
-                    assembly << "ne_done_" << labelCounter << ":\n";
-                    labelCounter++;
+                    assembly << "    setne %al\n";
+                    assembly << "    movzx %al, %rax\n";
                     break;
                 case BinaryOp::LT:
                     assembly << "    cmp %rax, %rbx\n";
-                    assembly << "    jl lt_true_" << labelCounter << "\n";
-                    assembly << "    mov $str_false, %rax\n";
-                    assembly << "    jmp lt_done_" << labelCounter << "\n";
-                    assembly << "lt_true_" << labelCounter << ":\n";
-                    assembly << "    mov $str_true, %rax\n";
-                    assembly << "lt_done_" << labelCounter << ":\n";
-                    labelCounter++;
+                    assembly << "    setl %al\n";
+                    assembly << "    movzx %al, %rax\n";
                     break;
                 case BinaryOp::LE:
                     assembly << "    cmp %rax, %rbx\n";
-                    assembly << "    jle le_true_" << labelCounter << "\n";
-                    assembly << "    mov $str_false, %rax\n";
-                    assembly << "    jmp le_done_" << labelCounter << "\n";
-                    assembly << "le_true_" << labelCounter << ":\n";
-                    assembly << "    mov $str_true, %rax\n";
-                    assembly << "le_done_" << labelCounter << ":\n";
-                    labelCounter++;
+                    assembly << "    setle %al\n";
+                    assembly << "    movzx %al, %rax\n";
                     break;
                 case BinaryOp::GT:
                     assembly << "    cmp %rax, %rbx\n";
-                    assembly << "    jg gt_true_" << labelCounter << "\n";
-                    assembly << "    mov $str_false, %rax\n";
-                    assembly << "    jmp gt_done_" << labelCounter << "\n";
-                    assembly << "gt_true_" << labelCounter << ":\n";
-                    assembly << "    mov $str_true, %rax\n";
-                    assembly << "gt_done_" << labelCounter << ":\n";
-                    labelCounter++;
+                    assembly << "    setg %al\n";
+                    assembly << "    movzx %al, %rax\n";
                     break;
                 case BinaryOp::GE:
                     assembly << "    cmp %rax, %rbx\n";
-                    assembly << "    jge ge_true_" << labelCounter << "\n";
-                    assembly << "    mov $str_false, %rax\n";
-                    assembly << "    jmp ge_done_" << labelCounter << "\n";
-                    assembly << "ge_true_" << labelCounter << ":\n";
-                    assembly << "    mov $str_true, %rax\n";
-                    assembly << "ge_done_" << labelCounter << ":\n";
-                    labelCounter++;
+                    assembly << "    setge %al\n";
+                    assembly << "    movzx %al, %rax\n";
                     break;
                 case BinaryOp::AND:
                     // Logical AND: both operands must be truthy
