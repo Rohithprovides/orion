@@ -62,10 +62,6 @@ main:
     mov -8(%rbp), %rsi
     mov $format_int, %rdi
     call printf
-    # Call out() with variable: b (type: int)
-    mov -16(%rbp), %rsi
-    mov $format_int, %rdi
-    call printf
     mov $0, %rax
     add $64, %rsp
     pop %rbp
