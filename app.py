@@ -45,9 +45,11 @@ def compile_code():
                 temp_file_path = temp_file.name
             
             # Run the C++ compiler (compilation + execution)
+            # Change to compiler directory to find runtime.o
             compile_start_time = time.time()
             result = subprocess.run(
-                ['./compiler/orion', temp_file_path],
+                ['./orion', os.path.abspath(temp_file_path)],
+                cwd='./compiler',
                 capture_output=True,
                 text=True,
                 timeout=10
@@ -117,7 +119,8 @@ def check_syntax():
             
             # Run syntax check (we can use the same compiler)
             result = subprocess.run(
-                ['./compiler/orion', temp_file_path],
+                ['./orion', os.path.abspath(temp_file_path)],
+                cwd='./compiler',
                 capture_output=True,
                 text=True,
                 timeout=5
