@@ -12,9 +12,9 @@ str_true: .string "True\n"
 str_false: .string "False\n"
 str_index_error: .string "Index Error\n"
 str_0: .string "Score is:\n"
-str_1: .string "In first condition: >= 90\n"
-str_2: .string "In second condition: >= 80\n"
-str_3: .string "In else condition: < 80\n"
+str_1: .string "First condition\n"
+str_2: .string "In else condition\n"
+str_3: .string "Nested condition passed\n"
 
 .section .text
 .global main
@@ -69,6 +69,11 @@ main:
     call printf
     jmp end_if_0
 else_0:
+    # Call out() with string
+    mov $str_2, %rsi
+    mov $format_str, %rdi
+    xor %rax, %rax
+    call printf
     # Integer binary operation
     mov -8(%rbp), %rax  # load global score
     push %rax
@@ -80,17 +85,12 @@ else_0:
     test %rax, %rax
     jz else_1
     # Call out() with string
-    mov $str_2, %rsi
+    mov $str_3, %rsi
     mov $format_str, %rdi
     xor %rax, %rax
     call printf
     jmp end_if_1
 else_1:
-    # Call out() with string
-    mov $str_3, %rsi
-    mov $format_str, %rdi
-    xor %rax, %rax
-    call printf
 end_if_1:
 end_if_0:
     mov $0, %rax

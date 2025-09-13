@@ -1,0 +1,37 @@
+// Test nested if statements
+main() {
+    let age = 25;
+    let hasLicense = true;
+    
+    out("Age:", age);
+    
+    if age >= 16 {
+        out("Old enough to drive");
+        
+        if hasLicense {
+            out("Can drive legally");
+        } else {
+            out("Need to get a license");
+        }
+    } else {
+        out("Too young to drive");
+    }
+    
+    // Test nested with multiple conditions
+    let score = 95;
+    let bonus = 5;
+    
+    if score >= 90 {
+        out("Excellent score!");
+        
+        if score >= 95 {
+            out("Perfect score!");
+            
+            if bonus > 0 {
+                out("With bonus points too!");
+            }
+        } else {
+            out("Almost perfect!");
+        }
+    }
+}

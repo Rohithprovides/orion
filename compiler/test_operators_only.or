@@ -1,0 +1,28 @@
+a = 10
+b = 20
+
+out("a =", a, "b =", b)
+
+if a == 10 {
+    out("a equals 10")
+}
+
+if a != b {
+    out("a not equal to b")
+}
+
+if a < b {
+    out("a less than b")
+}
+
+if b > a {
+    out("b greater than a")
+}
+
+if a <= 10 {
+    out("a less than or equal to 10")
+}
+
+if b >= 20 {
+    out("b greater than or equal to 20")
+}

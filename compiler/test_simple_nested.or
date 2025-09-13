@@ -1,0 +1,18 @@
+// Test simple nested if statements
+fn main() {
+    age = 25
+    
+    out("Age:", age)
+    
+    if age >= 16 {
+        out("Old enough to drive")
+        
+        if age >= 21 {
+            out("Can drink legally too")
+        } else {
+            out("Cannot drink yet")
+        }
+    } else {
+        out("Too young to drive")
+}
+}

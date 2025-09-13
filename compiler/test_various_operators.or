@@ -1,0 +1,47 @@
+// Test all comparison operators in if statements
+fn main() {
+    a = 10
+    b = 20
+    
+    out("Testing comparison operators with a =", a, "and b =", b)
+    
+    if a == 10 {
+        out("a equals 10 ✓")
+    }
+    
+    if a != b {
+        out("a not equal to b ✓")
+    }
+    
+    if a < b {
+        out("a less than b ✓")
+    }
+    
+    if b > a {
+        out("b greater than a ✓")
+    }
+    
+    if a <= 10 {
+        out("a less than or equal to 10 ✓")
+    }
+    
+    if b >= 20 {
+        out("b greater than or equal to 20 ✓")
+    }
+    
+    // Test with variable comparisons
+    x = 15
+    y = 15
+    
+    if x == y {
+        out("x equals y ✓")
+    }
+    
+    if x >= y {
+        out("x greater than or equal to y ✓")
+    }
+    
+    if x <= y {
+        out("x less than or equal to y ✓")
+    }
+}

@@ -1,0 +1,8 @@
+// Test single if statement
+main() {
+    let x = 5;
+    
+    if x > 3 {
+        out("x is greater than 3");
+    }
+}
