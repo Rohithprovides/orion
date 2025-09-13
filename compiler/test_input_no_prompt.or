@@ -1,0 +1,7 @@
+fn main() {
+    out("Please enter a number:")
+    number = input()
+    out("You entered:", number)
+}
+
+main()

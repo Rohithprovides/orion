@@ -1,0 +1,6 @@
+fn main() {
+    name = input("Name: ")
+    out(name)
+}
+
+main()

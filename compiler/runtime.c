@@ -285,3 +285,50 @@ void list_print(OrionList* list) {
     }
     printf("]\n");
 }
+
+// Input function - read a line from stdin
+char* orion_input() {
+    const int BUFFER_SIZE = 1024;
+    char* buffer = (char*)orion_malloc(BUFFER_SIZE);
+    if (!buffer) {
+        fprintf(stderr, "Error: Failed to allocate memory for input\n");
+        exit(1);
+    }
+    
+    // Read line from stdin
+    if (!fgets(buffer, BUFFER_SIZE, stdin)) {
+        // Handle EOF or error
+        orion_free(buffer);
+        buffer = (char*)orion_malloc(1);
+        buffer[0] = '\0';
+        return buffer;
+    }
+    
+    // Remove trailing newline if present
+    size_t len = strlen(buffer);
+    if (len > 0 && buffer[len - 1] == '\n') {
+        buffer[len - 1] = '\0';
+    }
+    
+    // Resize buffer to actual string length to save memory
+    size_t actual_len = strlen(buffer);
+    char* result = (char*)orion_malloc(actual_len + 1);
+    if (!result) {
+        fprintf(stderr, "Error: Failed to allocate memory for input result\n");
+        exit(1);
+    }
+    strcpy(result, buffer);
+    orion_free(buffer);
+    
+    return result;
+}
+
+// Input function with prompt - display prompt then read input
+char* orion_input_prompt(const char* prompt) {
+    if (prompt) {
+        printf("%s", prompt);
+        fflush(stdout);  // Ensure prompt is displayed before reading
+    }
+    
+    return orion_input();
+}

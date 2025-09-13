@@ -1,0 +1,10 @@
+fn main() {
+    first = input("First name: ")
+    last = input("Last name: ")
+    age = input("Age: ")
+    
+    out("Full name:", first, last)
+    out("Age:", age)
+}
+
+main()
