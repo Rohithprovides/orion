@@ -332,3 +332,122 @@ char* orion_input_prompt(const char* prompt) {
     
     return orion_input();
 }
+
+// Helper function to convert integer to string and append to buffer
+// Returns pointer to the end of the buffer for chaining
+char* sprintf_int(char* buffer, int64_t value) {
+    if (!buffer) return buffer;
+    
+    // Find end of current string
+    while (*buffer) buffer++;
+    
+    // Convert integer to string and append
+    sprintf(buffer, "%ld", value);
+    
+    // Return pointer to new end of string
+    while (*buffer) buffer++;
+    return buffer;
+}
+
+// Simple string concatenation function
+// Appends src to the end of dest and returns pointer to new end
+char* strcat_simple(char* dest, const char* src) {
+    if (!dest || !src) return dest;
+    
+    // Find end of dest string
+    while (*dest) dest++;
+    
+    // Copy src to end of dest
+    while (*src) {
+        *dest++ = *src++;
+    }
+    *dest = '\0';
+    
+    return dest;
+}
+
+// Convert integer to string (returns dynamically allocated string)
+char* int_to_string(int64_t value) {
+    char* buffer = (char*)orion_malloc(32);  // Enough for 64-bit int
+    if (!buffer) {
+        fprintf(stderr, "Error: Failed to allocate memory for int_to_string\n");
+        exit(1);
+    }
+    sprintf(buffer, "%ld", value);
+    return buffer;
+}
+
+// Convert float to string (returns dynamically allocated string)
+char* float_to_string(double value) {
+    char* buffer = (char*)orion_malloc(64);  // Enough for double precision
+    if (!buffer) {
+        fprintf(stderr, "Error: Failed to allocate memory for float_to_string\n");
+        exit(1);
+    }
+    sprintf(buffer, "%.2f", value);
+    return buffer;
+}
+
+// Convert boolean to string (returns dynamically allocated string)
+char* bool_to_string(int64_t value) {
+    char* buffer = (char*)orion_malloc(8);  // "True" or "False"
+    if (!buffer) {
+        fprintf(stderr, "Error: Failed to allocate memory for bool_to_string\n");
+        exit(1);
+    }
+    strcpy(buffer, value ? "True" : "False");
+    return buffer;
+}
+
+// Copy string (for consistency with other conversion functions)
+char* string_to_string(const char* value) {
+    if (!value) {
+        char* buffer = (char*)orion_malloc(1);
+        if (buffer) buffer[0] = '\0';
+        return buffer;
+    }
+    
+    size_t len = strlen(value);
+    char* buffer = (char*)orion_malloc(len + 1);
+    if (!buffer) {
+        fprintf(stderr, "Error: Failed to allocate memory for string_to_string\n");
+        exit(1);
+    }
+    strcpy(buffer, value);
+    return buffer;
+}
+
+// String concatenation for interpolated strings
+// Takes an array of string pointers and concatenates them
+char* string_concat_parts(char** parts, int count) {
+    if (!parts || count <= 0) {
+        char* empty = (char*)orion_malloc(1);
+        if (empty) empty[0] = '\0';
+        return empty;
+    }
+    
+    // Calculate total length needed
+    size_t total_len = 0;
+    for (int i = 0; i < count; i++) {
+        if (parts[i]) {
+            total_len += strlen(parts[i]);
+        }
+    }
+    
+    // Allocate result buffer
+    char* result = (char*)orion_malloc(total_len + 1);
+    if (!result) {
+        fprintf(stderr, "Error: Failed to allocate memory for string_concat_parts\n");
+        exit(1);
+    }
+    
+    // Concatenate all parts
+    result[0] = '\0';
+    for (int i = 0; i < count; i++) {
+        if (parts[i]) {
+            strcat(result, parts[i]);
+        }
+    }
+    
+    return result;
+}

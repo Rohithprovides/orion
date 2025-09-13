@@ -195,7 +195,13 @@ public:
         fullAssembly << ".extern list_repeat\n";
         fullAssembly << ".extern list_extend\n";
         fullAssembly << ".extern orion_input\n";
-        fullAssembly << ".extern orion_input_prompt\n\n";
+        fullAssembly << ".extern orion_input_prompt\n";
+        // String conversion and concatenation functions
+        fullAssembly << ".extern int_to_string\n";
+        fullAssembly << ".extern float_to_string\n";
+        fullAssembly << ".extern bool_to_string\n";
+        fullAssembly << ".extern string_to_string\n";
+        fullAssembly << ".extern string_concat_parts\n\n";
         
         // Main function
         fullAssembly << "main:\n";
@@ -595,6 +601,14 @@ public:
                     assembly << "    # Call out() with boolean literal\n";
                     assembly << "    mov $" << (boolLit->value ? "str_true" : "str_false") << ", %rsi\n";
                     assembly << "    mov $format_str, %rdi\n";
+                    assembly << "    xor %rax, %rax\n";
+                    assembly << "    call printf\n";
+                } else if (auto interpolated = dynamic_cast<InterpolatedString*>(arg.get())) {
+                    // Handle interpolated string - evaluate it and treat result as string
+                    assembly << "    # Call out() with interpolated string\n";
+                    arg->accept(*this);  // This calls our InterpolatedString visitor
+                    assembly << "    mov %rax, %rsi  # String pointer from interpolation result\n";
+                    assembly << "    mov $format_str, %rdi  # Use string format\n";
                     assembly << "    xor %rax, %rax\n";
                     assembly << "    call printf\n";
                 } else {
@@ -1137,6 +1151,155 @@ public:
     void visit(StringLiteral& node) override {
         int index = addStringLiteral(node.value);
         assembly << "    mov $str_" << index << ", %rax\n";
+    }
+    
+    void visit(InterpolatedString& node) override {
+        assembly << "    # Interpolated string - proper implementation\n";
+        
+        if (node.parts.empty()) {
+            // Empty interpolated string
+            int index = addStringLiteral("");
+            assembly << "    mov $str_" << index << ", %rax\n";
+            return;
+        }
+        
+        if (node.parts.size() == 1) {
+            // Single part - handle directly
+            const auto& part = node.parts[0];
+            if (part.isExpression) {
+                // Evaluate expression
+                part.expression->accept(*this);
+                
+                // Convert expression result to string based on type
+                if (auto id = dynamic_cast<Identifier*>(part.expression.get())) {
+                    auto varInfo = lookupVariable(id->name);
+                    if (varInfo) {
+                        assembly << "    mov %rax, %rdi  # Expression result as argument\n";
+                        if (varInfo->type == "int") {
+                            assembly << "    call int_to_string  # Convert int to string\n";
+                        } else if (varInfo->type == "float") {
+                            assembly << "    call float_to_string  # Convert float to string\n";
+                        } else if (varInfo->type == "bool") {
+                            assembly << "    call bool_to_string  # Convert bool to string\n";
+                        } else if (varInfo->type == "string") {
+                            assembly << "    call string_to_string  # Copy string\n";
+                        } else {
+                            // Unknown type, treat as string pointer
+                            assembly << "    call string_to_string  # Copy as string\n";
+                        }
+                    } else {
+                        // Variable not found, treat as int by default
+                        assembly << "    mov %rax, %rdi  # Expression result as argument\n";
+                        assembly << "    call int_to_string  # Convert to string\n";
+                    }
+                } else {
+                    // Direct expression (literal)
+                    assembly << "    mov %rax, %rdi  # Expression result as argument\n";
+                    if (dynamic_cast<IntLiteral*>(part.expression.get())) {
+                        assembly << "    call int_to_string  # Convert int literal to string\n";
+                    } else if (dynamic_cast<FloatLiteral*>(part.expression.get())) {
+                        assembly << "    call float_to_string  # Convert float literal to string\n";
+                    } else if (dynamic_cast<BoolLiteral*>(part.expression.get())) {
+                        assembly << "    call bool_to_string  # Convert bool literal to string\n";
+                    } else if (dynamic_cast<StringLiteral*>(part.expression.get())) {
+                        assembly << "    call string_to_string  # Copy string literal\n";
+                    } else {
+                        // Default to int conversion for other expressions
+                        assembly << "    call int_to_string  # Convert expression to string\n";
+                    }
+                }
+            } else {
+                // Single text part
+                int textIndex = addStringLiteral(part.text);
+                assembly << "    mov $str_" << textIndex << ", %rax\n";
+            }
+            return;
+        }
+        
+        // Multiple parts - simplified concatenation approach
+        assembly << "    # Multiple parts - simplified concatenation\n";
+        
+        // For now, let's implement a simpler approach that builds the string incrementally
+        // Start with an empty result string
+        assembly << "    mov $0, %r12  # Initialize result string to null\n";
+        
+        for (size_t i = 0; i < node.parts.size(); i++) {
+            const auto& part = node.parts[i];
+            
+            assembly << "    # Process part " << i << "\n";
+            
+            if (part.isExpression) {
+                assembly << "    # Expression part " << i << "\n";
+                // Evaluate expression
+                part.expression->accept(*this);
+                
+                // Convert to string based on type
+                if (auto id = dynamic_cast<Identifier*>(part.expression.get())) {
+                    auto varInfo = lookupVariable(id->name);
+                    if (varInfo) {
+                        assembly << "    mov %rax, %rdi\n";
+                        if (varInfo->type == "int") {
+                            assembly << "    call int_to_string\n";
+                        } else if (varInfo->type == "float") {
+                            assembly << "    call float_to_string\n";
+                        } else if (varInfo->type == "bool") {
+                            assembly << "    call bool_to_string\n";
+                        } else if (varInfo->type == "string") {
+                            assembly << "    call string_to_string\n";
+                        } else {
+                            assembly << "    call string_to_string\n";
+                        }
+                    } else {
+                        assembly << "    mov %rax, %rdi\n";
+                        assembly << "    call int_to_string\n";
+                    }
+                } else {
+                    assembly << "    mov %rax, %rdi\n";
+                    if (dynamic_cast<IntLiteral*>(part.expression.get())) {
+                        assembly << "    call int_to_string\n";
+                    } else if (dynamic_cast<FloatLiteral*>(part.expression.get())) {
+                        assembly << "    call float_to_string\n";
+                    } else if (dynamic_cast<BoolLiteral*>(part.expression.get())) {
+                        assembly << "    call bool_to_string\n";
+                    } else if (dynamic_cast<StringLiteral*>(part.expression.get())) {
+                        assembly << "    call string_to_string\n";
+                    } else {
+                        assembly << "    call int_to_string\n";
+                    }
+                }
+            } else {
+                assembly << "    # Text part " << i << ": \"" << part.text << "\"\n";
+                // Text part - get string literal address
+                int textIndex = addStringLiteral(part.text);
+                assembly << "    mov $str_" << textIndex << ", %rax\n";
+                assembly << "    mov %rax, %rdi\n";
+                assembly << "    call string_to_string  # Copy string literal\n";
+            }
+            
+            // Now %rax contains the current part as a string
+            if (i == 0) {
+                // First part - just store it
+                assembly << "    mov %rax, %r12  # Store first part\n";
+            } else {
+                // Subsequent parts - concatenate with previous result
+                assembly << "    # Concatenate with previous result\n";
+                assembly << "    push %rax  # Save current part\n";
+                assembly << "    sub $16, %rsp  # Allocate space for 2 pointers\n";
+                assembly << "    mov %r12, 0(%rsp)  # Store previous result\n";
+                assembly << "    mov 16(%rsp), %rdi  # Get current part from stack\n";
+                assembly << "    mov %rdi, 8(%rsp)  # Store current part\n";
+                assembly << "    mov %rsp, %rdi  # Array of 2 string pointers\n";
+                assembly << "    mov $2, %rsi  # Number of parts to concatenate\n";
+                assembly << "    call string_concat_parts\n";
+                assembly << "    add $16, %rsp  # Clean up array space\n";
+                assembly << "    add $8, %rsp  # Clean up saved part\n";
+                assembly << "    mov %rax, %r12  # Store new result\n";
+            }
+        }
+        
+        // Final result is in %r12
+        assembly << "    mov %r12, %rax  # Move result to return register\n";
+        assembly << "    # Multiple parts concatenation complete\n";
     }
     
     void visit(Identifier& node) override {

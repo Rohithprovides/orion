@@ -11,6 +11,11 @@ std::string Token::typeToString() const {
         case TokenType::FLOAT: return "FLOAT";
         case TokenType::STRING: return "STRING";
         case TokenType::BOOL: return "BOOL";
+        case TokenType::INTERPOLATED_STRING_START: return "INTERPOLATED_STRING_START";
+        case TokenType::INTERPOLATED_STRING_PART: return "INTERPOLATED_STRING_PART";
+        case TokenType::INTERPOLATED_STRING_END: return "INTERPOLATED_STRING_END";
+        case TokenType::INTERPOLATION_START: return "INTERPOLATION_START";
+        case TokenType::INTERPOLATION_END: return "INTERPOLATION_END";
         case TokenType::IDENTIFIER: return "IDENTIFIER";
         case TokenType::IF: return "IF";
         case TokenType::ELIF: return "ELIF";
@@ -299,34 +304,74 @@ Token Lexer::number(char first, int tokenLine, int tokenColumn) {
     }
 
 Token Lexer::string(char quote, int tokenLine, int tokenColumn) {
-        std::string value;
+        // First, scan the string to see if it contains interpolation
+        size_t savePos = current;
+        int saveLine = line;
+        int saveColumn = column;
+        bool hasInterpolation = false;
         
         while (!isAtEnd() && peek() != quote) {
-            char c = peek();
-            if (c == '\\') {
-                advance(); // skip '\'
-                if (!isAtEnd()) {
-                    char escaped = advance();
-                    switch (escaped) {
-                        case 'n': value += '\n'; break;
-                        case 't': value += '\t'; break;
-                        case 'r': value += '\r'; break;
-                        case '\\': value += '\\'; break;
-                        case '"': value += '"'; break;
-                        case '\'': value += '\''; break;
-                        default: value += escaped; break;
-                    }
-                }
+            if (peek() == '$' && peekNext() == '{') {
+                hasInterpolation = true;
+                break;
+            }
+            if (peek() == '\\') {
+                advance(); // skip escape
+                if (!isAtEnd()) advance(); // skip escaped char
             } else {
-                value += advance();
+                advance();
             }
         }
         
-        if (!isAtEnd()) {
-            advance(); // consume closing quote
-        }
+        // Reset position
+        current = savePos;
+        line = saveLine;
+        column = saveColumn;
         
-        return Token(TokenType::STRING, value, tokenLine, tokenColumn);
+        // If no interpolation, handle as regular string
+        if (!hasInterpolation) {
+            std::string value;
+            
+            while (!isAtEnd() && peek() != quote) {
+                char c = peek();
+                if (c == '\\') {
+                    advance(); // skip '\'
+                    if (!isAtEnd()) {
+                        char escaped = advance();
+                        switch (escaped) {
+                            case 'n': value += '\n'; break;
+                            case 't': value += '\t'; break;
+                            case 'r': value += '\r'; break;
+                            case '\\': value += '\\'; break;
+                            case '"': value += '"'; break;
+                            case '\'': value += '\''; break;
+                            default: value += escaped; break;
+                        }
+                    }
+                } else {
+                    value += advance();
+                }
+            }
+            
+            if (!isAtEnd()) {
+                advance(); // consume closing quote
+            }
+            
+            return Token(TokenType::STRING, value, tokenLine, tokenColumn);
+        } else {
+            // This is an interpolated string, but we need to handle it differently
+            // For now, return a special token and handle interpolation in the parser
+            std::string fullString;
+            while (!isAtEnd() && peek() != quote) {
+                fullString += advance();
+            }
+            if (!isAtEnd()) {
+                advance(); // consume closing quote
+            }
+            
+            // Return the full string with a special marker for interpolation
+            return Token(TokenType::STRING, fullString, tokenLine, tokenColumn);
+        }
     }
 
 Token Lexer::identifier(char first, int tokenLine, int tokenColumn) {

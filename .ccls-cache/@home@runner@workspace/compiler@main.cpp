@@ -193,7 +193,9 @@ public:
         fullAssembly << ".extern list_insert\n";
         fullAssembly << ".extern list_concat\n";
         fullAssembly << ".extern list_repeat\n";
-        fullAssembly << ".extern list_extend\n\n";
+        fullAssembly << ".extern list_extend\n";
+        fullAssembly << ".extern orion_input\n";
+        fullAssembly << ".extern orion_input_prompt\n\n";
         
         // Main function
         fullAssembly << "main:\n";
@@ -640,6 +642,41 @@ public:
                     assembly << "    call printf\n";
                 }
             }
+        } else if (node.name == "input") {
+            // Handle input() function calls
+            assembly << "    # input() function call\n";
+            
+            if (node.arguments.empty()) {
+                // input() without prompt
+                assembly << "    call orion_input  # Read input from stdin\n";
+                assembly << "    # String address returned in %rax\n";
+            } else if (node.arguments.size() == 1) {
+                // input("prompt") with prompt
+                auto& promptArg = node.arguments[0];
+                
+                if (auto strLit = dynamic_cast<StringLiteral*>(promptArg.get())) {
+                    // String literal prompt
+                    int index = addStringLiteral(strLit->value);
+                    assembly << "    mov $str_" << index << ", %rdi  # Prompt string\n";
+                    assembly << "    call orion_input_prompt  # Display prompt and read input\n";
+                    assembly << "    # String address returned in %rax\n";
+                } else if (auto id = dynamic_cast<Identifier*>(promptArg.get())) {
+                    // Variable prompt
+                    auto varInfo = lookupVariable(id->name);
+                    if (varInfo && varInfo->type == "string") {
+                        assembly << "    mov -" << varInfo->stackOffset << "(%rbp), %rdi  # Prompt from variable\n";
+                        assembly << "    call orion_input_prompt  # Display prompt and read input\n";
+                        assembly << "    # String address returned in %rax\n";
+                    } else {
+                        throw std::runtime_error("Error: input() prompt must be a string");
+                    }
+                } else {
+                    throw std::runtime_error("Error: input() prompt must be a string literal or variable");
+                }
+            } else {
+                throw std::runtime_error("Error: input() function takes 0 or 1 argument");
+            }
+            return;
         } else if (node.name == "dtype") {
             // Handle standalone dtype() calls (though typically used inside out())
             if (!node.arguments.empty()) {

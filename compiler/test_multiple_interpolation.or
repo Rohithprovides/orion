@@ -1,0 +1,7 @@
+fn main() {
+    name = input("What is your name? ")
+    age = input("How old are you? ")
+    out("Hello ${name}! You are ${age} years old.")
+    out("Welcome to Orion, ${name}!")
+}
+main()

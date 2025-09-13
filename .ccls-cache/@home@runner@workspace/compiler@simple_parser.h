@@ -620,7 +620,13 @@ private:
         
         if (check(TokenType::STRING)) {
             Token token = advance();
-            return std::make_unique<StringLiteral>(token.value, token.line, token.column);
+            
+            // Check if string contains interpolation patterns
+            if (token.value.find("${") != std::string::npos) {
+                return parseInterpolatedString(token);
+            } else {
+                return std::make_unique<StringLiteral>(token.value, token.line, token.column);
+            }
         }
         
         if (check(TokenType::TRUE) || check(TokenType::FALSE)) {
@@ -685,6 +691,54 @@ private:
         }
         
         throw std::runtime_error("Unexpected token in expression");
+    }
+    
+    std::unique_ptr<InterpolatedString> parseInterpolatedString(const Token& token) {
+        auto interpolated = std::make_unique<InterpolatedString>(token.line, token.column);
+        std::string content = token.value;
+        
+        size_t pos = 0;
+        while (pos < content.length()) {
+            // Find next interpolation pattern
+            size_t dollarPos = content.find("${", pos);
+            
+            if (dollarPos == std::string::npos) {
+                // No more interpolation, add remaining text if any
+                if (pos < content.length()) {
+                    std::string textPart = content.substr(pos);
+                    if (!textPart.empty()) {
+                        interpolated->parts.emplace_back(textPart);
+                    }
+                }
+                break;
+            }
+            
+            // Add text before interpolation if any
+            if (dollarPos > pos) {
+                std::string textPart = content.substr(pos, dollarPos - pos);
+                interpolated->parts.emplace_back(textPart);
+            }
+            
+            // Find closing brace
+            size_t bracePos = content.find("}", dollarPos + 2);
+            if (bracePos == std::string::npos) {
+                throw std::runtime_error("Missing closing '}' in string interpolation");
+            }
+            
+            // Extract variable name
+            std::string varName = content.substr(dollarPos + 2, bracePos - dollarPos - 2);
+            if (varName.empty()) {
+                throw std::runtime_error("Empty variable name in string interpolation");
+            }
+            
+            // Create identifier expression for the variable
+            auto varExpr = std::make_unique<Identifier>(varName, token.line, token.column);
+            interpolated->parts.emplace_back(std::move(varExpr));
+            
+            pos = bracePos + 1;
+        }
+        
+        return interpolated;
     }
 };
 

@@ -16,6 +16,10 @@ void StringLiteral::accept(ASTVisitor& visitor) {
     visitor.visit(*this);
 }
 
+void InterpolatedString::accept(ASTVisitor& visitor) {
+    visitor.visit(*this);
+}
+
 void BoolLiteral::accept(ASTVisitor& visitor) {
     visitor.visit(*this);
 }

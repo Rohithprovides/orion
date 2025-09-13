@@ -137,6 +137,36 @@ public:
     }
 };
 
+// Interpolated string containing both text parts and expressions
+class InterpolatedString : public Expression {
+public:
+    struct Part {
+        bool isExpression;
+        std::string text;  // Used when isExpression is false
+        std::unique_ptr<Expression> expression;  // Used when isExpression is true
+        
+        Part(const std::string& t) : isExpression(false), text(t) {}
+        Part(std::unique_ptr<Expression> expr) : isExpression(true), expression(std::move(expr)) {}
+    };
+    
+    std::vector<Part> parts;
+    
+    InterpolatedString(int line = 0, int column = 0) : Expression(line, column) {}
+    void accept(ASTVisitor& visitor) override;
+    std::string toString(int indent = 0) const override {
+        std::string result = std::string(indent, ' ') + "InterpolatedString:\n";
+        for (size_t i = 0; i < parts.size(); ++i) {
+            if (parts[i].isExpression) {
+                result += std::string(indent + 2, ' ') + "Expression:\n";
+                result += parts[i].expression->toString(indent + 4);
+            } else {
+                result += std::string(indent + 2, ' ') + "Text(\"" + parts[i].text + "\")\n";
+            }
+        }
+        return result;
+    }
+};
+
 class BoolLiteral : public Expression {
 public:
     bool value;
@@ -487,6 +517,7 @@ public:
     virtual void visit(IntLiteral& node) = 0;
     virtual void visit(FloatLiteral& node) = 0;
     virtual void visit(StringLiteral& node) = 0;
+    virtual void visit(InterpolatedString& node) = 0;
     virtual void visit(BoolLiteral& node) = 0;
     virtual void visit(Identifier& node) = 0;
     virtual void visit(BinaryExpression& node) = 0;

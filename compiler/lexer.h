@@ -11,6 +11,10 @@ enum class TokenType {
     // Literals
     INTEGER, FLOAT, STRING, BOOL,
     
+    // String interpolation tokens
+    INTERPOLATED_STRING_START, INTERPOLATED_STRING_PART, INTERPOLATED_STRING_END,
+    INTERPOLATION_START, INTERPOLATION_END,
+    
     // Identifiers and keywords
     IDENTIFIER,
     
@@ -75,6 +79,7 @@ private:
     void skipBlockComment();
     Token number(char first, int tokenLine, int tokenColumn);
     Token string(char quote, int tokenLine, int tokenColumn);
+    std::vector<Token> interpolatedString(char quote, int tokenLine, int tokenColumn);
     Token identifier(char first, int tokenLine, int tokenColumn);
 };
 

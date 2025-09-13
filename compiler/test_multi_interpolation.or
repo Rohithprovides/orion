@@ -1,0 +1,6 @@
+fn main() {
+    name = "Alice"
+    age = 25
+    out("Hello ${name}! You are ${age} years old.")
+}
+main()

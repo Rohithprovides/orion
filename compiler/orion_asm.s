@@ -11,13 +11,13 @@ dtype_unknown: .string "datatype: unknown\n"
 str_true: .string "True\n"
 str_false: .string "False\n"
 str_index_error: .string "Index Error\n"
-str_0: .string "What's your name? \n"
-str_1: .string "Hello\n"
-str_2: .string "How old are you? \n"
-str_3: .string "Nice to meet you\n"
-str_4: .string "18\n"
-str_5: .string "You are an adult!\n"
-str_6: .string "You are still young!\n"
+str_0: .string "What is your name? \n"
+str_1: .string "How old are you? \n"
+str_2: .string "Hello \n"
+str_3: .string "! You are \n"
+str_4: .string " years old.\n"
+str_5: .string "Welcome to Orion, \n"
+str_6: .string "!\n"
 
 .section .text
 .global main
@@ -40,6 +40,11 @@ str_6: .string "You are still young!\n"
 .extern list_extend
 .extern orion_input
 .extern orion_input_prompt
+.extern int_to_string
+.extern float_to_string
+.extern bool_to_string
+.extern string_to_string
+.extern string_concat_parts
 
 main:
     push %rbp
@@ -54,45 +59,146 @@ main:
     call orion_input_prompt  # Display prompt and read input
     # String address returned in %rax
     mov %rax, -8(%rbp)  # store local name
-    # Call out() with string
-    mov $str_1, %rsi
-    mov $format_str, %rdi
-    xor %rax, %rax
-    call printf
     # Variable: age
     # input() function call
-    mov $str_2, %rdi  # Prompt string
+    mov $str_1, %rdi  # Prompt string
     call orion_input_prompt  # Display prompt and read input
     # String address returned in %rax
     mov %rax, -16(%rbp)  # store local age
-    # Call out() with string
-    mov $str_3, %rsi
-    mov $format_str, %rdi
-    xor %rax, %rax
-    call printf
-    # Integer binary operation
+    # Call out() with interpolated string
+    # Interpolated string - proper implementation
+    # Multiple parts - simplified concatenation
+    mov $0, %r12  # Initialize result string to null
+    # Process part 0
+    # Text part 0: "Hello "
+    mov $str_2, %rax
+    mov %rax, %rdi
+    call string_to_string  # Copy string literal
+    mov %rax, %r12  # Store first part
+    # Process part 1
+    # Expression part 1
+    mov -8(%rbp), %rax  # load local name
+    mov %rax, %rdi
+    call string_to_string
+    # Concatenate with previous result
+    push %rax  # Save current part
+    sub $16, %rsp  # Allocate space for 2 pointers
+    mov %r12, 0(%rsp)  # Store previous result
+    mov 16(%rsp), %rdi  # Get current part from stack
+    mov %rdi, 8(%rsp)  # Store current part
+    mov %rsp, %rdi  # Array of 2 string pointers
+    mov $2, %rsi  # Number of parts to concatenate
+    call string_concat_parts
+    add $16, %rsp  # Clean up array space
+    add $8, %rsp  # Clean up saved part
+    mov %rax, %r12  # Store new result
+    # Process part 2
+    # Text part 2: "! You are "
+    mov $str_3, %rax
+    mov %rax, %rdi
+    call string_to_string  # Copy string literal
+    # Concatenate with previous result
+    push %rax  # Save current part
+    sub $16, %rsp  # Allocate space for 2 pointers
+    mov %r12, 0(%rsp)  # Store previous result
+    mov 16(%rsp), %rdi  # Get current part from stack
+    mov %rdi, 8(%rsp)  # Store current part
+    mov %rsp, %rdi  # Array of 2 string pointers
+    mov $2, %rsi  # Number of parts to concatenate
+    call string_concat_parts
+    add $16, %rsp  # Clean up array space
+    add $8, %rsp  # Clean up saved part
+    mov %rax, %r12  # Store new result
+    # Process part 3
+    # Expression part 3
     mov -16(%rbp), %rax  # load local age
-    push %rax
+    mov %rax, %rdi
+    call string_to_string
+    # Concatenate with previous result
+    push %rax  # Save current part
+    sub $16, %rsp  # Allocate space for 2 pointers
+    mov %r12, 0(%rsp)  # Store previous result
+    mov 16(%rsp), %rdi  # Get current part from stack
+    mov %rdi, 8(%rsp)  # Store current part
+    mov %rsp, %rdi  # Array of 2 string pointers
+    mov $2, %rsi  # Number of parts to concatenate
+    call string_concat_parts
+    add $16, %rsp  # Clean up array space
+    add $8, %rsp  # Clean up saved part
+    mov %rax, %r12  # Store new result
+    # Process part 4
+    # Text part 4: " years old."
     mov $str_4, %rax
-    pop %rbx
-    cmp %rax, %rbx
-    setge %al
-    movzx %al, %rax
-    test %rax, %rax
-    jz else_0
-    # Call out() with string
-    mov $str_5, %rsi
-    mov $format_str, %rdi
+    mov %rax, %rdi
+    call string_to_string  # Copy string literal
+    # Concatenate with previous result
+    push %rax  # Save current part
+    sub $16, %rsp  # Allocate space for 2 pointers
+    mov %r12, 0(%rsp)  # Store previous result
+    mov 16(%rsp), %rdi  # Get current part from stack
+    mov %rdi, 8(%rsp)  # Store current part
+    mov %rsp, %rdi  # Array of 2 string pointers
+    mov $2, %rsi  # Number of parts to concatenate
+    call string_concat_parts
+    add $16, %rsp  # Clean up array space
+    add $8, %rsp  # Clean up saved part
+    mov %rax, %r12  # Store new result
+    mov %r12, %rax  # Move result to return register
+    # Multiple parts concatenation complete
+    mov %rax, %rsi  # String pointer from interpolation result
+    mov $format_str, %rdi  # Use string format
     xor %rax, %rax
     call printf
-    jmp end_if_0
-else_0:
-    # Call out() with string
-    mov $str_6, %rsi
-    mov $format_str, %rdi
+    # Call out() with interpolated string
+    # Interpolated string - proper implementation
+    # Multiple parts - simplified concatenation
+    mov $0, %r12  # Initialize result string to null
+    # Process part 0
+    # Text part 0: "Welcome to Orion, "
+    mov $str_5, %rax
+    mov %rax, %rdi
+    call string_to_string  # Copy string literal
+    mov %rax, %r12  # Store first part
+    # Process part 1
+    # Expression part 1
+    mov -8(%rbp), %rax  # load local name
+    mov %rax, %rdi
+    call string_to_string
+    # Concatenate with previous result
+    push %rax  # Save current part
+    sub $16, %rsp  # Allocate space for 2 pointers
+    mov %r12, 0(%rsp)  # Store previous result
+    mov 16(%rsp), %rdi  # Get current part from stack
+    mov %rdi, 8(%rsp)  # Store current part
+    mov %rsp, %rdi  # Array of 2 string pointers
+    mov $2, %rsi  # Number of parts to concatenate
+    call string_concat_parts
+    add $16, %rsp  # Clean up array space
+    add $8, %rsp  # Clean up saved part
+    mov %rax, %r12  # Store new result
+    # Process part 2
+    # Text part 2: "!"
+    mov $str_6, %rax
+    mov %rax, %rdi
+    call string_to_string  # Copy string literal
+    # Concatenate with previous result
+    push %rax  # Save current part
+    sub $16, %rsp  # Allocate space for 2 pointers
+    mov %r12, 0(%rsp)  # Store previous result
+    mov 16(%rsp), %rdi  # Get current part from stack
+    mov %rdi, 8(%rsp)  # Store current part
+    mov %rsp, %rdi  # Array of 2 string pointers
+    mov $2, %rsi  # Number of parts to concatenate
+    call string_concat_parts
+    add $16, %rsp  # Clean up array space
+    add $8, %rsp  # Clean up saved part
+    mov %rax, %r12  # Store new result
+    mov %r12, %rax  # Move result to return register
+    # Multiple parts concatenation complete
+    mov %rax, %rsi  # String pointer from interpolation result
+    mov $format_str, %rdi  # Use string format
     xor %rax, %rax
     call printf
-end_if_0:
     mov $0, %rax
     add $64, %rsp
     pop %rbp
