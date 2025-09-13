@@ -36,12 +36,25 @@ main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp
-    # Variable: a
-    mov $5, %rax
-    mov %rax, -8(%rbp)  # store global a
-    # Call out() with variable: a (type: int)
-    mov -8(%rbp), %rsi
-    mov $format_int, %rdi
+    # Variable: x
+    mov $0, %rax
+    mov %rax, -8(%rbp)  # store global x
+    # Integer binary operation
+    mov -8(%rbp), %rax  # load global x
+    push %rax
+    mov $0, %rax
+    pop %rbx
+    cmp %rax, %rbx
+    je eq_true_0
+    mov $str_false, %rax
+    jmp eq_done_0
+eq_true_0:
+    mov $str_true, %rax
+eq_done_0:
+    # Call out() with expression result
+    mov %rax, %rsi
+    mov $format_str, %rdi
+    xor %rax, %rax
     call printf
     mov $0, %rax
     add $64, %rsp
