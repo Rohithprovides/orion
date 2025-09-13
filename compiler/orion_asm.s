@@ -11,8 +11,6 @@ dtype_unknown: .string "datatype: unknown\n"
 str_true: .string "True\n"
 str_false: .string "False\n"
 str_index_error: .string "Index Error\n"
-str_0: .string "Top level code\n"
-str_1: .string "Main explicitly called\n"
 
 .section .text
 .global main
@@ -38,18 +36,12 @@ main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp
-    # Function 'main' defined in scope ''
-    # Call out() with string
-    mov $str_0, %rsi
-    mov $format_str, %rdi
-    xor %rax, %rax
-    call printf
-    # Explicit call to main()
-    # Executing function call: main
-    # Call out() with string
-    mov $str_1, %rsi
-    mov $format_str, %rdi
-    xor %rax, %rax
+    # Variable: a
+    mov $5, %rax
+    mov %rax, -8(%rbp)  # store global a
+    # Call out() with variable: a (type: int)
+    mov -8(%rbp), %rsi
+    mov $format_int, %rdi
     call printf
     mov $0, %rax
     add $64, %rsp
