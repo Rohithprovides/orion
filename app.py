@@ -35,7 +35,11 @@ def compile_code():
             return jsonify({'success': False, 'error': 'No code provided'})
         
         code = data['code']
+        input_data = data.get('input_data', '')  # Get user input data if provided
         total_start_time = time.time()
+        
+        # Check if code contains input() calls
+        has_input_calls = 'input(' in code
         
         try:
             # Create a temporary file
@@ -47,13 +51,35 @@ def compile_code():
             # Run the C++ compiler (compilation + execution)
             # Change to compiler directory to find runtime.o
             compile_start_time = time.time()
-            result = subprocess.run(
-                ['./orion', os.path.abspath(temp_file_path)],
-                cwd='./compiler',
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
+            
+            # Set up stdin input if program uses input()
+            if has_input_calls and input_data:
+                # Provide input data via stdin
+                result = subprocess.run(
+                    ['./orion', os.path.abspath(temp_file_path)],
+                    cwd='./compiler',
+                    capture_output=True,
+                    text=True,
+                    input=input_data,
+                    timeout=10
+                )
+            elif has_input_calls and not input_data:
+                # Interactive program without input data - return special response
+                os.unlink(temp_file_path)
+                return jsonify({
+                    'success': False,
+                    'needs_input': True,
+                    'error': 'This program requires user input. Please provide input data.'
+                })
+            else:
+                # Non-interactive program
+                result = subprocess.run(
+                    ['./orion', os.path.abspath(temp_file_path)],
+                    cwd='./compiler',
+                    capture_output=True,
+                    text=True,
+                    timeout=10
+                )
             compile_end_time = time.time()
             
             # Clean up temporary file

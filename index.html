@@ -137,6 +137,29 @@ fn main() {
 
 Use Ctrl+Enter to compile and run your code quickly.</pre>
                     </div>
+                    
+                    <!-- Interactive Input Panel (hidden by default) -->
+                    <div class="input-panel" id="inputPanel" style="display: none;">
+                        <div class="input-header">
+                            <h6><i data-feather="keyboard"></i> Interactive Input</h6>
+                            <small class="text-muted">Your program needs input data. Enter values separated by newlines:</small>
+                        </div>
+                        <div class="input-container">
+                            <textarea id="inputData" placeholder="Enter input values here...
+Example:
+John Doe
+25
+yes" rows="4" class="form-control"></textarea>
+                        </div>
+                        <div class="input-actions mt-2">
+                            <button class="btn btn-primary btn-sm" onclick="runWithInput()">
+                                <i data-feather="play"></i> Run with Input
+                            </button>
+                            <button class="btn btn-secondary btn-sm" onclick="hideInputPanel()">
+                                <i data-feather="x"></i> Cancel
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

@@ -11,7 +11,7 @@ dtype_unknown: .string "datatype: unknown\n"
 str_true: .string "True\n"
 str_false: .string "False\n"
 str_index_error: .string "Index Error\n"
-str_0: .string "hello\n"
+str_0: .string "value of a is :\n"
 
 .section .text
 .global main
@@ -40,11 +40,13 @@ main:
     mov %rsp, %rbp
     sub $64, %rsp
     # Variable: a
-    # input() function call
-    mov $str_0, %rdi  # Prompt string
-    call orion_input_prompt  # Display prompt and read input
-    # String address returned in %rax
+    mov $5, %rax
     mov %rax, -8(%rbp)  # store global a
+    # Call out() with string
+    mov $str_0, %rsi
+    mov $format_str, %rdi
+    xor %rax, %rax
+    call printf
     mov $0, %rax
     add $64, %rsp
     pop %rbp

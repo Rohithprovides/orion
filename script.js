@@ -218,6 +218,93 @@ function setupSyntaxHighlighting() {
     console.log('Syntax highlighting setup completed');
 }
 
+// Interactive Input Panel Functions
+function showInputPanel() {
+    const inputPanel = document.getElementById('inputPanel');
+    const inputData = document.getElementById('inputData');
+    inputPanel.style.display = 'block';
+    inputData.focus();
+    feather.replace(); // Refresh icons
+}
+
+function hideInputPanel() {
+    const inputPanel = document.getElementById('inputPanel');
+    inputPanel.style.display = 'none';
+}
+
+// Run program with provided input data
+async function runWithInput() {
+    const code = document.getElementById('codeEditor').value.trim();
+    const inputData = document.getElementById('inputData').value;
+    
+    if (!code) {
+        appendOutput('Error: No code to compile\n', 'error');
+        updateOutputStatus('error', 'Error');
+        return;
+    }
+    
+    isCompiling = true;
+    clearOutput();
+    appendOutput('Running interactive program...\n', 'info');
+    appendOutput('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n', 'info');
+    appendOutput('Input data provided:\n', 'info');
+    appendOutput(inputData.trim() + '\n', 'normal');
+    appendOutput('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n', 'info');
+    updateOutputStatus('running', 'Running...');
+    setButtonLoading('compileBtn', true);
+    
+    try {
+        const response = await fetch('/compile', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                code: code,
+                input_data: inputData 
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            hideInputPanel();
+            updateOutputStatus('success', 'Success');
+            appendOutput('✓ Interactive program completed successfully!\n', 'success');
+            appendOutput('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n', 'info');
+            appendOutput('Program Output:\n', 'info');
+            appendOutput(result.output + '\n', 'normal');
+            appendOutput('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n', 'info');
+            
+            // Show timing breakdown
+            const compilationTime = result.compilation_time || 0;
+            const executionTime = result.execution_time || 0;
+            const totalTime = result.total_time || (compilationTime + executionTime);
+            
+            appendOutput(`✓ Compilation completed (${compilationTime}ms)\n`, 'success');
+            appendOutput(`✓ Execution completed (${executionTime}ms)\n`, 'success');
+            appendOutput(`✓ Total runtime: ${totalTime}ms\n`, 'info');
+        } else {
+            updateOutputStatus('error', 'Error');
+            appendOutput('✗ Interactive program failed!\n', 'error');
+            appendOutput('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n', 'error');
+            appendOutput('Errors:\n', 'error');
+            appendOutput(result.error + '\n', 'error');
+        }
+    } catch (error) {
+        console.error('Interactive program error:', error);
+        appendOutput('✗ Network error: ' + error.message + '\n', 'error');
+        updateOutputStatus('error', 'Network Error');
+    } finally {
+        setButtonLoading('compileBtn', false);
+        isCompiling = false;
+    }
+}
+
 // Global flag to prevent duplicate compilation requests
 let isCompiling = false;
 
@@ -258,6 +345,7 @@ async function compileCode() {
         const result = await response.json();
         
         if (result.success) {
+            hideInputPanel(); // Hide input panel on success
             updateOutputStatus('success', 'Success');
             appendOutput('✓ Compilation successful!\n', 'success');
             appendOutput('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n', 'info');
@@ -273,7 +361,16 @@ async function compileCode() {
             appendOutput(`✓ Compilation completed (${compilationTime}ms)\n`, 'success');
             appendOutput(`✓ Execution completed (${executionTime}ms)\n`, 'success');
             appendOutput(`✓ Total runtime: ${totalTime}ms\n`, 'info');
+        } else if (result.needs_input) {
+            // Show interactive input panel for programs that need input
+            updateOutputStatus('waiting', 'Needs Input');
+            appendOutput('🔄 Interactive program detected!\n', 'info');
+            appendOutput('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n', 'info');
+            appendOutput('Your program uses input() and needs data to run.\n', 'info');
+            appendOutput('Please provide input values below:\n', 'info');
+            showInputPanel();
         } else {
+            hideInputPanel(); // Hide input panel on error
             updateOutputStatus('error', 'Error');
             appendOutput('✗ Compilation failed!\n', 'error');
             appendOutput('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n', 'error');
