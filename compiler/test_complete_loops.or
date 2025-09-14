@@ -1,0 +1,26 @@
+fn main() {
+    # Test basic while loop
+    x = 0
+    while x < 5 {
+        if x == 2 {
+            x = x + 1
+            continue
+        }
+        if x == 4 {
+            break
+        }
+        print(x)
+        x = x + 1
+    }
+    
+    # Test pass statement
+    y = 0
+    while y < 3 {
+        if y == 1 {
+            pass  # Do nothing
+        } else {
+            print(y)
+        }
+        y = y + 1
+    }
+}

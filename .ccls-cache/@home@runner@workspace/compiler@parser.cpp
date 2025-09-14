@@ -80,21 +80,10 @@ private:
     
     std::unique_ptr<Statement> parseStatement() {
         try {
-            // Function declarations
-            if (check(TokenType::IDENTIFIER)) {
-                // Look ahead for function pattern: name(params) -> type
-                size_t lookahead = current;
-                while (lookahead < tokens.size() && 
-                       tokens[lookahead].type != TokenType::LPAREN &&
-                       tokens[lookahead].type != TokenType::ASSIGN &&
-                       tokens[lookahead].type != TokenType::NEWLINE &&
-                       tokens[lookahead].type != TokenType::SEMICOLON) {
-                    lookahead++;
-                }
-                
-                if (lookahead < tokens.size() && tokens[lookahead].type == TokenType::LPAREN) {
-                    return parseFunctionDeclaration();
-                }
+            // Function declarations (only when using 'fn' keyword)
+            if (check(TokenType::IDENTIFIER) && peek().value == "fn") {
+                advance(); // consume 'fn'
+                return parseFunctionDeclaration();
             }
             
             // Check for tuple assignment

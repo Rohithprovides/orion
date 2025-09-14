@@ -71,6 +71,15 @@ private:
         return false;
     }
     
+    bool isStatementTerminator() const {
+        return check(TokenType::NEWLINE) || check(TokenType::SEMICOLON) || 
+               check(TokenType::RBRACE) || check(TokenType::EOF_TOKEN) ||
+               check(TokenType::IF) || check(TokenType::ELIF) || check(TokenType::ELSE) ||
+               check(TokenType::WHILE) || check(TokenType::FOR) || 
+               check(TokenType::BREAK) || check(TokenType::CONTINUE) || 
+               check(TokenType::PASS) || check(TokenType::RETURN);
+    }
+    
     Token consume(TokenType type, const std::string& message) {
         if (check(type)) return advance();
         
@@ -100,6 +109,9 @@ private:
             if (match({TokenType::WHILE})) return parseWhileStatement();
             if (match({TokenType::FOR})) return parseForStatement();
             if (match({TokenType::RETURN})) return parseReturnStatement();
+            if (match({TokenType::BREAK})) return parseBreakStatement();
+            if (match({TokenType::CONTINUE})) return parseContinueStatement();
+            if (match({TokenType::PASS})) return parsePassStatement();
             if (match({TokenType::LBRACE})) return parseBlockStatement();
             
             // Variable declaration or expression statement
@@ -421,6 +433,21 @@ private:
         return std::make_unique<ReturnStatement>(std::move(value));
     }
     
+    std::unique_ptr<Statement> parseBreakStatement() {
+        match({TokenType::NEWLINE, TokenType::SEMICOLON}); // Optional terminator
+        return std::make_unique<BreakStatement>();
+    }
+    
+    std::unique_ptr<Statement> parseContinueStatement() {
+        match({TokenType::NEWLINE, TokenType::SEMICOLON}); // Optional terminator
+        return std::make_unique<ContinueStatement>();
+    }
+    
+    std::unique_ptr<Statement> parsePassStatement() {
+        match({TokenType::NEWLINE, TokenType::SEMICOLON}); // Optional terminator
+        return std::make_unique<PassStatement>();
+    }
+    
     std::unique_ptr<Statement> parseBlockStatement() {
         auto block = std::make_unique<BlockStatement>();
         
@@ -441,10 +468,22 @@ private:
         return parseLogicalOr();
     }
     
+    // Parse expression but stop at statement terminators
+    std::unique_ptr<Expression> parseExpressionWithTerminators() {
+        auto expr = parseLogicalOr();
+        
+        // If we hit a statement terminator, return the expression as-is
+        if (isStatementTerminator()) {
+            return expr;
+        }
+        
+        return expr;
+    }
+    
     std::unique_ptr<Expression> parseLogicalOr() {
         auto expr = parseLogicalAnd();
         
-        while (match({TokenType::OR})) {
+        while (!isStatementTerminator() && match({TokenType::OR})) {
             BinaryOp op = BinaryOp::OR;
             auto right = parseLogicalAnd();
             expr = std::make_unique<BinaryExpression>(std::move(expr), op, std::move(right));
@@ -456,7 +495,7 @@ private:
     std::unique_ptr<Expression> parseLogicalAnd() {
         auto expr = parseEquality();
         
-        while (match({TokenType::AND})) {
+        while (!isStatementTerminator() && match({TokenType::AND})) {
             BinaryOp op = BinaryOp::AND;
             auto right = parseEquality();
             expr = std::make_unique<BinaryExpression>(std::move(expr), op, std::move(right));
@@ -468,7 +507,7 @@ private:
     std::unique_ptr<Expression> parseEquality() {
         auto expr = parseComparison();
         
-        while (match({TokenType::EQ, TokenType::NE})) {
+        while (!isStatementTerminator() && match({TokenType::EQ, TokenType::NE})) {
             BinaryOp op = (previous().type == TokenType::EQ) ? BinaryOp::EQ : BinaryOp::NE;
             auto right = parseComparison();
             expr = std::make_unique<BinaryExpression>(std::move(expr), op, std::move(right));
@@ -480,7 +519,7 @@ private:
     std::unique_ptr<Expression> parseComparison() {
         auto expr = parseTerm();
         
-        while (match({TokenType::LT, TokenType::LE, TokenType::GT, TokenType::GE})) {
+        while (!isStatementTerminator() && match({TokenType::LT, TokenType::LE, TokenType::GT, TokenType::GE})) {
             BinaryOp op;
             switch (previous().type) {
                 case TokenType::LT: op = BinaryOp::LT; break;
@@ -499,7 +538,7 @@ private:
     std::unique_ptr<Expression> parseTerm() {
         auto expr = parseFactor();
         
-        while (match({TokenType::PLUS, TokenType::MINUS})) {
+        while (!isStatementTerminator() && match({TokenType::PLUS, TokenType::MINUS})) {
             BinaryOp op = (previous().type == TokenType::PLUS) ? BinaryOp::ADD : BinaryOp::SUB;
             auto right = parseFactor();
             expr = std::make_unique<BinaryExpression>(std::move(expr), op, std::move(right));
@@ -511,7 +550,7 @@ private:
     std::unique_ptr<Expression> parseFactor() {
         auto expr = parsePower();
         
-        while (match({TokenType::MULTIPLY, TokenType::DIVIDE, TokenType::MODULO, TokenType::FLOOR_DIVIDE})) {
+        while (!isStatementTerminator() && match({TokenType::MULTIPLY, TokenType::DIVIDE, TokenType::MODULO, TokenType::FLOOR_DIVIDE})) {
             BinaryOp op;
             switch (previous().type) {
                 case TokenType::MULTIPLY: op = BinaryOp::MUL; break;
