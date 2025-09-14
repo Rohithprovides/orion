@@ -12,10 +12,9 @@ str_true: .string "True\n"
 str_false: .string "False\n"
 str_index_error: .string "Index Error\n"
 str_0: .string "enter your name"
-str_1: .string "Debug: about to compare"
+str_1: .string "tony"
 str_2: .string "tony"
-str_3: .string "SUCCESS: matched tony"
-str_4: .string "FAILED: did not match"
+str_3: .string "stranger"
 
 .section .text
 .global main
@@ -54,15 +53,10 @@ main:
     call orion_input_prompt  # Display prompt and read input
     # String address returned in %rax
     mov %rax, -8(%rbp)  # store global name
-    # Call out() with string
-    mov $str_1, %rsi
-    mov $format_str, %rdi
-    xor %rax, %rax
-    call printf
     # Integer binary operation
     mov -8(%rbp), %rax  # load global name
     push %rax
-    mov $str_2, %rax
+    mov $str_1, %rax
     pop %rbx
     cmp %rax, %rbx
     sete %al
@@ -70,14 +64,14 @@ main:
     test %rax, %rax
     jz else_0
     # Call out() with string
-    mov $str_3, %rsi
+    mov $str_2, %rsi
     mov $format_str, %rdi
     xor %rax, %rax
     call printf
     jmp end_if_0
 else_0:
     # Call out() with string
-    mov $str_4, %rsi
+    mov $str_3, %rsi
     mov $format_str, %rdi
     xor %rax, %rax
     call printf

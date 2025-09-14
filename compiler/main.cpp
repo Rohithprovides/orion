@@ -443,6 +443,19 @@ public:
                         varType = "int";  // Default to int for unknown operations
                         break;
                 }
+            } else if (auto funcCall = dynamic_cast<FunctionCall*>(node.initializer.get())) {
+                // Function call: infer return type based on function name
+                if (funcCall->name == "input") {
+                    varType = "string";  // input() returns a string
+                } else if (funcCall->name == "len") {
+                    varType = "int";     // len() returns an integer
+                } else if (funcCall->name == "dtype") {
+                    varType = "string";  // dtype() returns a string representation
+                } else {
+                    // For user-defined functions, we don't know the return type yet
+                    // Default to unknown and let runtime handle it
+                    varType = "string";  // Most user functions likely return strings or can be treated as such
+                }
             }
             
             // Check if variable already exists - if so, treat as reassignment

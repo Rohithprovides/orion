@@ -62,10 +62,24 @@ private:
         auto varInfo = lookupVariable(varName);
         
         if (varInfo == nullptr) {
-            // Create new local variable
+            // Create new variable with proper scoping
             stackOffset += 8;
-            localVariables[varName] = {stackOffset, "unknown", false, false};
-            varInfo = &localVariables[varName];
+            VariableInfo newVarInfo;
+            newVarInfo.stackOffset = stackOffset;
+            newVarInfo.type = "unknown";
+            newVarInfo.isConstant = false;
+            
+            if (inFunction && !declaredGlobal.count(varName)) {
+                // Create local variable
+                newVarInfo.isGlobal = false;
+                localVariables[varName] = newVarInfo;
+                varInfo = &localVariables[varName];
+            } else {
+                // Create global variable
+                newVarInfo.isGlobal = true;
+                globalVariables[varName] = newVarInfo;
+                varInfo = &globalVariables[varName];
+            }
         }
         
         // Store value from register to variable's stack slot
@@ -431,32 +445,48 @@ public:
                 }
             }
             
-            // Python-style scoping rules - PRE-DECLARE variable before evaluating initializer
-            if (declaredGlobal.count(node.name) || (!inFunction)) {
-                // Explicitly declared global OR not in function - use global scope
-                stackOffset += 8;
-                VariableInfo varInfo;
-                varInfo.stackOffset = stackOffset;
-                varInfo.type = varType;
-                varInfo.isGlobal = true;
-                varInfo.isConstant = node.isConstant;
-                globalVariables[node.name] = varInfo;
-                
-                if (node.isConstant) {
-                    constantVariables.insert(node.name);
+            // Check if variable already exists - if so, treat as reassignment
+            VariableInfo* existingVar = lookupVariable(node.name);
+            if (existingVar) {
+                // Variable exists - treat as reassignment, don't allocate new slot
+                if (node.isConstant && !existingVar->isConstant) {
+                    // Trying to make existing variable const - not allowed
+                    throw std::runtime_error("Error: Cannot make existing variable '" + node.name + "' constant");
                 }
+                if (existingVar->isConstant) {
+                    throw std::runtime_error("Error: You are trying to change the value of a constant variable '" + node.name + "'");
+                }
+                // Update type if needed, but keep existing slot and scope
+                existingVar->type = varType;
             } else {
-                // In function and not declared global - create local variable
-                stackOffset += 8;
-                VariableInfo varInfo;
-                varInfo.stackOffset = stackOffset;
-                varInfo.type = varType;
-                varInfo.isGlobal = false;
-                varInfo.isConstant = node.isConstant;
-                localVariables[node.name] = varInfo;
-                
-                if (node.isConstant) {
-                    constantVariables.insert(node.name);
+                // Variable doesn't exist - create new variable
+                // Python-style scoping rules - PRE-DECLARE variable before evaluating initializer
+                if (declaredGlobal.count(node.name) || (!inFunction)) {
+                    // Explicitly declared global OR not in function - use global scope
+                    stackOffset += 8;
+                    VariableInfo varInfo;
+                    varInfo.stackOffset = stackOffset;
+                    varInfo.type = varType;
+                    varInfo.isGlobal = true;
+                    varInfo.isConstant = node.isConstant;
+                    globalVariables[node.name] = varInfo;
+                    
+                    if (node.isConstant) {
+                        constantVariables.insert(node.name);
+                    }
+                } else {
+                    // In function and not declared global - create local variable
+                    stackOffset += 8;
+                    VariableInfo varInfo;
+                    varInfo.stackOffset = stackOffset;
+                    varInfo.type = varType;
+                    varInfo.isGlobal = false;
+                    varInfo.isConstant = node.isConstant;
+                    localVariables[node.name] = varInfo;
+                    
+                    if (node.isConstant) {
+                        constantVariables.insert(node.name);
+                    }
                 }
             }
             
@@ -1569,31 +1599,14 @@ public:
         
         // Assign the same value to ALL variables in the chain
         for (const std::string& varName : node.variables) {
-            // Find or create variable
+            // Find or create variable - use setVariable for consistency
+            setVariable(varName, "%rax");
+            
+            // Update type information for existing variable
             VariableInfo* varInfo = lookupVariable(varName);
-            if (!varInfo) {
-                // Variable doesn't exist, create it
-                stackOffset += 8;
-                VariableInfo newVarInfo;
-                newVarInfo.stackOffset = stackOffset;
-                newVarInfo.type = varType;  // Use inferred type
-                newVarInfo.isGlobal = (!inFunction) || declaredGlobal.count(varName);
-                newVarInfo.isConstant = false;
-                
-                if (inFunction && !declaredGlobal.count(varName)) {
-                    localVariables[varName] = newVarInfo;
-                    varInfo = &localVariables[varName];
-                } else {
-                    globalVariables[varName] = newVarInfo;
-                    varInfo = &globalVariables[varName];
-                }
-            } else {
-                // Variable exists, update its type
+            if (varInfo) {
                 varInfo->type = varType;
             }
-            
-            // Store the value directly from %rax to this variable
-            assembly << "    mov %rax, -" << varInfo->stackOffset << "(%rbp)  # assign to " << varName << "\n";
         }
         
         // Value remains in %rax for potential nested assignments or return
