@@ -30,7 +30,7 @@ def serve_static(filename):
     """Serve static files - restricted to safe files only."""
     # Only allow specific safe files to prevent exposure of compiler source and configs
     allowed_files = {
-        'style.css', 'script.js', 'favicon.ico', 
+        'style.css', 'script.js', 'favicon.ico', 'favicon.svg',
         'robots.txt', 'manifest.json'
     }
     
