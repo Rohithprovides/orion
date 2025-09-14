@@ -11,7 +11,6 @@ dtype_unknown: .string "datatype: unknown\n"
 str_true: .string "True\n"
 str_false: .string "False\n"
 str_index_error: .string "Index Error\n"
-str_0: .string "test"
 
 .section .text
 .global main
@@ -44,10 +43,13 @@ main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp
-    # Call out() with string
-    mov $str_0, %rsi
-    mov $format_str, %rdi
-    xor %rax, %rax
+    # Chain assignment
+    mov $5, %rax
+    mov %rax, -8(%rbp)  # assign to a
+    mov %rax, -16(%rbp)  # assign to b
+    # Call out() with variable: a (type: int)
+    mov -8(%rbp), %rsi
+    mov $format_int, %rdi
     call printf
     mov $0, %rax
     add $64, %rsp
