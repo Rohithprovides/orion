@@ -44,33 +44,6 @@ main:
     mov %rsp, %rbp
     sub $64, %rsp
     # Function 'main' defined in scope ''
-    # Explicit call to main()
-    # Executing function call: main
-    # Variable: x
-    mov $5, %rax
-    mov %rax, -8(%rbp)  # store local x
-loop_0:
-    # Integer binary operation
-    mov -8(%rbp), %rax  # load local x
-    push %rax
-    mov $0, %rax
-    pop %rbx
-    cmp %rax, %rbx
-    setg %al
-    movzx %al, %rax
-    test %rax, %rax
-    jz end_loop_0
-    # Variable: x
-    # Integer binary operation
-    mov -16(%rbp), %rax  # load local x
-    push %rax
-    mov $1, %rax
-    pop %rbx
-    sub %rax, %rbx
-    mov %rbx, %rax
-    mov %rax, -16(%rbp)  # store local x
-    jmp loop_0
-end_loop_0:
     mov $0, %rax
     add $64, %rsp
     pop %rbp

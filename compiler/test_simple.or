@@ -1,1 +1,1 @@
-fn main() { out("Testing Orion") }
+fn main() { out("Hello World") }
