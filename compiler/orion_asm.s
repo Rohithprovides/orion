@@ -11,6 +11,7 @@ dtype_unknown: .string "datatype: unknown\n"
 str_true: .string "True\n"
 str_false: .string "False\n"
 str_index_error: .string "Index Error\n"
+str_0: .string "Hello, Orion!"
 
 .section .text
 .global main
@@ -44,73 +45,14 @@ main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp
-    # range() function call
-    mov $10, %rax
-    mov %rax, %rdi  # Stop value as argument
-    call range_new_stop  # Create range with stop only
-    mov %rax, %r12  # Store iterable pointer
-    mov $0, %r13    # Initialize index
-    # For-in loop over range object
-    mov %r12, %rdi  # Range pointer
-    call range_len  # Get range length
-    mov %rax, %r14  # Store range length
-forin_loop_0:
-    cmp %r14, %r13
-    jge forin_end_0
-    mov %r12, %rdi  # Range pointer
-    mov %r13, %rsi  # Index
-    call range_get   # Get element at index
-    mov %rax, -8(%rbp)  # i = %rax (type: int)
-    # Integer binary operation
-    mov -8(%rbp), %rax  # load global i
-    push %rax
-    mov $3, %rax
-    pop %rbx
-    cmp %rax, %rbx
-    sete %al
-    movzx %al, %rax
-    test %rax, %rax
-    jz else_1
-    jmp forin_end_0
-    jmp end_if_1
-else_1:
-end_if_1:
-    # Integer binary operation
-    mov -8(%rbp), %rax  # load global i
-    push %rax
-    mov $1, %rax
-    pop %rbx
-    cmp %rax, %rbx
-    sete %al
-    movzx %al, %rax
-    test %rax, %rax
-    jz else_2
-    jmp forin_loop_0
-    jmp end_if_2
-else_2:
-end_if_2:
-    # Integer binary operation
-    mov -8(%rbp), %rax  # load global i
-    push %rax
-    mov $2, %rax
-    pop %rbx
-    cmp %rax, %rbx
-    sete %al
-    movzx %al, %rax
-    test %rax, %rax
-    jz else_3
-    # pass statement
-    jmp end_if_3
-else_3:
-end_if_3:
-    # Call out() with variable: i (type: int)
-    mov -8(%rbp), %rsi
-    mov $format_int, %rdi
+    # Function 'main' defined in scope ''
+    # Auto-executing main() function
+    # Executing function call: main
+    # Call out() with string
+    mov $str_0, %rsi
+    mov $format_str, %rdi
     xor %rax, %rax
     call printf
-    inc %r13
-    jmp forin_loop_0
-forin_end_0:
     mov $0, %rax
     add $64, %rsp
     pop %rbp
