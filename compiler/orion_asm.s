@@ -24,6 +24,7 @@ str_3: .string "stranger"
 .extern exit
 .extern fmod
 .extern pow
+.extern strcmp
 .extern list_new
 .extern list_from_data
 .extern list_len
@@ -53,14 +54,17 @@ main:
     call orion_input_prompt  # Display prompt and read input
     # String address returned in %rax
     mov %rax, -8(%rbp)  # store global name
-    # Integer binary operation
+    # String comparison operation
     mov -8(%rbp), %rax  # load global name
-    push %rax
+    mov %rax, %rdi  # First string as first argument
+    push %rdi  # Save first string
     mov $str_1, %rax
-    pop %rbx
-    cmp %rax, %rbx
-    sete %al
-    movzx %al, %rax
+    mov %rax, %rsi  # Second string as second argument
+    pop %rdi  # Restore first string
+    call strcmp  # Compare strings
+    cmp $0, %eax  # Compare strcmp result with 0
+    sete %al      # Set %al to 1 if equal, 0 if not
+    movzx %al, %rax  # Zero-extend to full register
     test %rax, %rax
     jz else_0
     # Call out() with string
