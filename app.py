@@ -4,7 +4,7 @@ Orion Programming Language Web Compiler Server
 Pure compiled language implementation using C++ compiler.
 """
 
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, make_response
 from flask_cors import CORS
 import json
 import time
@@ -19,12 +19,20 @@ CORS(app)
 @app.route('/')
 def index():
     """Serve the main HTML page."""
-    return send_from_directory('.', 'index.html')
+    response = make_response(send_from_directory('.', 'index.html'))
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 @app.route('/<path:filename>')
 def serve_static(filename):
     """Serve static files."""
-    return send_from_directory('.', filename)
+    response = make_response(send_from_directory('.', filename))
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 @app.route('/compile', methods=['POST'])
 def compile_code():
