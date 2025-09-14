@@ -1,11 +1,11 @@
-// Fibonacci sequence example in Orion
-// Demonstrates recursion, loops, and different syntax styles
+# Fibonacci sequence example in Orion
+# Demonstrates recursion, loops, and automatic type detection
 
-// Recursive fibonacci function (single-line syntax)
-fibonacci_recursive(n int) -> int => n <= 1 ? n : fibonacci_recursive(n - 1) + fibonacci_recursive(n - 2)
+# Recursive fibonacci function (single-line syntax)
+fibonacci_recursive(n) => n <= 1 ? n : fibonacci_recursive(n - 1) + fibonacci_recursive(n - 2)
 
-// Iterative fibonacci function (block syntax)
-fibonacci_iterative(n int) -> int {
+# Iterative fibonacci function (block syntax)
+fibonacci_iterative(n) {
     if n <= 1 {
         return n
     }
@@ -22,12 +22,12 @@ fibonacci_iterative(n int) -> int {
     return b
 }
 
-// Function to print fibonacci sequence
-print_fibonacci(count int, use_recursive bool) -> void {
-    print("Fibonacci sequence (" + (use_recursive ? "recursive" : "iterative") + "):")
+# Function to print fibonacci sequence
+print_fibonacci(count, use_recursive) {
+    out("Fibonacci sequence (" + (use_recursive ? "recursive" : "iterative") + "):")
     
     for i = 0; i < count; i++ {
-        result int
+        result = 0  # Automatic type detection
         
         if use_recursive {
             result = fibonacci_recursive(i)
@@ -35,46 +35,46 @@ print_fibonacci(count int, use_recursive bool) -> void {
             result = fibonacci_iterative(i)
         }
         
-        print("F(" + str(i) + ") = " + str(result))
+        out("F(" + str(i) + ") = " + str(result))
     }
 }
 
-// Performance comparison
-time_fibonacci(n int) -> void {
-    print("\nPerformance comparison for F(" + str(n) + "):")
+# Performance comparison
+time_fibonacci(n) {
+    out("\nPerformance comparison for F(" + str(n) + "):")
     
-    // Time iterative version
-    print("Calculating iterative...")
+    # Time iterative version
+    out("Calculating iterative...")
     result_iter = fibonacci_iterative(n)
-    print("Iterative result: " + str(result_iter))
+    out("Iterative result: " + str(result_iter))
     
-    // Time recursive version (only for small n to avoid long waits)
+    # Time recursive version (only for small n to avoid long waits)
     if n <= 35 {
-        print("Calculating recursive...")
+        out("Calculating recursive...")
         result_rec = fibonacci_recursive(n)
-        print("Recursive result: " + str(result_rec))
+        out("Recursive result: " + str(result_rec))
     } else {
-        print("Skipping recursive version (too slow for n > 35)")
+        out("Skipping recursive version (too slow for n > 35)")
     }
 }
 
-// Fibonacci with memoization
+# Fibonacci with memoization
 struct FibCache {
-    cache int[100]  // Simple fixed-size cache
-    size int
+    cache[100]  # Simple fixed-size cache
+    size
 }
 
-fibonacci_memoized(n int, cache FibCache*) -> int {
+fibonacci_memoized(n, cache) {
     if n <= 1 {
         return n
     }
     
-    // Check cache
+    # Check cache
     if n < cache.size && cache.cache[n] != -1 {
         return cache.cache[n]
     }
     
-    // Calculate and cache
+    # Calculate and cache
     result = fibonacci_memoized(n - 1, cache) + fibonacci_memoized(n - 2, cache)
     
     if n < 100 {
@@ -87,12 +87,12 @@ fibonacci_memoized(n int, cache FibCache*) -> int {
     return result
 }
 
-// Initialize cache
-init_cache() -> FibCache {
-    cache FibCache
+# Initialize cache
+init_cache() {
+    cache = {}
     cache.size = 0
     
-    // Initialize cache with -1 (uncomputed)
+    # Initialize cache with -1 (uncomputed)
     for i = 0; i < 100; i++ {
         cache.cache[i] = -1
     }
@@ -100,31 +100,15 @@ init_cache() -> FibCache {
     return cache
 }
 
-// Main function
-main() -> int {
-    print("=== Orion Fibonacci Examples ===")
+# Main function
+fn main() {
+    out("=== Orion Fibonacci Examples ===")
     
-    // Basic examples
-    print_fibonacci(10, false)  // Iterative
-    print("")
-    print_fibonacci(10, true)   // Recursive
+    # Basic examples
+    print_fibonacci(10, false)  # Iterative
+    out("")
+    print_fibonacci(10, true)   # Recursive
     
-    // Performance comparison
+    # Performance comparison
     time_fibonacci(30)
-    
-    // Memoized version
-    print("\n=== Memoized Fibonacci ===")
-    cache = init_cache()
-    
-    for i = 0; i < 15; i++ {
-        result = fibonacci_memoized(i, &cache)
-        print("F(" + str(i) + ") = " + str(result))
-    }
-    
-    // Large number with memoization
-    print("\nLarge Fibonacci number:")
-    big_result = fibonacci_memoized(50, &cache)
-    print("F(50) = " + str(big_result))
-    
-    return 0
 }
