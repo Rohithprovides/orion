@@ -16,10 +16,10 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Orion Web Interface"
+args = "Orion Web IDE"
 
 [[workflows.workflow]]
-name = "Orion Web Interface"
+name = "Orion Web IDE"
 author = "agent"
 
 [[workflows.workflow.tasks]]
@@ -35,12 +35,12 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 39707
-externalPort = 3000
-
-[[ports]]
 localPort = 41383
 externalPort = 3001
+
+[[ports]]
+localPort = 42417
+externalPort = 3002
 
 [deployment]
 deploymentTarget = "autoscale"
