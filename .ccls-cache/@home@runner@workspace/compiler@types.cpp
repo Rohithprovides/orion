@@ -612,26 +612,7 @@ public:
         node.body->accept(*this);
     }
     
-    void visit(ForStatement& node) override {
-        if (node.init) {
-            node.init->accept(*this);
-        }
-        
-        if (node.condition) {
-            node.condition->accept(*this);
-            Type condType = inferType(*node.condition);
-            
-            if (condType.kind != TypeKind::BOOL) {
-                addError("For condition must be boolean, got " + condType.toString());
-            }
-        }
-        
-        if (node.update) {
-            node.update->accept(*this);
-        }
-        
-        node.body->accept(*this);
-    }
+    // ForStatement removed - only ForInStatement is supported
     
     void visit(StructDeclaration& node) override {
         // Basic validation - check for duplicate fields

@@ -58,6 +58,10 @@ private:
     }
     
     void setVariable(const std::string& varName, const std::string& valueRegister) {
+        setVariable(varName, valueRegister, "unknown");
+    }
+    
+    void setVariable(const std::string& varName, const std::string& valueRegister, const std::string& varType) {
         // Look up existing variable
         auto varInfo = lookupVariable(varName);
         
@@ -66,7 +70,7 @@ private:
             stackOffset += 8;
             VariableInfo newVarInfo;
             newVarInfo.stackOffset = stackOffset;
-            newVarInfo.type = "unknown";
+            newVarInfo.type = varType;
             newVarInfo.isConstant = false;
             
             if (inFunction && !declaredGlobal.count(varName)) {
@@ -80,10 +84,15 @@ private:
                 globalVariables[varName] = newVarInfo;
                 varInfo = &globalVariables[varName];
             }
+        } else {
+            // Update existing variable's type if specified
+            if (varType != "unknown") {
+                varInfo->type = varType;
+            }
         }
         
         // Store value from register to variable's stack slot
-        assembly << "    mov " << valueRegister << ", -" << varInfo->stackOffset << "(%rbp)  # " << varName << " = " << valueRegister << "\n";
+        assembly << "    mov " << valueRegister << ", -" << varInfo->stackOffset << "(%rbp)  # " << varName << " = " << valueRegister << " (type: " << varInfo->type << ")\n";
     }
     
     bool isFloatExpression(Expression* expr) {
@@ -267,7 +276,16 @@ public:
             }
         }
         
-        // Note: main() functions now only execute when explicitly called (Python-style behavior)
+        // Third pass: Auto-execute main() function if it exists in global scope
+        auto globalScopeIt = functionScopes.find("");
+        if (globalScopeIt != functionScopes.end()) {
+            auto mainFuncIt = globalScopeIt->second.functions.find("main");
+            if (mainFuncIt != globalScopeIt->second.functions.end()) {
+                assembly << "    # Auto-executing main() function\n";
+                std::vector<std::unique_ptr<Expression>> emptyArgs;
+                executeFunctionCall("main", emptyArgs);
+            }
+        }
     }
     
     void collectFunctions(const std::vector<std::unique_ptr<Statement>>& statements, const std::string& currentScope = "") {
@@ -543,6 +561,20 @@ public:
                 throw std::runtime_error("len() function requires exactly 1 argument");
             }
             assembly << "    # len() function call\n";
+            
+            // Check if the argument is a range() function call
+            if (auto funcCall = dynamic_cast<FunctionCall*>(node.arguments[0].get())) {
+                if (funcCall->name == "range") {
+                    // This is a range object - call range_len
+                    node.arguments[0]->accept(*this);  // Evaluate range argument
+                    assembly << "    mov %rax, %rdi  # Range pointer as argument\n";
+                    assembly << "    call range_len  # Get range length\n";
+                    // Result in %rax
+                    return;
+                }
+            }
+            
+            // Default to list behavior for other cases
             node.arguments[0]->accept(*this);  // Evaluate list argument
             assembly << "    mov %rax, %rdi  # List pointer as argument\n";
             assembly << "    call list_len  # Get list length\n";
@@ -580,6 +612,51 @@ public:
             assembly << "    mov %rax, %rdi  # List pointer as argument\n";
             assembly << "    call list_pop  # Pop last element\n";
             // Result (popped element) in %rax
+            return;
+        }
+        
+        if (node.name == "range") {
+            // Handle range() function calls with 1-3 arguments
+            if (node.arguments.size() < 1 || node.arguments.size() > 3) {
+                throw std::runtime_error("range() function requires 1, 2, or 3 arguments");
+            }
+            
+            assembly << "    # range() function call\n";
+            
+            if (node.arguments.size() == 1) {
+                // range(stop) - start=0, step=1
+                node.arguments[0]->accept(*this);  // Evaluate stop argument
+                assembly << "    mov %rax, %rdi  # Stop value as argument\n";
+                assembly << "    call range_new_stop  # Create range with stop only\n";
+            } else if (node.arguments.size() == 2) {
+                // range(start, stop) - step=1
+                node.arguments[0]->accept(*this);  // Evaluate start argument
+                assembly << "    mov %rax, %rdi  # Start value as first argument\n";
+                assembly << "    push %rdi  # Save start value\n";
+                
+                node.arguments[1]->accept(*this);  // Evaluate stop argument
+                assembly << "    mov %rax, %rsi  # Stop value as second argument\n";
+                assembly << "    pop %rdi  # Restore start value\n";
+                
+                assembly << "    call range_new_start_stop  # Create range with start and stop\n";
+            } else {
+                // range(start, stop, step)
+                node.arguments[0]->accept(*this);  // Evaluate start argument
+                assembly << "    mov %rax, %rdi  # Start value as first argument\n";
+                assembly << "    push %rdi  # Save start value\n";
+                
+                node.arguments[1]->accept(*this);  // Evaluate stop argument
+                assembly << "    mov %rax, %rsi  # Stop value as second argument\n";
+                assembly << "    push %rsi  # Save stop value\n";
+                
+                node.arguments[2]->accept(*this);  // Evaluate step argument
+                assembly << "    mov %rax, %rdx  # Step value as third argument\n";
+                assembly << "    pop %rsi  # Restore stop value\n";
+                assembly << "    pop %rdi  # Restore start value\n";
+                
+                assembly << "    call range_new  # Create range with start, stop, and step\n";
+            }
+            // Result (range pointer) in %rax
             return;
         }
         
@@ -646,14 +723,17 @@ public:
                         
                         if (it->type == "int") {
                             assembly << "    mov $format_int, %rdi\n";
+                            assembly << "    xor %rax, %rax\n";
                         } else if (it->type == "bool") {
                             assembly << "    mov $format_str, %rdi\n";
+                            assembly << "    xor %rax, %rax\n";
                         } else if (it->type == "float") {
                             assembly << "    movq -" << it->stackOffset << "(%rbp), %xmm0\n";  // Load float into XMM register  
                             assembly << "    mov $format_float, %rdi\n";
                             assembly << "    mov $1, %rax\n";  // Number of vector registers used
                         } else {
                             assembly << "    mov $format_str, %rdi\n";
+                            assembly << "    xor %rax, %rax\n";
                         }
                         
                         assembly << "    call printf\n";
@@ -1741,96 +1821,130 @@ public:
         continueLabels.pop();
     }
     
-    void visit(ForStatement& node) override {
-        std::string loopLabel = "for_loop_" + std::to_string(labelCounter);
-        std::string continueLabel = "for_continue_" + std::to_string(labelCounter);
-        std::string endLabel = "for_end_" + std::to_string(labelCounter);
-        labelCounter++;
-        
-        // Store current loop labels for break/continue
-        breakLabels.push(endLabel);
-        continueLabels.push(continueLabel);
-        
-        // Initialization
-        if (node.init) {
-            node.init->accept(*this);
-        }
-        
-        // Loop start
-        assembly << loopLabel << ":\n";
-        
-        // Condition check
-        if (node.condition) {
-            node.condition->accept(*this);
-            assembly << "    test %rax, %rax\n";
-            assembly << "    jz " << endLabel << "\n";
-        }
-        
-        // Loop body
-        node.body->accept(*this);
-        
-        // Continue point (for continue statements)
-        assembly << continueLabel << ":\n";
-        
-        // Update expression
-        if (node.update) {
-            node.update->accept(*this);
-        }
-        
-        // Jump back to condition check
-        assembly << "    jmp " << loopLabel << "\n";
-        
-        // Loop end
-        assembly << endLabel << ":\n";
-        
-        // Restore previous loop labels
-        breakLabels.pop();
-        continueLabels.pop();
-    }
+    // ForStatement removed - only ForInStatement is supported
     
     void visit(ForInStatement& node) override {
         std::string loopLabel = "forin_loop_" + std::to_string(labelCounter);
         std::string endLabel = "forin_end_" + std::to_string(labelCounter);
+        std::string isRangeLabel = "forin_is_range_" + std::to_string(labelCounter);
+        std::string isListLabel = "forin_is_list_" + std::to_string(labelCounter);
         labelCounter++;
         
         // Store current loop labels for break/continue
         breakLabels.push(endLabel);
         continueLabels.push(loopLabel);
         
-        // Evaluate iterable (should be a list)
+        // Evaluate iterable (can be a list or range)
         node.iterable->accept(*this);
-        assembly << "    mov %rax, %r12  # Store list pointer\n";
+        assembly << "    mov %rax, %r12  # Store iterable pointer\n";
         assembly << "    mov $0, %r13    # Initialize index\n";
         
-        // Get list length
-        assembly << "    mov (%r12), %r14  # Load list length\n";
-        
-        // Loop start
-        assembly << loopLabel << ":\n";
-        
-        // Check if index < length
-        assembly << "    cmp %r14, %r13\n";
-        assembly << "    jge " << endLabel << "\n";
-        
-        // Get current element: list[index]
-        assembly << "    mov %r12, %rdi  # List pointer\n";
-        assembly << "    mov %r13, %rsi  # Index\n";
-        assembly << "    call list_get   # Get element at index\n";
-        
-        // Store current element in loop variable
-        setVariable(node.variable, "%rax");
-        
-        // Execute loop body
-        node.body->accept(*this);
-        
-        // Increment index
-        assembly << "    inc %r13\n";
-        
-        // Jump back to loop condition
-        assembly << "    jmp " << loopLabel << "\n";
-        
-        // Loop end
-        assembly << endLabel << ":\n";
+        // Check if iterable is a range or list by checking if it's a result of range() call
+        // We'll use a simple heuristic: check if the iterable is a FunctionCall with name "range"
+        if (auto funcCall = dynamic_cast<FunctionCall*>(node.iterable.get())) {
+            if (funcCall->name == "range") {
+                // This is a range object
+                assembly << "    # For-in loop over range object\n";
+                
+                // Get range length
+                assembly << "    mov %r12, %rdi  # Range pointer\n";
+                assembly << "    call range_len  # Get range length\n";
+                assembly << "    mov %rax, %r14  # Store range length\n";
+                
+                // Loop start
+                assembly << loopLabel << ":\n";
+                
+                // Check if index < length
+                assembly << "    cmp %r14, %r13\n";
+                assembly << "    jge " << endLabel << "\n";
+                
+                // Get current element: range[index]
+                assembly << "    mov %r12, %rdi  # Range pointer\n";
+                assembly << "    mov %r13, %rsi  # Index\n";
+                assembly << "    call range_get   # Get element at index\n";
+                
+                // Store current element in loop variable (range elements are integers)
+                setVariable(node.variable, "%rax", "int");
+                
+                // Execute loop body
+                node.body->accept(*this);
+                
+                // Increment index
+                assembly << "    inc %r13\n";
+                
+                // Jump back to loop condition
+                assembly << "    jmp " << loopLabel << "\n";
+                
+                // Loop end
+                assembly << endLabel << ":\n";
+            } else {
+                // Default to list behavior for other function calls
+                assembly << "    # For-in loop over list object\n";
+                
+                // Get list length
+                assembly << "    mov (%r12), %r14  # Load list length\n";
+                
+                // Loop start
+                assembly << loopLabel << ":\n";
+                
+                // Check if index < length
+                assembly << "    cmp %r14, %r13\n";
+                assembly << "    jge " << endLabel << "\n";
+                
+                // Get current element: list[index]
+                assembly << "    mov %r12, %rdi  # List pointer\n";
+                assembly << "    mov %r13, %rsi  # Index\n";
+                assembly << "    call list_get   # Get element at index\n";
+                
+                // Store current element in loop variable (list elements can be any type, default to int)
+                setVariable(node.variable, "%rax", "int");
+                
+                // Execute loop body
+                node.body->accept(*this);
+                
+                // Increment index
+                assembly << "    inc %r13\n";
+                
+                // Jump back to loop condition
+                assembly << "    jmp " << loopLabel << "\n";
+                
+                // Loop end
+                assembly << endLabel << ":\n";
+            }
+        } else {
+            // Default to list behavior for non-function call iterables
+            assembly << "    # For-in loop over list object (default)\n";
+            
+            // Get list length
+            assembly << "    mov (%r12), %r14  # Load list length\n";
+            
+            // Loop start
+            assembly << loopLabel << ":\n";
+            
+            // Check if index < length
+            assembly << "    cmp %r14, %r13\n";
+            assembly << "    jge " << endLabel << "\n";
+            
+            // Get current element: list[index]
+            assembly << "    mov %r12, %rdi  # List pointer\n";
+            assembly << "    mov %r13, %rsi  # Index\n";
+            assembly << "    call list_get   # Get element at index\n";
+            
+            // Store current element in loop variable (list elements can be any type, default to int)
+            setVariable(node.variable, "%rax", "int");
+            
+            // Execute loop body
+            node.body->accept(*this);
+            
+            // Increment index
+            assembly << "    inc %r13\n";
+            
+            // Jump back to loop condition
+            assembly << "    jmp " << loopLabel << "\n";
+            
+            // Loop end
+            assembly << endLabel << ":\n";
+        }
         
         // Restore previous loop labels
         breakLabels.pop();
