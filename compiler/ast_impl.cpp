@@ -331,4 +331,46 @@ std::string Program::toString(int indent) const {
     return result;
 }
 
+void ForInStatement::accept(ASTVisitor& visitor) {
+    visitor.visit(*this);
+}
+
+std::string ForInStatement::toString(int indent) const {
+    std::string indentStr(indent, ' ');
+    std::string result = indentStr + "ForInStatement:\n";
+    result += indentStr + "  Variable: " + variable + "\n";
+    result += indentStr + "  Iterable:\n";
+    result += iterable->toString(indent + 4);
+    result += indentStr + "  Body:\n";
+    result += body->toString(indent + 4);
+    return result;
+}
+
+void BreakStatement::accept(ASTVisitor& visitor) {
+    visitor.visit(*this);
+}
+
+std::string BreakStatement::toString(int indent) const {
+    std::string indentStr(indent, ' ');
+    return indentStr + "BreakStatement";
+}
+
+void ContinueStatement::accept(ASTVisitor& visitor) {
+    visitor.visit(*this);
+}
+
+std::string ContinueStatement::toString(int indent) const {
+    std::string indentStr(indent, ' ');
+    return indentStr + "ContinueStatement";
+}
+
+void PassStatement::accept(ASTVisitor& visitor) {
+    visitor.visit(*this);
+}
+
+std::string PassStatement::toString(int indent) const {
+    std::string indentStr(indent, ' ');
+    return indentStr + "PassStatement";
+}
+
 } // namespace orion
