@@ -44,17 +44,7 @@ main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp
-    # Function 'test' defined in scope ''
-    # Function 'main' defined in scope ''
-    # Auto-executing main() function
-    # Executing function call: main
-    # Function prologue: setting up parameters
-    # User-defined function call: test
-    # Executing function call: test
-    # Function prologue: setting up parameters
-    mov %rdi, -8(%rbp)  # param x from %rdi
-    # Parameter x (type: int) at stack offset -8
-    mov -8(%rbp), %rax  # load local x
+    # Function 'add' defined in scope ''
     mov $0, %rax
     add $64, %rsp
     pop %rbp
