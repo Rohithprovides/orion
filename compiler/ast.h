@@ -462,6 +462,49 @@ public:
     std::string toString(int indent = 0) const override;
 };
 
+// Python-style for-in statement
+class ForInStatement : public Statement {
+public:
+    std::string variable;                        // for x in ...
+    std::unique_ptr<Expression> iterable;        // ... in iterable
+    std::unique_ptr<Statement> body;
+    
+    ForInStatement(const std::string& var, 
+                   std::unique_ptr<Expression> iter,
+                   std::unique_ptr<Statement> body_stmt)
+        : variable(var), iterable(std::move(iter)), body(std::move(body_stmt)) {}
+    
+    void accept(ASTVisitor& visitor) override;
+    std::string toString(int indent = 0) const override;
+};
+
+// Break statement
+class BreakStatement : public Statement {
+public:
+    BreakStatement() {}
+    
+    void accept(ASTVisitor& visitor) override;
+    std::string toString(int indent = 0) const override;
+};
+
+// Continue statement
+class ContinueStatement : public Statement {
+public:
+    ContinueStatement() {}
+    
+    void accept(ASTVisitor& visitor) override;
+    std::string toString(int indent = 0) const override;
+};
+
+// Pass statement
+class PassStatement : public Statement {
+public:
+    PassStatement() {}
+    
+    void accept(ASTVisitor& visitor) override;
+    std::string toString(int indent = 0) const override;
+};
+
 // Struct field
 struct StructField {
     std::string name;
@@ -539,6 +582,10 @@ public:
     virtual void visit(IfStatement& node) = 0;
     virtual void visit(WhileStatement& node) = 0;
     virtual void visit(ForStatement& node) = 0;
+    virtual void visit(ForInStatement& node) = 0;
+    virtual void visit(BreakStatement& node) = 0;
+    virtual void visit(ContinueStatement& node) = 0;
+    virtual void visit(PassStatement& node) = 0;
     virtual void visit(StructDeclaration& node) = 0;
     virtual void visit(EnumDeclaration& node) = 0;
     virtual void visit(Program& node) = 0;
