@@ -45,6 +45,24 @@ main:
     mov %rsp, %rbp
     sub $64, %rsp
     # Function 'add' defined in scope ''
+    # User-defined function call: add
+    # Executing function call: add
+    # Function prologue: setting up parameters
+    mov %rdi, -8(%rbp)  # param a from %rdi
+    # Parameter a (type: int) at stack offset -8
+    mov %rsi, -16(%rbp)  # param b from %rsi
+    # Parameter b (type: int) at stack offset -16
+    # Integer binary operation
+    mov -8(%rbp), %rax  # load local a
+    push %rax
+    mov -16(%rbp), %rax  # load local b
+    pop %rbx
+    add %rbx, %rax
+    # Call out() with expression result
+    mov %rax, %rsi
+    mov $format_int, %rdi
+    xor %rax, %rax
+    call printf
     mov $0, %rax
     add $64, %rsp
     pop %rbp
