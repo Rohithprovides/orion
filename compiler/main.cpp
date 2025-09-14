@@ -13,6 +13,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <unordered_set>
+#include <stack>
 
 namespace orion {
 
@@ -48,8 +49,27 @@ private:
     bool inFunction = false;
     int labelCounter = 0;
     
+    // For managing nested loops and break/continue statements
+    std::stack<std::string> breakLabels;
+    std::stack<std::string> continueLabels;
+    
     std::string newLabel(const std::string& prefix = "L") {
         return prefix + std::to_string(labelCounter++);
+    }
+    
+    void setVariable(const std::string& varName, const std::string& valueRegister) {
+        // Look up existing variable
+        auto varInfo = lookupVariable(varName);
+        
+        if (varInfo == nullptr) {
+            // Create new local variable
+            stackOffset += 8;
+            localVariables[varName] = {stackOffset, "unknown", false, false};
+            varInfo = &localVariables[varName];
+        }
+        
+        // Store value from register to variable's stack slot
+        assembly << "    mov " << valueRegister << ", -" << varInfo->stackOffset << "(%rbp)  # " << varName << " = " << valueRegister << "\n";
     }
     
     bool isFloatExpression(Expression* expr) {
@@ -1579,8 +1599,151 @@ public:
         
         assembly << endLabel << ":\n";
     }
-    void visit(WhileStatement& node) override { }
-    void visit(ForStatement& node) override { }
+    void visit(WhileStatement& node) override {
+        std::string loopLabel = "loop_" + std::to_string(labelCounter);
+        std::string endLabel = "end_loop_" + std::to_string(labelCounter);
+        labelCounter++;
+        
+        // Store current loop labels for break/continue
+        breakLabels.push(endLabel);
+        continueLabels.push(loopLabel);
+        
+        // Loop start
+        assembly << loopLabel << ":\n";
+        
+        // Evaluate condition
+        node.condition->accept(*this);
+        assembly << "    test %rax, %rax\n";
+        assembly << "    jz " << endLabel << "\n";
+        
+        // Loop body
+        node.body->accept(*this);
+        
+        // Jump back to condition check
+        assembly << "    jmp " << loopLabel << "\n";
+        
+        // Loop end
+        assembly << endLabel << ":\n";
+        
+        // Restore previous loop labels
+        breakLabels.pop();
+        continueLabels.pop();
+    }
+    
+    void visit(ForStatement& node) override {
+        std::string loopLabel = "for_loop_" + std::to_string(labelCounter);
+        std::string continueLabel = "for_continue_" + std::to_string(labelCounter);
+        std::string endLabel = "for_end_" + std::to_string(labelCounter);
+        labelCounter++;
+        
+        // Store current loop labels for break/continue
+        breakLabels.push(endLabel);
+        continueLabels.push(continueLabel);
+        
+        // Initialization
+        if (node.init) {
+            node.init->accept(*this);
+        }
+        
+        // Loop start
+        assembly << loopLabel << ":\n";
+        
+        // Condition check
+        if (node.condition) {
+            node.condition->accept(*this);
+            assembly << "    test %rax, %rax\n";
+            assembly << "    jz " << endLabel << "\n";
+        }
+        
+        // Loop body
+        node.body->accept(*this);
+        
+        // Continue point (for continue statements)
+        assembly << continueLabel << ":\n";
+        
+        // Update expression
+        if (node.update) {
+            node.update->accept(*this);
+        }
+        
+        // Jump back to condition check
+        assembly << "    jmp " << loopLabel << "\n";
+        
+        // Loop end
+        assembly << endLabel << ":\n";
+        
+        // Restore previous loop labels
+        breakLabels.pop();
+        continueLabels.pop();
+    }
+    
+    void visit(ForInStatement& node) override {
+        std::string loopLabel = "forin_loop_" + std::to_string(labelCounter);
+        std::string endLabel = "forin_end_" + std::to_string(labelCounter);
+        labelCounter++;
+        
+        // Store current loop labels for break/continue
+        breakLabels.push(endLabel);
+        continueLabels.push(loopLabel);
+        
+        // Evaluate iterable (should be a list)
+        node.iterable->accept(*this);
+        assembly << "    mov %rax, %r12  # Store list pointer\n";
+        assembly << "    mov $0, %r13    # Initialize index\n";
+        
+        // Get list length
+        assembly << "    mov (%r12), %r14  # Load list length\n";
+        
+        // Loop start
+        assembly << loopLabel << ":\n";
+        
+        // Check if index < length
+        assembly << "    cmp %r14, %r13\n";
+        assembly << "    jge " << endLabel << "\n";
+        
+        // Get current element: list[index]
+        assembly << "    mov %r12, %rdi  # List pointer\n";
+        assembly << "    mov %r13, %rsi  # Index\n";
+        assembly << "    call list_get   # Get element at index\n";
+        
+        // Store current element in loop variable
+        setVariable(node.variable, "%rax");
+        
+        // Execute loop body
+        node.body->accept(*this);
+        
+        // Increment index
+        assembly << "    inc %r13\n";
+        
+        // Jump back to loop condition
+        assembly << "    jmp " << loopLabel << "\n";
+        
+        // Loop end
+        assembly << endLabel << ":\n";
+        
+        // Restore previous loop labels
+        breakLabels.pop();
+        continueLabels.pop();
+    }
+    
+    void visit(BreakStatement& node) override {
+        if (breakLabels.empty()) {
+            throw std::runtime_error("Break statement not inside a loop");
+        }
+        assembly << "    jmp " << breakLabels.top() << "\n";
+    }
+    
+    void visit(ContinueStatement& node) override {
+        if (continueLabels.empty()) {
+            throw std::runtime_error("Continue statement not inside a loop");
+        }
+        assembly << "    jmp " << continueLabels.top() << "\n";
+    }
+    
+    void visit(PassStatement& node) override {
+        // Pass statement does nothing - just emit a comment
+        assembly << "    # pass statement\n";
+    }
     void visit(GlobalStatement& node) override {
         for (const std::string& varName : node.variables) {
             declaredGlobal.insert(varName);
