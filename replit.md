@@ -16,7 +16,12 @@ Preferred communication style: Simple, everyday language.
 - **Compiler Testing**: Tested C++ Orion compiler binary - web API endpoints working perfectly with proper JSON responses
 - **Web Interface**: Confirmed frontend working with Bootstrap 5, Prism.js syntax highlighting, and Feather icons
 - **API Endpoints**: All endpoints functional - /compile, /check-syntax, /ast, and static file serving
-- **Import Complete**: Project fully operational and ready for development/use
+- **Parameter Passing Bug Fix**: **CRITICAL BUG FIXED** - Resolved parameter passing mechanism where function parameters were returning garbage values instead of correct arguments
+  - **Root Cause**: Functions were generated inline within main execution stream, causing control flow to fall through into function bodies immediately
+  - **Solution**: Split assembly generation into separate buffers (funcsAsm for functions, assembly for main execution)  
+  - **Implementation**: Fixed function call mechanism to use proper System V AMD64 calling convention with real `call` instructions
+  - **Testing**: Verified all parameter scenarios now work correctly (e.g., `add(5,6)` returns `11`, `test(42)` returns `42`, `multiply(2,3,4)` returns `24`)
+- **Import Complete**: Project fully operational with all critical bugs resolved and ready for production use
 
 ## System Architecture
 ### Frontend Architecture
