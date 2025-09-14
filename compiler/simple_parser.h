@@ -58,6 +58,11 @@ private:
         return peek().type == type;
     }
     
+    bool checkNext(TokenType type) const {
+        if (current + 1 >= tokens.size()) return false;
+        return tokens[current + 1].type == type;
+    }
+    
     bool isStatementStarter(TokenType type) const {
         return type == TokenType::WHILE || type == TokenType::FOR || 
                type == TokenType::IF || type == TokenType::RETURN ||
@@ -722,6 +727,12 @@ private:
             }
         }
         
+        // Handle built-in type conversion functions that are keywords
+        if (check(TokenType::INT) && checkNext(TokenType::LPAREN)) {
+            advance(); // consume 'int'
+            return parseBuiltinFunctionCall("int");
+        }
+        
         if (check(TokenType::IDENTIFIER)) {
             std::string varName = advance().value;
             return std::make_unique<Identifier>(varName);
@@ -733,6 +744,26 @@ private:
         }
         
         throw std::runtime_error("Unexpected token in expression");
+    }
+    
+    std::unique_ptr<FunctionCall> parseBuiltinFunctionCall(const std::string& name) {
+        auto call = std::make_unique<FunctionCall>(name);
+        
+        advance(); // consume '('
+        
+        // Parse arguments
+        if (!check(TokenType::RPAREN)) {
+            do {
+                call->arguments.push_back(parseExpression());
+            } while (check(TokenType::COMMA) && (advance(), true));
+        }
+        
+        if (!check(TokenType::RPAREN)) {
+            throw std::runtime_error("Expected ')' after function arguments");
+        }
+        advance(); // consume ')'
+        
+        return call;
     }
     
     std::unique_ptr<InterpolatedString> parseInterpolatedString(const Token& token) {

@@ -807,11 +807,36 @@ public:
             if (!node.arguments.empty()) {
                 auto& arg = node.arguments[0];
                 
-                // Check if the argument is a dtype() function call
-                if (auto dtypeCall = dynamic_cast<FunctionCall*>(arg.get())) {
-                    if (dtypeCall->name == "dtype" && !dtypeCall->arguments.empty()) {
+                // Check if the argument is a special function call
+                if (auto funcCall = dynamic_cast<FunctionCall*>(arg.get())) {
+                    // Handle built-in type conversion functions
+                    if (funcCall->name == "str") {
+                        assembly << "    # Call out() with str() result\n";
+                        funcCall->accept(*this);  // This calls str() and puts result in %rax
+                        assembly << "    mov %rax, %rsi  # String pointer as argument\n";
+                        assembly << "    mov $format_str, %rdi  # Use string format\n";
+                        assembly << "    xor %rax, %rax\n";
+                        assembly << "    call printf\n";
+                        return;
+                    } else if (funcCall->name == "int") {
+                        assembly << "    # Call out() with int() result\n";
+                        funcCall->accept(*this);  // This calls int() and puts result in %rax
+                        assembly << "    mov %rax, %rsi  # Integer value as argument\n";
+                        assembly << "    mov $format_int, %rdi  # Use integer format\n";
+                        assembly << "    xor %rax, %rax\n";
+                        assembly << "    call printf\n";
+                        return;
+                    } else if (funcCall->name == "flt") {
+                        assembly << "    # Call out() with flt() result\n";
+                        funcCall->accept(*this);  // This calls flt() and puts result in %rax
+                        assembly << "    movq %rax, %xmm0  # Float value to XMM register\n";
+                        assembly << "    mov $format_float, %rdi  # Use float format\n";
+                        assembly << "    mov $1, %rax  # Number of vector registers used\n";
+                        assembly << "    call printf\n";
+                        return;
+                    } else if (funcCall->name == "dtype" && !funcCall->arguments.empty()) {
                         // Handle dtype() call inside out()
-                        auto dtypeArg = dtypeCall->arguments[0].get();
+                        auto dtypeArg = funcCall->arguments[0].get();
                         if (auto id = dynamic_cast<Identifier*>(dtypeArg)) {
                             auto varIt = lookupVariable(id->name);
                             if (varIt != nullptr) {
