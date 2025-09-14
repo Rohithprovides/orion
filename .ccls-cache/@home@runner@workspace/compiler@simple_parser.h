@@ -73,7 +73,21 @@ private:
     }
     
     std::unique_ptr<Statement> parseStatement() {
-        // Check for tuple assignment first
+        // Return statement - check first to ensure it's caught
+        if (check(TokenType::RETURN) || (check(TokenType::IDENTIFIER) && peek().value == "return")) {
+            advance(); // consume 'return'
+            
+            // Check if there's an expression to return
+            std::unique_ptr<Expression> returnValue = nullptr;
+            if (!check(TokenType::NEWLINE) && !check(TokenType::SEMICOLON) && 
+                !check(TokenType::RBRACE) && !isAtEnd()) {
+                returnValue = parseExpression();
+            }
+            
+            return std::make_unique<ReturnStatement>(std::move(returnValue));
+        }
+        
+        // Check for tuple assignment
         if (check(TokenType::LPAREN)) {
             return parseTupleAssignmentOrExpression();
         }
@@ -124,20 +138,6 @@ private:
         if (check(TokenType::PASS)) {
             advance(); // consume 'pass'
             return std::make_unique<PassStatement>();
-        }
-        
-        // Return statement
-        if (check(TokenType::RETURN) || (check(TokenType::IDENTIFIER) && peek().value == "return")) {
-            advance(); // consume 'return'
-            auto returnStmt = std::make_unique<ReturnStatement>();
-            
-            // Check if there's an expression to return
-            if (!check(TokenType::NEWLINE) && !check(TokenType::SEMICOLON) && 
-                !check(TokenType::RBRACE) && !isAtEnd()) {
-                returnStmt->expression = parseExpression();
-            }
-            
-            return returnStmt;
         }
         
         // Variable declaration or expression

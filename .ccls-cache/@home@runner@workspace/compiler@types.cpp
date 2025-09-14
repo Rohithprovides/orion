@@ -827,6 +827,9 @@ public:
         for (const auto& param : node.parameters) {
             Type paramType = param.type;
             
+            // Explicitly declare parameters as local to ensure they go in function scope
+            scopeManager.declareLocal(param.name);
+            
             // For implicit parameters, still use the type (even if UNKNOWN) so they're in scope
             // The type inference will resolve UNKNOWN types later
             scopeManager.setVariable(param.name, paramType);

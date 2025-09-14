@@ -58,6 +58,11 @@ main:
     mov -16(%rbp), %rax  # load local b
     pop %rbx
     add %rbx, %rax
+    # Call out() with expression result
+    mov %rax, %rsi
+    mov $format_int, %rdi
+    xor %rax, %rax
+    call printf
     mov $0, %rax
     add $64, %rsp
     pop %rbp
