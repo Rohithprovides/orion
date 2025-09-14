@@ -597,8 +597,21 @@ public:
                         assembly << "    # String variable to string conversion (identity)\n";
                     }
                 }
+            } else if (auto funcCall = dynamic_cast<FunctionCall*>(argExpr)) {
+                // Handle function call arguments to str()
+                if (funcCall->name == "flt") {
+                    assembly << "    movq %rax, %xmm0  # flt() result as float\n";
+                    assembly << "    call __orion_float_to_string\n";
+                } else if (funcCall->name == "int") {
+                    assembly << "    mov %rax, %rdi  # int() result as integer\n";
+                    assembly << "    call __orion_int_to_string\n";
+                } else {
+                    // Other function calls default to int for now
+                    assembly << "    mov %rax, %rdi  # other function result\n";
+                    assembly << "    call __orion_int_to_string\n";
+                }
             } else {
-                // For complex expressions, we'll need to infer the type at runtime
+                // For other complex expressions, default to int conversion
                 assembly << "    mov %rax, %rdi  # complex expression argument\n";
                 assembly << "    call __orion_int_to_string  # Default to int conversion\n";
             }
