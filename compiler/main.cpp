@@ -21,7 +21,8 @@ namespace orion {
 // Simplified Code Generator for basic functionality
 class SimpleCodeGenerator : public ASTVisitor {
 private:
-    std::ostringstream assembly;
+    std::ostringstream assembly;      // For main execution code
+    std::ostringstream funcsAsm;      // For function definitions
     std::vector<std::string> stringLiterals;
     std::vector<double> floatLiterals;
     struct VariableInfo {
@@ -247,14 +248,27 @@ public:
         fullAssembly << ".extern string_to_string\n";
         fullAssembly << ".extern string_concat_parts\n\n";
         
-        // Main function
+        // Emit user-defined functions first
+        fullAssembly << funcsAsm.str();
+        
+        // Main function (C runtime entry point)
         fullAssembly << "main:\n";
         fullAssembly << "    push %rbp\n";
         fullAssembly << "    mov %rsp, %rbp\n";
         fullAssembly << "    sub $64, %rsp\n";  // Allocate 64 bytes of stack space for variables
         
-        // Program code
+        // Program code (top-level statements and calls)
         fullAssembly << assembly.str();
+        
+        // Call user main function if it exists
+        auto globalScope = functionScopes.find("");
+        if (globalScope != functionScopes.end()) {
+            auto mainFunc = globalScope->second.functions.find("main");
+            if (mainFunc != globalScope->second.functions.end()) {
+                fullAssembly << "    # Call user main function\n";
+                fullAssembly << "    call fn_main\n";
+            }
+        }
         
         // Return 0
         fullAssembly << "    mov $0, %rax\n";
@@ -279,16 +293,7 @@ public:
             }
         }
         
-        // Fourth pass: Auto-execute main() function if it exists in global scope
-        auto globalScopeIt = functionScopes.find("");
-        if (globalScopeIt != functionScopes.end()) {
-            auto mainFuncIt = globalScopeIt->second.functions.find("main");
-            if (mainFuncIt != globalScopeIt->second.functions.end()) {
-                assembly << "    # Auto-executing main() function\n";
-                std::vector<std::unique_ptr<Expression>> emptyArgs;
-                executeFunctionCall("main", emptyArgs);
-            }
-        }
+        // Main function will be called from C main in generate() method
     }
     
     void collectFunctions(const std::vector<std::unique_ptr<Statement>>& statements, const std::string& currentScope = "") {
@@ -315,21 +320,28 @@ public:
     }
     
     void generateFunctionAssembly() {
-        // Generate assembly code for all collected functions
+        // Generate assembly code for all collected functions in separate buffer
         for (const auto& scope : functionScopes) {
             for (const auto& funcPair : scope.second.functions) {
                 const std::string& funcName = funcPair.first;
                 FunctionDeclaration* func = funcPair.second;
                 
-                assembly << "\n" << funcName << ":\n";
-                assembly << "    push %rbp\n";
-                assembly << "    mov %rsp, %rbp\n";
-                assembly << "    sub $64, %rsp  # Allocate stack space for local variables\n";
+                // Use fn_ prefix to avoid collision with C main
+                std::string labelName = (funcName == "main") ? "fn_main" : funcName;
+                
+                funcsAsm << "\n" << labelName << ":\n";
+                funcsAsm << "    push %rbp\n";
+                funcsAsm << "    mov %rsp, %rbp\n";
+                funcsAsm << "    sub $64, %rsp  # Allocate stack space for local variables\n";
                 
                 // Save current state and enter function scope
                 bool wasInFunction = inFunction;
                 auto savedLocalVars = localVariables;
                 int savedStackOffset = stackOffset;
+                std::ostringstream* savedOutput = nullptr;
+                
+                // Temporarily redirect output to funcsAsm for function body
+                savedOutput = &assembly;
                 
                 inFunction = true;
                 localVariables.clear();
@@ -338,7 +350,7 @@ public:
                 // Set up parameters - move from calling convention registers to stack
                 const std::string callingConventionRegs[] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
                 
-                assembly << "    # Setting up function parameters for " << funcName << "\n";
+                funcsAsm << "    # Setting up function parameters for " << funcName << "\n";
                 for (size_t i = 0; i < func->parameters.size() && i < 6; i++) {
                     const auto& param = func->parameters[i];
                     
@@ -354,9 +366,14 @@ public:
                     localVariables[param.name] = paramInfo;
                     
                     // Move parameter from register to stack
-                    assembly << "    mov " << callingConventionRegs[i] << ", -" << stackOffset 
+                    funcsAsm << "    mov " << callingConventionRegs[i] << ", -" << stackOffset 
                              << "(%rbp)  # Parameter " << param.name << "\n";
                 }
+                
+                // Redirect assembly output to funcsAsm for function body generation
+                std::string currentAssembly = assembly.str();
+                assembly.str("");
+                assembly.clear();
                 
                 // Generate function body
                 if (func->isSingleExpression) {
@@ -367,15 +384,16 @@ public:
                     }
                 }
                 
-                // Function epilogue
-                if (funcName == "main") {
-                    assembly << "    mov %rax, %rdi\n";  // Return value to exit code
-                    assembly << "    call exit\n";
-                } else {
-                    assembly << "    add $64, %rsp  # Restore stack space\n";
-                    assembly << "    pop %rbp\n";
-                    assembly << "    ret\n";
-                }
+                // Move generated body code to funcsAsm and restore assembly
+                funcsAsm << assembly.str();
+                assembly.str("");
+                assembly.clear();
+                assembly << currentAssembly;
+                
+                // Function epilogue - user functions should return to caller
+                funcsAsm << "    add $64, %rsp  # Restore stack space\n";
+                funcsAsm << "    pop %rbp\n";
+                funcsAsm << "    ret\n";
                 
                 // Restore previous state
                 inFunction = wasInFunction;
@@ -1165,8 +1183,9 @@ public:
                 assembly << "    mov %rax, " << callingConventionRegs[i] << "  # Arg " << i << " to " << callingConventionRegs[i] << "\n";
             }
             
-            // Generate the function call
-            assembly << "    call " << node.name << "\n";
+            // Generate the function call with correct label name
+            std::string callLabel = (node.name == "main") ? "fn_main" : node.name;
+            assembly << "    call " << callLabel << "\n";
         }
     }
     

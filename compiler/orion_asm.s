@@ -40,31 +40,50 @@ str_index_error: .string "Index Error\n"
 .extern string_to_string
 .extern string_concat_parts
 
-main:
-    push %rbp
-    mov %rsp, %rbp
-    sub $64, %rsp
-    # Function 'test' defined in scope ''
 
-test:
+multiply:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp  # Allocate stack space for local variables
-    # Setting up function parameters for test
-    mov %rdi, -8(%rbp)  # Parameter a
-    # Call out() with variable: a (type: int)
-    mov -8(%rbp), %rsi
+    # Setting up function parameters for multiply
+    mov %rdi, -8(%rbp)  # Parameter x
+    mov %rsi, -16(%rbp)  # Parameter y
+    mov %rdx, -24(%rbp)  # Parameter z
+    # Integer binary operation
+    # Integer binary operation
+    mov -8(%rbp), %rax  # load local x
+    push %rax
+    mov -16(%rbp), %rax  # load local y
+    pop %rbx
+    imul %rbx, %rax
+    push %rax
+    mov -24(%rbp), %rax  # load local z
+    pop %rbx
+    imul %rbx, %rax
+    # Call out() with expression result
+    mov %rax, %rsi
     mov $format_int, %rdi
     xor %rax, %rax
     call printf
     add $64, %rsp  # Restore stack space
     pop %rbp
     ret
-    # User-defined function call: test
+main:
+    push %rbp
+    mov %rsp, %rbp
+    sub $64, %rsp
+    # Function 'multiply' defined in scope ''
+    # User-defined function call: multiply
     # Preparing argument 0
-    mov $42, %rax
+    mov $2, %rax
     mov %rax, %rdi  # Arg 0 to %rdi
-    call test
+    # Preparing argument 1
+    mov $3, %rax
+    mov %rax, %rsi  # Arg 1 to %rsi
+    # Preparing argument 2
+    mov $4, %rax
+    mov %rax, %rdx  # Arg 2 to %rdx
+    call multiply
     mov $0, %rax
     add $64, %rsp
     pop %rbp
