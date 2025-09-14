@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <errno.h>
 
 // Orion-specific memory allocation wrappers to avoid symbol collision
 void* orion_malloc(size_t size) {
@@ -550,4 +551,105 @@ void range_free(OrionRange* range) {
     if (range) {
         orion_free(range);
     }
+}
+
+// =====================================================
+// Built-in Type Conversion Functions
+// =====================================================
+
+// String conversion functions
+char* __orion_int_to_string(int64_t value) {
+    char* result = (char*)orion_malloc(32);  // Enough for any 64-bit integer
+    if (!result) {
+        fprintf(stderr, "Error: Failed to allocate memory for string conversion\n");
+        exit(1);
+    }
+    snprintf(result, 32, "%ld", value);
+    return result;
+}
+
+char* __orion_float_to_string(double value) {
+    char* result = (char*)orion_malloc(64);  // Enough for most float representations
+    if (!result) {
+        fprintf(stderr, "Error: Failed to allocate memory for string conversion\n");
+        exit(1);
+    }
+    snprintf(result, 64, "%.15g", value);  // Use 'g' format for clean output
+    return result;
+}
+
+char* __orion_bool_to_string(int value) {
+    const char* bool_str = value ? "true" : "false";
+    size_t len = strlen(bool_str) + 1;
+    char* result = (char*)orion_malloc(len);
+    if (!result) {
+        fprintf(stderr, "Error: Failed to allocate memory for string conversion\n");
+        exit(1);
+    }
+    strcpy(result, bool_str);
+    return result;
+}
+
+// Integer conversion functions
+int64_t __orion_float_to_int(double value) {
+    return (int64_t)value;  // Truncate towards zero
+}
+
+int64_t __orion_bool_to_int(int value) {
+    return value ? 1 : 0;
+}
+
+int64_t __orion_string_to_int(const char* str) {
+    if (!str) {
+        fprintf(stderr, "Error: Cannot convert null string to integer\n");
+        exit(1);
+    }
+    
+    char* endptr;
+    errno = 0;
+    int64_t result = strtoll(str, &endptr, 10);
+    
+    // Check for conversion errors
+    if (errno == ERANGE) {
+        fprintf(stderr, "Error: Integer overflow in string conversion: '%s'\n", str);
+        exit(1);
+    }
+    if (endptr == str || *endptr != '\0') {
+        fprintf(stderr, "Error: Invalid integer format: '%s'\n", str);
+        exit(1);
+    }
+    
+    return result;
+}
+
+// Float conversion functions
+double __orion_int_to_float(int64_t value) {
+    return (double)value;
+}
+
+double __orion_bool_to_float(int value) {
+    return value ? 1.0 : 0.0;
+}
+
+double __orion_string_to_float(const char* str) {
+    if (!str) {
+        fprintf(stderr, "Error: Cannot convert null string to float\n");
+        exit(1);
+    }
+    
+    char* endptr;
+    errno = 0;
+    double result = strtod(str, &endptr);
+    
+    // Check for conversion errors
+    if (errno == ERANGE) {
+        fprintf(stderr, "Error: Float overflow in string conversion: '%s'\n", str);
+        exit(1);
+    }
+    if (endptr == str || *endptr != '\0') {
+        fprintf(stderr, "Error: Invalid float format: '%s'\n", str);
+        exit(1);
+    }
+    
+    return result;
 }
