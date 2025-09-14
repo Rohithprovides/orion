@@ -185,7 +185,7 @@ public:
         
         // String literals
         for (size_t i = 0; i < stringLiterals.size(); i++) {
-            fullAssembly << "str_" << i << ": .string \"" << stringLiterals[i] << "\\n\"\n";
+            fullAssembly << "str_" << i << ": .string \"" << stringLiterals[i] << "\"\n";
         }
         
         // Add float literals  
@@ -834,6 +834,98 @@ public:
                     throw std::runtime_error("Error: List repetition requires an integer. Valid operations: list * int or int * list.");
                 }
             }
+        }
+        
+        // Check if both operands are strings for string comparison
+        ExprKind leftKind = inferExprKind(node.left.get());
+        ExprKind rightKind = inferExprKind(node.right.get());
+        bool isStringComparison = (leftKind == ExprKind::STRING && rightKind == ExprKind::STRING);
+        
+        if (isStringComparison && (node.op == BinaryOp::EQ || node.op == BinaryOp::NE || 
+                                  node.op == BinaryOp::LT || node.op == BinaryOp::LE || 
+                                  node.op == BinaryOp::GT || node.op == BinaryOp::GE)) {
+            // Handle string comparison operations
+            assembly << "    # String comparison operation\n";
+            
+            // Evaluate left operand (string address)
+            node.left->accept(*this);
+            assembly << "    mov %rax, %rdi  # First string as first argument\n";
+            assembly << "    push %rdi  # Save first string\n";
+            
+            // Evaluate right operand (string address)
+            node.right->accept(*this);
+            assembly << "    mov %rax, %rsi  # Second string as second argument\n";
+            assembly << "    pop %rdi  # Restore first string\n";
+            
+            // Call strcmp to compare strings
+            assembly << "    call strcmp  # Compare strings\n";
+            
+            // strcmp returns: 0 if equal, <0 if first < second, >0 if first > second
+            switch (node.op) {
+                case BinaryOp::EQ:
+                    assembly << "    test %rax, %rax\n";
+                    assembly << "    je seq_true_" << labelCounter << "\n";
+                    assembly << "    mov $str_false, %rax\n";
+                    assembly << "    jmp seq_done_" << labelCounter << "\n";
+                    assembly << "seq_true_" << labelCounter << ":" << "\n";
+                    assembly << "    mov $str_true, %rax\n";
+                    assembly << "seq_done_" << labelCounter << ":" << "\n";
+                    labelCounter++;
+                    break;
+                case BinaryOp::NE:
+                    assembly << "    test %rax, %rax\n";
+                    assembly << "    jne sne_true_" << labelCounter << "\n";
+                    assembly << "    mov $str_false, %rax\n";
+                    assembly << "    jmp sne_done_" << labelCounter << "\n";
+                    assembly << "sne_true_" << labelCounter << ":" << "\n";
+                    assembly << "    mov $str_true, %rax\n";
+                    assembly << "sne_done_" << labelCounter << ":" << "\n";
+                    labelCounter++;
+                    break;
+                case BinaryOp::LT:
+                    assembly << "    test %rax, %rax\n";
+                    assembly << "    js slt_true_" << labelCounter << "\n";
+                    assembly << "    mov $str_false, %rax\n";
+                    assembly << "    jmp slt_done_" << labelCounter << "\n";
+                    assembly << "slt_true_" << labelCounter << ":" << "\n";
+                    assembly << "    mov $str_true, %rax\n";
+                    assembly << "slt_done_" << labelCounter << ":" << "\n";
+                    labelCounter++;
+                    break;
+                case BinaryOp::LE:
+                    assembly << "    test %rax, %rax\n";
+                    assembly << "    jle sle_true_" << labelCounter << "\n";
+                    assembly << "    mov $str_false, %rax\n";
+                    assembly << "    jmp sle_done_" << labelCounter << "\n";
+                    assembly << "sle_true_" << labelCounter << ":" << "\n";
+                    assembly << "    mov $str_true, %rax\n";
+                    assembly << "sle_done_" << labelCounter << ":" << "\n";
+                    labelCounter++;
+                    break;
+                case BinaryOp::GT:
+                    assembly << "    test %rax, %rax\n";
+                    assembly << "    jg sgt_true_" << labelCounter << "\n";
+                    assembly << "    mov $str_false, %rax\n";
+                    assembly << "    jmp sgt_done_" << labelCounter << "\n";
+                    assembly << "sgt_true_" << labelCounter << ":" << "\n";
+                    assembly << "    mov $str_true, %rax\n";
+                    assembly << "sgt_done_" << labelCounter << ":" << "\n";
+                    labelCounter++;
+                    break;
+                case BinaryOp::GE:
+                    assembly << "    test %rax, %rax\n";
+                    assembly << "    jge sge_true_" << labelCounter << "\n";
+                    assembly << "    mov $str_false, %rax\n";
+                    assembly << "    jmp sge_done_" << labelCounter << "\n";
+                    assembly << "sge_true_" << labelCounter << ":" << "\n";
+                    assembly << "    mov $str_true, %rax\n";
+                    assembly << "sge_done_" << labelCounter << ":" << "\n";
+                    labelCounter++;
+                    break;
+                default:
+                    break;
+            }
+            return;
         }
         
         // Check if either operand is a float

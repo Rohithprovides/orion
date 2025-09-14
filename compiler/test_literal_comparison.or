@@ -1,0 +1,7 @@
+x = "test"
+y = "test"
+if x == y {
+    out("EQUAL")
+} else {
+    out("NOT EQUAL")
+}

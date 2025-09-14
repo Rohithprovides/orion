@@ -1,0 +1,8 @@
+a = "hello"
+b = "world"  
+c = "hello"
+out("Testing all string comparison operators:")
+if a == c { out("a == c: TRUE") } else { out("a == c: FALSE") }
+if a != b { out("a != b: TRUE") } else { out("a != b: FALSE") }
+if a < b { out("a < b: TRUE") } else { out("a < b: FALSE") }
+if b > a { out("b > a: TRUE") } else { out("b > a: FALSE") }

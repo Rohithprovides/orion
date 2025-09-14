@@ -58,6 +58,15 @@ private:
         return peek().type == type;
     }
     
+    bool isStatementStarter(TokenType type) const {
+        return type == TokenType::WHILE || type == TokenType::FOR || 
+               type == TokenType::IF || type == TokenType::RETURN ||
+               type == TokenType::BREAK || type == TokenType::CONTINUE ||
+               type == TokenType::PASS || type == TokenType::RBRACE ||
+               type == TokenType::EOF_TOKEN || type == TokenType::GLOBAL ||
+               type == TokenType::LOCAL;
+    }
+    
     std::unique_ptr<Statement> parseStatement() {
         // Check for tuple assignment first
         if (check(TokenType::LPAREN)) {
@@ -469,7 +478,7 @@ private:
     std::unique_ptr<Expression> parseLogicalOr() {
         auto expr = parseLogicalAnd();
         
-        while (check(TokenType::OR)) {
+        while (check(TokenType::OR) && !isStatementStarter(peek().type)) {
             advance(); // consume '||'
             auto right = parseLogicalAnd();
             expr = std::make_unique<BinaryExpression>(std::move(expr), BinaryOp::OR, std::move(right));
@@ -481,7 +490,7 @@ private:
     std::unique_ptr<Expression> parseLogicalAnd() {
         auto expr = parseEquality();
         
-        while (check(TokenType::AND)) {
+        while (check(TokenType::AND) && !isStatementStarter(peek().type)) {
             advance(); // consume '&&'
             auto right = parseEquality();
             expr = std::make_unique<BinaryExpression>(std::move(expr), BinaryOp::AND, std::move(right));
@@ -493,7 +502,7 @@ private:
     std::unique_ptr<Expression> parseEquality() {
         auto expr = parseComparison();
         
-        while (check(TokenType::EQ) || check(TokenType::NE)) {
+        while ((check(TokenType::EQ) || check(TokenType::NE)) && !isStatementStarter(peek().type)) {
             BinaryOp op = (peek().type == TokenType::EQ) ? BinaryOp::EQ : BinaryOp::NE;
             advance();
             auto right = parseComparison();
@@ -506,7 +515,7 @@ private:
     std::unique_ptr<Expression> parseComparison() {
         auto expr = parseTerm();
         
-        while (check(TokenType::LT) || check(TokenType::LE) || check(TokenType::GT) || check(TokenType::GE)) {
+        while ((check(TokenType::LT) || check(TokenType::LE) || check(TokenType::GT) || check(TokenType::GE)) && !isStatementStarter(peek().type)) {
             BinaryOp op;
             switch (peek().type) {
                 case TokenType::LT: op = BinaryOp::LT; break;
@@ -526,7 +535,7 @@ private:
     std::unique_ptr<Expression> parseTerm() {
         auto expr = parseFactor();
         
-        while (check(TokenType::PLUS) || check(TokenType::MINUS)) {
+        while ((check(TokenType::PLUS) || check(TokenType::MINUS)) && !isStatementStarter(peek().type)) {
             BinaryOp op = (peek().type == TokenType::PLUS) ? BinaryOp::ADD : BinaryOp::SUB;
             advance();
             auto right = parseFactor();
@@ -539,7 +548,7 @@ private:
     std::unique_ptr<Expression> parseFactor() {
         auto expr = parsePower();
         
-        while (check(TokenType::MULTIPLY) || check(TokenType::DIVIDE) || check(TokenType::MODULO) || check(TokenType::FLOOR_DIVIDE)) {
+        while ((check(TokenType::MULTIPLY) || check(TokenType::DIVIDE) || check(TokenType::MODULO) || check(TokenType::FLOOR_DIVIDE)) && !isStatementStarter(peek().type)) {
             BinaryOp op;
             switch (peek().type) {
                 case TokenType::MULTIPLY: op = BinaryOp::MUL; break;
@@ -716,6 +725,11 @@ private:
         if (check(TokenType::IDENTIFIER)) {
             std::string varName = advance().value;
             return std::make_unique<Identifier>(varName);
+        }
+        
+        // Check if we've encountered a statement starter - if so, stop parsing expression
+        if (isStatementStarter(peek().type)) {
+            throw std::runtime_error("Unexpected " + peek().value + " in expression context");
         }
         
         throw std::runtime_error("Unexpected token in expression");

@@ -1,0 +1,1 @@
+fn main() { x = "alice"; if x == "alice" { out("CORRECT: x is alice") } else { out("WRONG: x is not alice") } }
