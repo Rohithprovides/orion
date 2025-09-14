@@ -27,7 +27,16 @@ def index():
 
 @app.route('/<path:filename>')
 def serve_static(filename):
-    """Serve static files."""
+    """Serve static files - restricted to safe files only."""
+    # Only allow specific safe files to prevent exposure of compiler source and configs
+    allowed_files = {
+        'style.css', 'script.js', 'favicon.ico', 
+        'robots.txt', 'manifest.json'
+    }
+    
+    if filename not in allowed_files:
+        return jsonify({'error': 'File not found'}), 404
+        
     response = make_response(send_from_directory('.', filename))
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response.headers['Pragma'] = 'no-cache'
