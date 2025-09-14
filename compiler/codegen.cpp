@@ -13,6 +13,14 @@ private:
     int nextLabel = 0;
     std::string currentFunction;
     
+    // Parameter and variable tracking
+    struct VariableInfo {
+        int stackOffset;
+        bool isParameter;
+    };
+    std::unordered_map<std::string, VariableInfo> currentVariables;
+    int currentStackOffset = 0;
+    
 public:
     std::string generate(Program& program) {
         output.str("");
@@ -105,9 +113,21 @@ public:
     }
     
     void visit(Identifier& node) override {
-        // Load variable value (simplified - assumes stack-based variables)
+        // Load variable value from correct stack location
         output << "    # Load variable: " << node.name << "\n";
-        output << "    mov -8(%rbp), %rax  # Simplified variable access\n";
+        
+        auto it = currentVariables.find(node.name);
+        if (it != currentVariables.end()) {
+            // Use the correct stack offset for this variable
+            output << "    mov -" << it->second.stackOffset << "(%rbp), %rax  # Load " << node.name;
+            if (it->second.isParameter) {
+                output << " (parameter)";
+            }
+            output << "\n";
+        } else {
+            output << "    # Warning: Unknown variable " << node.name << ", using default location\n";
+            output << "    mov -8(%rbp), %rax  # Fallback variable access\n";
+        }
     }
     
     void visit(BinaryExpression& node) override {
@@ -261,9 +281,16 @@ public:
     void visit(VariableDeclaration& node) override {
         output << "    # Variable declaration: " << node.name << "\n";
         
+        // Allocate stack space for this variable
+        currentStackOffset += 8;
+        VariableInfo varInfo;
+        varInfo.stackOffset = currentStackOffset;
+        varInfo.isParameter = false;
+        currentVariables[node.name] = varInfo;
+        
         if (node.initializer) {
             node.initializer->accept(*this);
-            output << "    mov %rax, -8(%rbp)  # Store " << node.name << " (simplified)\n";
+            output << "    mov %rax, -" << currentStackOffset << "(%rbp)  # Store " << node.name << "\n";
         }
     }
     
@@ -273,6 +300,26 @@ public:
         output << "    mov %rsp, %rbp\n";
         
         currentFunction = node.name;
+        
+        // Clear variables for new function scope
+        currentVariables.clear();
+        currentStackOffset = 0;
+        
+        // Set up parameters - move from calling convention registers to stack
+        const std::string callingRegs[] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
+        
+        output << "    # Setting up function parameters\n";
+        for (size_t i = 0; i < node.parameters.size() && i < 6; i++) {
+            currentStackOffset += 8;
+            VariableInfo paramInfo;
+            paramInfo.stackOffset = currentStackOffset;
+            paramInfo.isParameter = true;
+            currentVariables[node.parameters[i].name] = paramInfo;
+            
+            // Move parameter from register to stack
+            output << "    mov " << callingRegs[i] << ", -" << currentStackOffset 
+                   << "(%rbp)  # Parameter " << node.parameters[i].name << "\n";
+        }
         
         if (node.isSingleExpression) {
             // Single expression function
