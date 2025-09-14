@@ -11,12 +11,6 @@ dtype_unknown: .string "datatype: unknown\n"
 str_true: .string "True\n"
 str_false: .string "False\n"
 str_index_error: .string "Index Error\n"
-str_0: .string "Hello, Orion World!"
-str_1: .string "Welcome to the fast and readable programming language!"
-str_2: .string "Developer"
-str_3: .string "Hello, "
-str_4: .string "!"
-str_5: .string "Current year: "
 
 .section .text
 .global main
@@ -50,55 +44,17 @@ main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp
+    # Function 'test' defined in scope ''
     # Function 'main' defined in scope ''
     # Auto-executing main() function
     # Executing function call: main
-    # Call out() with string
-    mov $str_0, %rsi
-    mov $format_str, %rdi
-    xor %rax, %rax
-    call printf
-    # Call out() with string
-    mov $str_1, %rsi
-    mov $format_str, %rdi
-    xor %rax, %rax
-    call printf
-    # Variable: name
-    mov $str_2, %rax
-    mov %rax, -8(%rbp)  # store local name
-    # Integer binary operation
-    # Integer binary operation
-    mov $str_3, %rax
-    push %rax
-    mov -8(%rbp), %rax  # load local name
-    pop %rbx
-    add %rbx, %rax
-    push %rax
-    mov $str_4, %rax
-    pop %rbx
-    add %rbx, %rax
-    # Call out() with expression result
-    mov %rax, %rsi
-    mov $format_int, %rdi
-    xor %rax, %rax
-    call printf
-    # Variable: year
-    mov $2025, %rax
-    mov %rax, -16(%rbp)  # store local year
-    # Integer binary operation
-    mov $str_5, %rax
-    push %rax
-    # str() type conversion function call
-    mov -16(%rbp), %rax  # load local year
-    mov %rax, %rdi  # int variable
-    call __orion_int_to_string
-    pop %rbx
-    add %rbx, %rax
-    # Call out() with expression result
-    mov %rax, %rsi
-    mov $format_int, %rdi
-    xor %rax, %rax
-    call printf
+    # Function prologue: setting up parameters
+    # User-defined function call: test
+    # Executing function call: test
+    # Function prologue: setting up parameters
+    mov %rdi, -8(%rbp)  # param x from %rdi
+    # Parameter x (type: int) at stack offset -8
+    mov -8(%rbp), %rax  # load local x
     mov $0, %rax
     add $64, %rsp
     pop %rbp

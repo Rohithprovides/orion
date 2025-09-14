@@ -120,12 +120,45 @@ public:
     }
 };
 
+// Type variable system for inference
+class TypeVariable {
+public:
+    std::string id;
+    Type resolvedType;
+    bool isResolved;
+    std::string functionName;
+    std::string parameterName;
+    
+    TypeVariable() : resolvedType(TypeKind::UNKNOWN), isResolved(false) {}
+    
+    TypeVariable(const std::string& funcName, const std::string& paramName) 
+        : id(funcName + "::" + paramName), resolvedType(TypeKind::UNKNOWN), 
+          isResolved(false), functionName(funcName), parameterName(paramName) {}
+};
+
+// Type constraint for inference
+struct TypeConstraint {
+    std::string typeVarId;
+    Type constraintType;
+    std::string reason;
+    int line;
+    
+    TypeConstraint(const std::string& varId, const Type& type, const std::string& description, int lineNum = 0)
+        : typeVarId(varId), constraintType(type), reason(description), line(lineNum) {}
+};
+
 class TypeChecker : public ASTVisitor {
 private:
     ScopeManager scopeManager;
     std::unordered_map<std::string, FunctionDeclaration*> functions;
     std::unordered_map<std::string, StructDeclaration*> structs;
     std::unordered_map<std::string, EnumDeclaration*> enums;
+    
+    // Type inference system
+    std::unordered_map<std::string, TypeVariable> typeVariables;
+    std::vector<TypeConstraint> constraints;
+    std::string currentFunctionName;
+    int inferenceMaxIterations = 5;
     
     Type currentReturnType;
     std::vector<std::string> errors;
@@ -135,11 +168,15 @@ public:
     bool check(Program& program, const std::vector<std::string>& srcLines = {}) {
         errors.clear();
         sourceLines = srcLines;
+        typeVariables.clear();
+        constraints.clear();
         
         // First pass: collect function, struct, and enum declarations
         for (auto& stmt : program.statements) {
             if (auto func = dynamic_cast<FunctionDeclaration*>(stmt.get())) {
                 functions[func->name] = func;
+                // Create type variables for implicit parameters
+                createTypeVariablesForFunction(*func);
             } else if (auto structDecl = dynamic_cast<StructDeclaration*>(stmt.get())) {
                 structs[structDecl->name] = structDecl;
             } else if (auto enumDecl = dynamic_cast<EnumDeclaration*>(stmt.get())) {
@@ -147,8 +184,18 @@ public:
             }
         }
         
-        // Second pass: type check everything
+        // Second pass: type check and gather constraints
         program.accept(*this);
+        
+        // Third pass: perform type inference
+        if (!performTypeInference()) {
+            return false;
+        }
+        
+        // Fourth pass: validate all types are resolved
+        if (!validateResolvedTypes()) {
+            return false;
+        }
         
         if (!errors.empty()) {
             std::cerr << "Type checking errors:\n";
@@ -179,6 +226,161 @@ private:
         errors.push_back(fullMessage);
     }
     
+    void createTypeVariablesForFunction(FunctionDeclaration& func) {
+        for (auto& param : func.parameters) {
+            if (!param.isExplicitType || param.type.kind == TypeKind::UNKNOWN) {
+                TypeVariable typeVar(func.name, param.name);
+                typeVariables.emplace(typeVar.id, typeVar);
+            }
+        }
+    }
+    
+    void addConstraint(const std::string& typeVarId, const Type& constraintType, const std::string& reason, int line = 0) {
+        constraints.emplace_back(typeVarId, constraintType, reason, line);
+    }
+    
+    bool performTypeInference() {
+        bool changed = true;
+        int iteration = 0;
+        
+        while (changed && iteration < inferenceMaxIterations) {
+            changed = false;
+            iteration++;
+            
+            // Unify constraints with type variables
+            for (const auto& constraint : constraints) {
+                auto typeVarIt = typeVariables.find(constraint.typeVarId);
+                if (typeVarIt != typeVariables.end()) {
+                    TypeVariable& typeVar = typeVarIt->second;
+                    
+                    if (!typeVar.isResolved) {
+                        if (constraint.constraintType.kind != TypeKind::UNKNOWN) {
+                            typeVar.resolvedType = constraint.constraintType;
+                            typeVar.isResolved = true;
+                            changed = true;
+                            
+                            // Update the actual parameter type in the function
+                            updateParameterType(typeVar.functionName, typeVar.parameterName, constraint.constraintType);
+                        }
+                    } else {
+                        // Check for type conflicts
+                        if (!isCompatible(typeVar.resolvedType, constraint.constraintType)) {
+                            addError("Type conflict for parameter '" + typeVar.parameterName + "' in function '" + 
+                                   typeVar.functionName + "': inferred " + typeVar.resolvedType.toString() + 
+                                   " but also used as " + constraint.constraintType.toString() + " (" + 
+                                   constraint.reason + ")", constraint.line);
+                            return false;
+                        }
+                    }
+                }
+            }
+            
+            // Propagate types between function calls
+            if (propagateTypesAcrossCalls()) {
+                changed = true;
+            }
+        }
+        
+        if (iteration >= inferenceMaxIterations) {
+            addError("Type inference failed to converge within " + std::to_string(inferenceMaxIterations) + " iterations");
+            return false;
+        }
+        
+        return true;
+    }
+    
+    bool propagateTypesAcrossCalls() {
+        bool changed = false;
+        
+        // For each function call, unify argument types with parameter types
+        for (const auto& funcPair : functions) {
+            FunctionDeclaration* func = funcPair.second;
+            
+            // Find calls to this function and unify types
+            // This is a simplified version - in practice would need to traverse call sites
+            for (size_t i = 0; i < func->parameters.size(); i++) {
+                const Parameter& param = func->parameters[i];
+                std::string typeVarId = func->name + "::" + param.name;
+                
+                auto typeVarIt = typeVariables.find(typeVarId);
+                if (typeVarIt != typeVariables.end() && !typeVarIt->second.isResolved) {
+                    // Look for constraints that might resolve this parameter
+                    for (const auto& constraint : constraints) {
+                        if (constraint.typeVarId == typeVarId && constraint.constraintType.kind != TypeKind::UNKNOWN) {
+                            typeVarIt->second.resolvedType = constraint.constraintType;
+                            typeVarIt->second.isResolved = true;
+                            updateParameterType(func->name, param.name, constraint.constraintType);
+                            changed = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        return changed;
+    }
+    
+    void updateParameterType(const std::string& functionName, const std::string& paramName, const Type& newType) {
+        auto funcIt = functions.find(functionName);
+        if (funcIt != functions.end()) {
+            FunctionDeclaration* func = funcIt->second;
+            for (auto& param : func->parameters) {
+                if (param.name == paramName) {
+                    param.type = newType;
+                    break;
+                }
+            }
+        }
+    }
+    
+    bool validateResolvedTypes() {
+        for (const auto& typeVarPair : typeVariables) {
+            const TypeVariable& typeVar = typeVarPair.second;
+            if (!typeVar.isResolved) {
+                addError("Could not infer type for parameter '" + typeVar.parameterName + 
+                        "' in function '" + typeVar.functionName + "'. " +
+                        "Parameter is not used in function body or insufficient context for inference. " +
+                        "Please add an explicit type annotation.");
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    void gatherArithmeticConstraints(Expression& expr, const Type& exprType) {
+        if (auto id = dynamic_cast<Identifier*>(&expr)) {
+            // Check if this is a parameter that needs type inference
+            std::string typeVarId = currentFunctionName + "::" + id->name;
+            if (typeVariables.find(typeVarId) != typeVariables.end()) {
+                // This parameter is used in arithmetic, so it should be numeric
+                // We'll prefer int32 as default numeric type
+                addConstraint(typeVarId, Type(TypeKind::INT32), "used in arithmetic operation", expr.line);
+            }
+        }
+    }
+    
+    void gatherComparisonConstraints(Expression& left, const Type& leftType, Expression& right, const Type& rightType) {
+        // For comparisons, we need both sides to be compatible
+        if (auto leftId = dynamic_cast<Identifier*>(&left)) {
+            std::string typeVarId = currentFunctionName + "::" + leftId->name;
+            if (typeVariables.find(typeVarId) != typeVariables.end()) {
+                if (rightType.kind != TypeKind::UNKNOWN) {
+                    addConstraint(typeVarId, rightType, "compared with " + rightType.toString(), left.line);
+                }
+            }
+        }
+        
+        if (auto rightId = dynamic_cast<Identifier*>(&right)) {
+            std::string typeVarId = currentFunctionName + "::" + rightId->name;
+            if (typeVariables.find(typeVarId) != typeVariables.end()) {
+                if (leftType.kind != TypeKind::UNKNOWN) {
+                    addConstraint(typeVarId, leftType, "compared with " + leftType.toString(), right.line);
+                }
+            }
+        }
+    }
+    
     Type inferType(Expression& expr) {
         // Simple type inference
         if (auto intLit = dynamic_cast<IntLiteral*>(&expr)) {
@@ -205,6 +407,17 @@ private:
             return inferBinaryType(*binExpr);
         }
         if (auto call = dynamic_cast<FunctionCall*>(&expr)) {
+            // Check for built-in type conversion functions
+            if (call->name == "str") {
+                return Type(TypeKind::STRING);
+            }
+            if (call->name == "int") {
+                return Type(TypeKind::INT32);
+            }
+            if (call->name == "flt") {
+                return Type(TypeKind::FLOAT32);
+            }
+            
             auto it = functions.find(call->name);
             if (it != functions.end()) {
                 return it->second->returnType;
@@ -417,7 +630,27 @@ public:
     void visit(BinaryExpression& node) override {
         node.left->accept(*this);
         node.right->accept(*this);
-        // Note: inferBinaryType is called implicitly in inferType when needed
+        
+        // Gather constraints for type inference
+        Type leftType = inferType(*node.left);
+        Type rightType = inferType(*node.right);
+        
+        // For arithmetic operations, both operands should be numeric
+        if (node.op == BinaryOp::ADD || node.op == BinaryOp::SUB || 
+            node.op == BinaryOp::MUL || node.op == BinaryOp::DIV || 
+            node.op == BinaryOp::MOD || node.op == BinaryOp::POWER || 
+            node.op == BinaryOp::FLOOR_DIV) {
+            
+            gatherArithmeticConstraints(*node.left, leftType);
+            gatherArithmeticConstraints(*node.right, rightType);
+        }
+        // For comparison operations, types should be compatible
+        else if (node.op == BinaryOp::EQ || node.op == BinaryOp::NE ||
+                 node.op == BinaryOp::LT || node.op == BinaryOp::LE ||
+                 node.op == BinaryOp::GT || node.op == BinaryOp::GE) {
+            
+            gatherComparisonConstraints(*node.left, leftType, *node.right, rightType);
+        }
     }
     
     void visit(UnaryExpression& node) override {
@@ -446,6 +679,45 @@ public:
     }
     
     void visit(FunctionCall& node) override {
+        // Check for built-in type conversion functions first
+        if (node.name == "str" || node.name == "int" || node.name == "flt") {
+            // Built-in functions expect exactly one argument
+            if (node.arguments.size() != 1) {
+                addError("Built-in function " + node.name + "() expects 1 argument, got " +
+                        std::to_string(node.arguments.size()));
+                return;
+            }
+            
+            // Visit the argument for type checking
+            node.arguments[0]->accept(*this);
+            Type argType = inferType(*node.arguments[0]);
+            
+            // Validate argument types for each built-in function
+            if (node.name == "str") {
+                // str() accepts int, float, bool, or string
+                if (argType.kind != TypeKind::INT32 && argType.kind != TypeKind::INT64 &&
+                    argType.kind != TypeKind::FLOAT32 && argType.kind != TypeKind::FLOAT64 &&
+                    argType.kind != TypeKind::BOOL && argType.kind != TypeKind::STRING) {
+                    addError("str() cannot convert " + argType.toString() + " to string");
+                }
+            } else if (node.name == "int") {
+                // int() accepts int, float, bool, or string
+                if (argType.kind != TypeKind::INT32 && argType.kind != TypeKind::INT64 &&
+                    argType.kind != TypeKind::FLOAT32 && argType.kind != TypeKind::FLOAT64 &&
+                    argType.kind != TypeKind::BOOL && argType.kind != TypeKind::STRING) {
+                    addError("int() cannot convert " + argType.toString() + " to integer");
+                }
+            } else if (node.name == "flt") {
+                // flt() accepts int, float, bool, or string
+                if (argType.kind != TypeKind::INT32 && argType.kind != TypeKind::INT64 &&
+                    argType.kind != TypeKind::FLOAT32 && argType.kind != TypeKind::FLOAT64 &&
+                    argType.kind != TypeKind::BOOL && argType.kind != TypeKind::STRING) {
+                    addError("flt() cannot convert " + argType.toString() + " to float");
+                }
+            }
+            return;
+        }
+        
         auto it = functions.find(node.name);
         if (it == functions.end()) {
             addError("Undefined function: " + node.name);
@@ -453,6 +725,11 @@ public:
         }
         
         FunctionDeclaration* func = it->second;
+        
+        // Visit arguments first
+        for (auto& arg : node.arguments) {
+            arg->accept(*this);
+        }
         
         // Check argument count
         if (node.arguments.size() != func->parameters.size()) {
@@ -462,15 +739,36 @@ public:
             return;
         }
         
-        // Check argument types
+        // Check argument types and gather constraints
         for (size_t i = 0; i < node.arguments.size(); i++) {
-            node.arguments[i]->accept(*this);
             Type argType = inferType(*node.arguments[i]);
-            Type paramType = func->parameters[i].type;
+            const Parameter& param = func->parameters[i];
             
-            if (!isCompatible(paramType, argType)) {
+            // If parameter needs type inference, add constraint from argument
+            std::string paramTypeVarId = func->name + "::" + param.name;
+            if (typeVariables.find(paramTypeVarId) != typeVariables.end()) {
+                if (argType.kind != TypeKind::UNKNOWN) {
+                    addConstraint(paramTypeVarId, argType, "argument " + std::to_string(i + 1) + 
+                                 " in call to " + node.name, node.line);
+                }
+            }
+            
+            // If argument is a parameter from current function, add constraint
+            if (auto argId = dynamic_cast<Identifier*>(node.arguments[i].get())) {
+                std::string argTypeVarId = currentFunctionName + "::" + argId->name;
+                if (typeVariables.find(argTypeVarId) != typeVariables.end()) {
+                    if (param.isExplicitType && param.type.kind != TypeKind::UNKNOWN) {
+                        addConstraint(argTypeVarId, param.type, "passed as argument " + 
+                                     std::to_string(i + 1) + " to " + node.name, node.line);
+                    }
+                }
+            }
+            
+            // Standard type checking
+            if (param.isExplicitType && param.type.kind != TypeKind::UNKNOWN && 
+                argType.kind != TypeKind::UNKNOWN && !isCompatible(param.type, argType)) {
                 addError("Argument " + std::to_string(i + 1) + " to function " + node.name +
-                        " has wrong type: expected " + paramType.toString() + 
+                        " has wrong type: expected " + param.type.toString() + 
                         ", got " + argType.toString());
             }
         }
@@ -519,13 +817,19 @@ public:
         // Set up function context
         Type savedReturnType = currentReturnType;
         currentReturnType = node.returnType;
+        std::string savedFunctionName = currentFunctionName;
+        currentFunctionName = node.name;
         
         // Enter function scope
         scopeManager.enterScope(true);
         
         // Add parameters to function scope
         for (const auto& param : node.parameters) {
-            scopeManager.setVariable(param.name, param.type);
+            Type paramType = param.type;
+            
+            // For implicit parameters, still use the type (even if UNKNOWN) so they're in scope
+            // The type inference will resolve UNKNOWN types later
+            scopeManager.setVariable(param.name, paramType);
         }
         
         if (node.isSingleExpression) {
@@ -547,8 +851,9 @@ public:
         // Exit function scope
         scopeManager.exitScope();
         
-        // Restore return type context
+        // Restore context
         currentReturnType = savedReturnType;
+        currentFunctionName = savedFunctionName;
     }
     
     void visit(BlockStatement& node) override {

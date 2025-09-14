@@ -315,9 +315,9 @@ public:
         // Functions are only executed when called, not when defined
         assembly << "    # Function '" << node.name << "' defined but not executed\n";
         
-        // Store function in our function table (simplified - we store the raw pointer)
-        // In a real implementation, we'd need proper cloning/copying
-        // For now, just mark that we've seen this function
+        // Function definitions are collected in the collectFunctions phase
+        // Parameters are registered during executeFunctionCall, not during definition
+        // This ensures proper scoping and calling convention setup
     }
     
     void executeFunctionCall(const std::string& functionName, const std::vector<std::unique_ptr<Expression>>& arguments) {
@@ -334,6 +334,7 @@ public:
         auto savedLocalVars = localVariables;
         auto savedDeclaredGlobal = declaredGlobal;
         auto savedDeclaredLocal = declaredLocal;
+        int savedStackOffset = stackOffset;
         
         // Push function onto call stack for proper scoping
         std::string currentScope = "";
@@ -348,6 +349,39 @@ public:
         localVariables.clear(); // Clear local variables for new function scope
         declaredGlobal.clear(); // Clear global declarations for new function
         declaredLocal.clear(); // Clear local declarations for new function
+        
+        // Set up function prologue: register parameters and move from calling convention registers
+        assembly << "    # Function prologue: setting up parameters\n";
+        
+        // Register each parameter as a local variable with proper stack slot
+        const std::string callingConventionRegs[] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
+        
+        for (size_t i = 0; i < func->parameters.size(); i++) {
+            const auto& param = func->parameters[i];
+            
+            // Allocate stack slot for parameter
+            stackOffset += 8;
+            VariableInfo paramInfo;
+            paramInfo.stackOffset = stackOffset;
+            paramInfo.type = param.type.toString(); // Convert Type to string
+            paramInfo.isGlobal = false;
+            paramInfo.isConstant = false;
+            
+            // Register parameter in local variables
+            localVariables[param.name] = paramInfo;
+            
+            // Move parameter value from calling convention register to stack slot
+            if (i < 6) {
+                // First 6 parameters are passed in registers
+                assembly << "    mov " << callingConventionRegs[i] << ", -" << paramInfo.stackOffset << "(%rbp)  # param " << param.name << " from " << callingConventionRegs[i] << "\n";
+            } else {
+                // Additional parameters are passed on stack (simplified - would need proper stack offset calculation)
+                assembly << "    # Note: Parameter " << param.name << " beyond register capacity - would be on stack\n";
+                assembly << "    mov $0, -" << paramInfo.stackOffset << "(%rbp)  # placeholder for stack parameter " << param.name << "\n";
+            }
+            
+            assembly << "    # Parameter " << param.name << " (type: " << paramInfo.type << ") at stack offset -" << paramInfo.stackOffset << "\n";
+        }
         
         // Execute function body
         if (func->isSingleExpression) {
@@ -364,6 +398,7 @@ public:
         localVariables = savedLocalVars; // Restore previous local scope
         declaredGlobal = savedDeclaredGlobal;
         declaredLocal = savedDeclaredLocal;
+        stackOffset = savedStackOffset; // Restore stack offset
     }
     
     FunctionDeclaration* findFunction(const std::string& name) {

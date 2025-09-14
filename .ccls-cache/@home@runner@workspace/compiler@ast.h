@@ -302,8 +302,10 @@ public:
 struct Parameter {
     std::string name;
     Type type;
+    bool isExplicitType;  // true if type was explicitly provided, false if inferred
     
-    Parameter(const std::string& n, const Type& t) : name(n), type(t) {}
+    Parameter(const std::string& n, const Type& t, bool explicit_type = true) 
+        : name(n), type(t), isExplicitType(explicit_type) {}
 };
 
 // Function declaration
@@ -318,6 +320,14 @@ public:
     
     FunctionDeclaration(const std::string& n, const Type& ret)
         : name(n), returnType(ret), isSingleExpression(false) {}
+    
+    // Helper method to check if function has implicit parameters
+    bool hasImplicitParams() const {
+        for (const auto& param : parameters) {
+            if (!param.isExplicitType) return true;
+        }
+        return false;
+    }
     
     void accept(ASTVisitor& visitor) override;
     std::string toString(int indent = 0) const override;

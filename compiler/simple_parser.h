@@ -73,7 +73,21 @@ private:
     }
     
     std::unique_ptr<Statement> parseStatement() {
-        // Check for tuple assignment first
+        // Return statement - check first to ensure it's caught
+        if (check(TokenType::RETURN) || (check(TokenType::IDENTIFIER) && peek().value == "return")) {
+            advance(); // consume 'return'
+            
+            // Check if there's an expression to return
+            std::unique_ptr<Expression> returnValue = nullptr;
+            if (!check(TokenType::NEWLINE) && !check(TokenType::SEMICOLON) && 
+                !check(TokenType::RBRACE) && !isAtEnd()) {
+                returnValue = parseExpression();
+            }
+            
+            return std::make_unique<ReturnStatement>(std::move(returnValue));
+        }
+        
+        // Check for tuple assignment
         if (check(TokenType::LPAREN)) {
             return parseTupleAssignmentOrExpression();
         }
@@ -89,7 +103,7 @@ private:
         }
         
         // Function declaration (fn name() { ... })
-        if (check(TokenType::IDENTIFIER) && tokens[current].value == "fn") {
+        if (check(TokenType::IDENTIFIER) && peek().value == "fn") {
             return parseFunctionDeclaration();
         }
         
@@ -145,8 +159,34 @@ private:
         }
         advance(); // consume '('
         
+        // Parse parameters
         if (!check(TokenType::RPAREN)) {
-            throw std::runtime_error("Parameters not supported yet");
+            do {
+                if (!check(TokenType::IDENTIFIER)) {
+                    throw std::runtime_error("Expected parameter name");
+                }
+                
+                std::string paramName = advance().value;
+                Type paramType;
+                bool hasExplicitType = true;
+                
+                // Check for colon-based type annotation: name: Type
+                if (check(TokenType::COLON)) {
+                    advance(); // consume the colon
+                    paramType = parseType();
+                }
+                // Check for direct type (existing syntax): name Type  
+                else if (isTypeToken(peek())) {
+                    paramType = parseType();
+                }
+                // No type specified - implicit typing: name
+                else {
+                    paramType = Type(TypeKind::UNKNOWN);
+                    hasExplicitType = false;
+                }
+                
+                func->parameters.emplace_back(paramName, paramType, hasExplicitType);
+            } while (match(TokenType::COMMA));
         }
         advance(); // consume ')'
         
@@ -891,6 +931,60 @@ private:
         advance(); // consume '}'
         
         return std::make_unique<ForInStatement>(variable, std::move(iterable), std::move(body));
+    }
+    
+    // Helper methods for parameter parsing
+    bool match(TokenType type) {
+        if (check(type)) {
+            advance();
+            return true;
+        }
+        return false;
+    }
+    
+    Type parseType() {
+        if (check(TokenType::INT)) {
+            advance();
+            return Type(TypeKind::INT32);
+        }
+        if (check(TokenType::INT64)) {
+            advance();
+            return Type(TypeKind::INT64);
+        }
+        if (check(TokenType::FLOAT32)) {
+            advance();
+            return Type(TypeKind::FLOAT32);
+        }
+        if (check(TokenType::FLOAT64)) {
+            advance();
+            return Type(TypeKind::FLOAT64);
+        }
+        if (check(TokenType::STRING_TYPE)) {
+            advance();
+            return Type(TypeKind::STRING);
+        }
+        if (check(TokenType::BOOL_TYPE)) {
+            advance();
+            return Type(TypeKind::BOOL);
+        }
+        if (check(TokenType::VOID)) {
+            advance();
+            return Type(TypeKind::VOID);
+        }
+        
+        if (check(TokenType::IDENTIFIER)) {
+            std::string name = advance().value;
+            return Type(TypeKind::STRUCT, name); // Could be struct or enum
+        }
+        
+        throw std::runtime_error("Expected type");
+    }
+    
+    bool isTypeToken(const Token& token) const {
+        return token.type == TokenType::INT || token.type == TokenType::INT64 ||
+               token.type == TokenType::FLOAT32 || token.type == TokenType::FLOAT64 ||
+               token.type == TokenType::STRING_TYPE || token.type == TokenType::BOOL_TYPE ||
+               token.type == TokenType::VOID || token.type == TokenType::IDENTIFIER;
     }
 };
 

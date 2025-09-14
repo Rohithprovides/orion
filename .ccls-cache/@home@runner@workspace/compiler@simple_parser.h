@@ -58,6 +58,11 @@ private:
         return peek().type == type;
     }
     
+    bool checkNext(TokenType type) const {
+        if (current + 1 >= tokens.size()) return false;
+        return tokens[current + 1].type == type;
+    }
+    
     bool isStatementStarter(TokenType type) const {
         return type == TokenType::WHILE || type == TokenType::FOR || 
                type == TokenType::IF || type == TokenType::RETURN ||
@@ -84,7 +89,7 @@ private:
         }
         
         // Function declaration (fn name() { ... })
-        if (check(TokenType::IDENTIFIER) && tokens[current].value == "fn") {
+        if (check(TokenType::IDENTIFIER) && peek().value == "fn") {
             return parseFunctionDeclaration();
         }
         
@@ -121,6 +126,20 @@ private:
             return std::make_unique<PassStatement>();
         }
         
+        // Return statement
+        if (check(TokenType::RETURN) || (check(TokenType::IDENTIFIER) && peek().value == "return")) {
+            advance(); // consume 'return'
+            auto returnStmt = std::make_unique<ReturnStatement>();
+            
+            // Check if there's an expression to return
+            if (!check(TokenType::NEWLINE) && !check(TokenType::SEMICOLON) && 
+                !check(TokenType::RBRACE) && !isAtEnd()) {
+                returnStmt->expression = parseExpression();
+            }
+            
+            return returnStmt;
+        }
+        
         // Variable declaration or expression
         return parseVariableDeclarationOrExpression();
     }
@@ -140,8 +159,34 @@ private:
         }
         advance(); // consume '('
         
+        // Parse parameters
         if (!check(TokenType::RPAREN)) {
-            throw std::runtime_error("Parameters not supported yet");
+            do {
+                if (!check(TokenType::IDENTIFIER)) {
+                    throw std::runtime_error("Expected parameter name");
+                }
+                
+                std::string paramName = advance().value;
+                Type paramType;
+                bool hasExplicitType = true;
+                
+                // Check for colon-based type annotation: name: Type
+                if (check(TokenType::COLON)) {
+                    advance(); // consume the colon
+                    paramType = parseType();
+                }
+                // Check for direct type (existing syntax): name Type  
+                else if (isTypeToken(peek())) {
+                    paramType = parseType();
+                }
+                // No type specified - implicit typing: name
+                else {
+                    paramType = Type(TypeKind::UNKNOWN);
+                    hasExplicitType = false;
+                }
+                
+                func->parameters.emplace_back(paramName, paramType, hasExplicitType);
+            } while (match(TokenType::COMMA));
         }
         advance(); // consume ')'
         
@@ -722,6 +767,12 @@ private:
             }
         }
         
+        // Handle built-in type conversion functions that are keywords
+        if (check(TokenType::INT) && checkNext(TokenType::LPAREN)) {
+            advance(); // consume 'int'
+            return parseBuiltinFunctionCall("int");
+        }
+        
         if (check(TokenType::IDENTIFIER)) {
             std::string varName = advance().value;
             return std::make_unique<Identifier>(varName);
@@ -733,6 +784,26 @@ private:
         }
         
         throw std::runtime_error("Unexpected token in expression");
+    }
+    
+    std::unique_ptr<FunctionCall> parseBuiltinFunctionCall(const std::string& name) {
+        auto call = std::make_unique<FunctionCall>(name);
+        
+        advance(); // consume '('
+        
+        // Parse arguments
+        if (!check(TokenType::RPAREN)) {
+            do {
+                call->arguments.push_back(parseExpression());
+            } while (check(TokenType::COMMA) && (advance(), true));
+        }
+        
+        if (!check(TokenType::RPAREN)) {
+            throw std::runtime_error("Expected ')' after function arguments");
+        }
+        advance(); // consume ')'
+        
+        return call;
     }
     
     std::unique_ptr<InterpolatedString> parseInterpolatedString(const Token& token) {
@@ -860,6 +931,60 @@ private:
         advance(); // consume '}'
         
         return std::make_unique<ForInStatement>(variable, std::move(iterable), std::move(body));
+    }
+    
+    // Helper methods for parameter parsing
+    bool match(TokenType type) {
+        if (check(type)) {
+            advance();
+            return true;
+        }
+        return false;
+    }
+    
+    Type parseType() {
+        if (check(TokenType::INT)) {
+            advance();
+            return Type(TypeKind::INT32);
+        }
+        if (check(TokenType::INT64)) {
+            advance();
+            return Type(TypeKind::INT64);
+        }
+        if (check(TokenType::FLOAT32)) {
+            advance();
+            return Type(TypeKind::FLOAT32);
+        }
+        if (check(TokenType::FLOAT64)) {
+            advance();
+            return Type(TypeKind::FLOAT64);
+        }
+        if (check(TokenType::STRING_TYPE)) {
+            advance();
+            return Type(TypeKind::STRING);
+        }
+        if (check(TokenType::BOOL_TYPE)) {
+            advance();
+            return Type(TypeKind::BOOL);
+        }
+        if (check(TokenType::VOID)) {
+            advance();
+            return Type(TypeKind::VOID);
+        }
+        
+        if (check(TokenType::IDENTIFIER)) {
+            std::string name = advance().value;
+            return Type(TypeKind::STRUCT, name); // Could be struct or enum
+        }
+        
+        throw std::runtime_error("Expected type");
+    }
+    
+    bool isTypeToken(const Token& token) const {
+        return token.type == TokenType::INT || token.type == TokenType::INT64 ||
+               token.type == TokenType::FLOAT32 || token.type == TokenType::FLOAT64 ||
+               token.type == TokenType::STRING_TYPE || token.type == TokenType::BOOL_TYPE ||
+               token.type == TokenType::VOID || token.type == TokenType::IDENTIFIER;
     }
 };
 
