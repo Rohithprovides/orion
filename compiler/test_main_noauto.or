@@ -1,5 +1,0 @@
-fn main() {
-    out("This should NOT run automatically")
-}
-
-out("This should run")

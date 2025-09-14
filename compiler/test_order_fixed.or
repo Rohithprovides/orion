@@ -1,1 +1,0 @@
-fn main() { mixed1 = [1, 2.0] mixed2 = [1.0, 2] }

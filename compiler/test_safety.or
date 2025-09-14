@@ -1,9 +1,0 @@
-fn main() { 
-    # These should work
-    good1 = [1, 2] + [3, 4]
-    good2 = [1, 2] * 3
-    out("Valid operations completed")
-    
-    # This should fail with clear error
-    bad1 = [1, 2] + 5
-}

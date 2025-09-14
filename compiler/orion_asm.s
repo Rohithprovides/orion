@@ -12,8 +12,10 @@ str_true: .string "True\n"
 str_false: .string "False\n"
 str_index_error: .string "Index Error\n"
 str_0: .string "enter your name"
-str_1: .string "tony"
+str_1: .string "Debug: about to compare"
 str_2: .string "tony"
+str_3: .string "SUCCESS: matched tony"
+str_4: .string "FAILED: did not match"
 
 .section .text
 .global main
@@ -46,37 +48,40 @@ main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp
-loop_0:
-    mov $str_true, %rax
-    test %rax, %rax
-    jz end_loop_0
     # Variable: name
     # input() function call
     mov $str_0, %rdi  # Prompt string
     call orion_input_prompt  # Display prompt and read input
     # String address returned in %rax
     mov %rax, -8(%rbp)  # store global name
+    # Call out() with string
+    mov $str_1, %rsi
+    mov $format_str, %rdi
+    xor %rax, %rax
+    call printf
     # Integer binary operation
     mov -8(%rbp), %rax  # load global name
     push %rax
-    mov $str_1, %rax
+    mov $str_2, %rax
     pop %rbx
     cmp %rax, %rbx
     sete %al
     movzx %al, %rax
     test %rax, %rax
-    jz else_1
+    jz else_0
     # Call out() with string
-    mov $str_2, %rsi
+    mov $str_3, %rsi
     mov $format_str, %rdi
     xor %rax, %rax
     call printf
-    jmp end_if_1
-else_1:
-end_if_1:
-    jmp end_loop_0
-    jmp loop_0
-end_loop_0:
+    jmp end_if_0
+else_0:
+    # Call out() with string
+    mov $str_4, %rsi
+    mov $format_str, %rdi
+    xor %rax, %rax
+    call printf
+end_if_0:
     mov $0, %rax
     add $64, %rsp
     pop %rbp

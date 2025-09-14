@@ -1,6 +1,0 @@
-fn main() {
-    out("Main explicitly called")
-}
-
-out("Top level code")
-main()

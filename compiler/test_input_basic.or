@@ -1,6 +1,0 @@
-fn main() {
-    name = input("Enter your name: ")
-    out("Hello,", name)
-}
-
-main()

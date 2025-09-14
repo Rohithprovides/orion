@@ -1,4 +1,0 @@
-fn main() { 
-    empty = []
-    out("Empty list created")
-}

@@ -1,5 +1,0 @@
-fn main() {
-    name = input("What is your name? ")
-    out("Hello ${name}!")
-}
-main()

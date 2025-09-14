@@ -1,5 +1,0 @@
-name = input("What's your name? ");
-age = 25;
-out("Hello ${name}!");
-out("You are ${age} years old.");
-out("Nice to meet you, ${name}! You're ${age}.");

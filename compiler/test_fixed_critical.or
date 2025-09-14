@@ -1,5 +1,0 @@
-fn main() { 
-    # This should now fail properly
-    bad1 = 5 + [1, 2]
-    out("This should NOT work")
-}

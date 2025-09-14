@@ -1,4 +1,0 @@
-fn main() { 
-    x = [1, 2, 3]
-    out(x[1])  # This should output 2
-}

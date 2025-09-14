@@ -1,6 +1,0 @@
-x = "alice"
-if x == "alice" {
-    out("CORRECT: x equals alice")
-} else {
-    out("WRONG: x does not equal alice")
-}
