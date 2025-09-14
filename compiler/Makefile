@@ -5,7 +5,7 @@ CXXFLAGS = -std=c++17 -Wall -Wextra -O2
 LDFLAGS = -lm 
 
 # Source files
-SOURCES = main.cpp lexer.cpp parser.cpp types.cpp codegen.cpp ast_impl.cpp
+SOURCES = main.cpp lexer.cpp types.cpp codegen.cpp ast_impl.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
 C_SOURCES = runtime.c
 C_OBJECTS = $(C_SOURCES:.c=.o)
@@ -56,7 +56,7 @@ profile: $(TARGET)
 # Dependencies
 main.o: main.cpp ast.h lexer.h
 lexer.o: lexer.cpp lexer.h
-parser.o: parser.cpp ast.h lexer.h
+# parser.o: parser.cpp ast.h lexer.h  # Using simple_parser.h instead
 types.o: types.cpp ast.h
 codegen.o: codegen.cpp ast.h
 ast_impl.o: ast_impl.cpp ast.h
