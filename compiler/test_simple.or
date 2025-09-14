@@ -1,2 +1,1 @@
-a=5
-out(a)
+fn main() { out("Testing Orion") }
