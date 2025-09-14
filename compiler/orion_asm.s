@@ -44,25 +44,27 @@ main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp
-    # Function 'add' defined in scope ''
-    # User-defined function call: add
-    # Executing function call: add
-    # Function prologue: setting up parameters
-    mov %rdi, -8(%rbp)  # param a from %rdi
-    # Parameter a (type: int) at stack offset -8
-    mov %rsi, -16(%rbp)  # param b from %rsi
-    # Parameter b (type: int) at stack offset -16
-    # Integer binary operation
-    mov -8(%rbp), %rax  # load local a
-    push %rax
-    mov -16(%rbp), %rax  # load local b
-    pop %rbx
-    add %rbx, %rax
-    # Call out() with expression result
-    mov %rax, %rsi
+    # Function 'test' defined in scope ''
+
+test:
+    push %rbp
+    mov %rsp, %rbp
+    sub $64, %rsp  # Allocate stack space for local variables
+    # Setting up function parameters for test
+    mov %rdi, -8(%rbp)  # Parameter a
+    # Call out() with variable: a (type: int)
+    mov -8(%rbp), %rsi
     mov $format_int, %rdi
     xor %rax, %rax
     call printf
+    add $64, %rsp  # Restore stack space
+    pop %rbp
+    ret
+    # User-defined function call: test
+    # Preparing argument 0
+    mov $42, %rax
+    mov %rax, %rdi  # Arg 0 to %rdi
+    call test
     mov $0, %rax
     add $64, %rsp
     pop %rbp

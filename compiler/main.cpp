@@ -269,14 +269,17 @@ public:
         // First pass: collect all function definitions with proper scoping
         collectFunctions(node.statements, ""); // Start with global scope
         
-        // Second pass: execute only non-function statements and function calls
+        // Second pass: generate assembly code for all collected functions
+        generateFunctionAssembly();
+        
+        // Third pass: execute only non-function statements and function calls
         for (auto& stmt : node.statements) {
             if (dynamic_cast<FunctionDeclaration*>(stmt.get()) == nullptr) {
                 stmt->accept(*this);
             }
         }
         
-        // Third pass: Auto-execute main() function if it exists in global scope
+        // Fourth pass: Auto-execute main() function if it exists in global scope
         auto globalScopeIt = functionScopes.find("");
         if (globalScopeIt != functionScopes.end()) {
             auto mainFuncIt = globalScopeIt->second.functions.find("main");
@@ -311,12 +314,83 @@ public:
         }
     }
     
+    void generateFunctionAssembly() {
+        // Generate assembly code for all collected functions
+        for (const auto& scope : functionScopes) {
+            for (const auto& funcPair : scope.second.functions) {
+                const std::string& funcName = funcPair.first;
+                FunctionDeclaration* func = funcPair.second;
+                
+                assembly << "\n" << funcName << ":\n";
+                assembly << "    push %rbp\n";
+                assembly << "    mov %rsp, %rbp\n";
+                assembly << "    sub $64, %rsp  # Allocate stack space for local variables\n";
+                
+                // Save current state and enter function scope
+                bool wasInFunction = inFunction;
+                auto savedLocalVars = localVariables;
+                int savedStackOffset = stackOffset;
+                
+                inFunction = true;
+                localVariables.clear();
+                stackOffset = 0;
+                
+                // Set up parameters - move from calling convention registers to stack
+                const std::string callingConventionRegs[] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
+                
+                assembly << "    # Setting up function parameters for " << funcName << "\n";
+                for (size_t i = 0; i < func->parameters.size() && i < 6; i++) {
+                    const auto& param = func->parameters[i];
+                    
+                    // Allocate stack slot for parameter
+                    stackOffset += 8;
+                    VariableInfo paramInfo;
+                    paramInfo.stackOffset = stackOffset;
+                    paramInfo.type = param.type.toString();
+                    paramInfo.isGlobal = false;
+                    paramInfo.isConstant = false;
+                    
+                    // Register parameter in local variables
+                    localVariables[param.name] = paramInfo;
+                    
+                    // Move parameter from register to stack
+                    assembly << "    mov " << callingConventionRegs[i] << ", -" << stackOffset 
+                             << "(%rbp)  # Parameter " << param.name << "\n";
+                }
+                
+                // Generate function body
+                if (func->isSingleExpression) {
+                    func->expression->accept(*this);
+                } else {
+                    for (auto& stmt : func->body) {
+                        stmt->accept(*this);
+                    }
+                }
+                
+                // Function epilogue
+                if (funcName == "main") {
+                    assembly << "    mov %rax, %rdi\n";  // Return value to exit code
+                    assembly << "    call exit\n";
+                } else {
+                    assembly << "    add $64, %rsp  # Restore stack space\n";
+                    assembly << "    pop %rbp\n";
+                    assembly << "    ret\n";
+                }
+                
+                // Restore previous state
+                inFunction = wasInFunction;
+                localVariables = savedLocalVars;
+                stackOffset = savedStackOffset;
+            }
+        }
+    }
+    
     void visit(FunctionDeclaration& node) override {
         // Functions are only executed when called, not when defined
         assembly << "    # Function '" << node.name << "' defined but not executed\n";
         
         // Function definitions are collected in the collectFunctions phase
-        // Parameters are registered during executeFunctionCall, not during definition
+        // Assembly generation happens in generateFunctionAssembly phase
         // This ensures proper scoping and calling convention setup
     }
     
@@ -1079,16 +1153,20 @@ public:
                 }
             }
         } else {
-            // Handle user-defined function calls
-            if (node.name == "main") {
-                // Special handling for explicit main() calls
-                assembly << "    # Explicit call to main()\n";
-                executeFunctionCall("main", node.arguments);
-            } else {
-                // Handle other user-defined function calls
-                assembly << "    # User-defined function call: " << node.name << "\n";
-                executeFunctionCall(node.name, node.arguments);
+            // Handle user-defined function calls - generate proper assembly
+            assembly << "    # User-defined function call: " << node.name << "\n";
+            
+            // Prepare arguments in calling convention registers
+            const std::string callingConventionRegs[] = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
+            
+            for (size_t i = 0; i < node.arguments.size() && i < 6; i++) {
+                assembly << "    # Preparing argument " << i << "\n";
+                node.arguments[i]->accept(*this);  // Result in %rax
+                assembly << "    mov %rax, " << callingConventionRegs[i] << "  # Arg " << i << " to " << callingConventionRegs[i] << "\n";
             }
+            
+            // Generate the function call
+            assembly << "    call " << node.name << "\n";
         }
     }
     
