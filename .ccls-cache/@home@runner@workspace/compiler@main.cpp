@@ -216,6 +216,7 @@ public:
         fullAssembly << ".extern exit\n";
         fullAssembly << ".extern fmod\n";
         fullAssembly << ".extern pow\n";
+        fullAssembly << ".extern strcmp\n";
         // Enhanced list runtime functions
         fullAssembly << ".extern list_new\n";
         fullAssembly << ".extern list_from_data\n";
@@ -442,6 +443,19 @@ public:
                     default:
                         varType = "int";  // Default to int for unknown operations
                         break;
+                }
+            } else if (auto funcCall = dynamic_cast<FunctionCall*>(node.initializer.get())) {
+                // Function call: infer return type based on function name
+                if (funcCall->name == "input") {
+                    varType = "string";  // input() returns a string
+                } else if (funcCall->name == "len") {
+                    varType = "int";     // len() returns an integer
+                } else if (funcCall->name == "dtype") {
+                    varType = "string";  // dtype() returns a string representation
+                } else {
+                    // For user-defined functions, we don't know the return type yet
+                    // Default to unknown and let runtime handle it
+                    varType = "string";  // Most user functions likely return strings or can be treated as such
                 }
             }
             
@@ -893,24 +907,16 @@ public:
             // strcmp returns: 0 if equal, <0 if first < second, >0 if first > second
             switch (node.op) {
                 case BinaryOp::EQ:
-                    assembly << "    test %rax, %rax\n";
-                    assembly << "    je seq_true_" << labelCounter << "\n";
-                    assembly << "    mov $str_false, %rax\n";
-                    assembly << "    jmp seq_done_" << labelCounter << "\n";
-                    assembly << "seq_true_" << labelCounter << ":" << "\n";
-                    assembly << "    mov $str_true, %rax\n";
-                    assembly << "seq_done_" << labelCounter << ":" << "\n";
-                    labelCounter++;
+                    // Set %rax to 1 if equal (strcmp returned 0), otherwise 0
+                    assembly << "    cmp $0, %eax  # Compare strcmp result with 0\n";
+                    assembly << "    sete %al      # Set %al to 1 if equal, 0 if not\n";
+                    assembly << "    movzx %al, %rax  # Zero-extend to full register\n";
                     break;
                 case BinaryOp::NE:
-                    assembly << "    test %rax, %rax\n";
-                    assembly << "    jne sne_true_" << labelCounter << "\n";
-                    assembly << "    mov $str_false, %rax\n";
-                    assembly << "    jmp sne_done_" << labelCounter << "\n";
-                    assembly << "sne_true_" << labelCounter << ":" << "\n";
-                    assembly << "    mov $str_true, %rax\n";
-                    assembly << "sne_done_" << labelCounter << ":" << "\n";
-                    labelCounter++;
+                    // Set %rax to 1 if not equal (strcmp returned non-zero), otherwise 0
+                    assembly << "    cmp $0, %eax  # Compare strcmp result with 0\n";
+                    assembly << "    setne %al     # Set %al to 1 if not equal, 0 if equal\n";
+                    assembly << "    movzx %al, %rax  # Zero-extend to full register\n";
                     break;
                 case BinaryOp::LT:
                     assembly << "    test %rax, %rax\n";

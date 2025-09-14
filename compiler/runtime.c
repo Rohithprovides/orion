@@ -451,3 +451,103 @@ char* string_concat_parts(char** parts, int count) {
     
     return result;
 }
+
+// Range object structure for Python-style range() function
+typedef struct {
+    int64_t start;
+    int64_t stop;
+    int64_t step;
+    int64_t size;        // Number of elements in range
+} OrionRange;
+
+// Create a range object with start, stop, and step
+OrionRange* range_new(int64_t start, int64_t stop, int64_t step) {
+    if (step == 0) {
+        fprintf(stderr, "Error: Range step cannot be zero\n");
+        exit(1);
+    }
+    
+    OrionRange* range = (OrionRange*)orion_malloc(sizeof(OrionRange));
+    if (!range) {
+        fprintf(stderr, "Error: Failed to allocate memory for range\n");
+        exit(1);
+    }
+    
+    range->start = start;
+    range->stop = stop;
+    range->step = step;
+    
+    // Calculate size of range
+    if ((step > 0 && start >= stop) || (step < 0 && start <= stop)) {
+        range->size = 0;
+    } else {
+        // Formula: ceil((stop - start) / step)
+        int64_t diff = stop - start;
+        if (step > 0) {
+            range->size = (diff + step - 1) / step;
+        } else {
+            range->size = (diff + step + 1) / step;
+        }
+        if (range->size < 0) range->size = 0;
+    }
+    
+    return range;
+}
+
+// Create range with just stop (start=0, step=1)
+OrionRange* range_new_stop(int64_t stop) {
+    return range_new(0, stop, 1);
+}
+
+// Create range with start and stop (step=1)
+OrionRange* range_new_start_stop(int64_t start, int64_t stop) {
+    return range_new(start, stop, 1);
+}
+
+// Get range length
+int64_t range_len(OrionRange* range) {
+    if (!range) {
+        fprintf(stderr, "Error: Cannot get length of null range\n");
+        exit(1);
+    }
+    return range->size;
+}
+
+// Get element at index for range
+int64_t range_get(OrionRange* range, int64_t index) {
+    if (!range) {
+        fprintf(stderr, "Error: Cannot access null range\n");
+        exit(1);
+    }
+    
+    if (index < 0 || index >= range->size) {
+        fprintf(stderr, "Error: Range index out of range\n");
+        exit(1);
+    }
+    
+    return range->start + (index * range->step);
+}
+
+// Convert range to list (for debugging/compatibility)
+OrionList* range_to_list(OrionRange* range) {
+    if (!range) {
+        fprintf(stderr, "Error: Cannot convert null range to list\n");
+        exit(1);
+    }
+    
+    OrionList* list = list_new(range->size);
+    list->size = range->size;
+    
+    for (int64_t i = 0; i < range->size; i++) {
+        list->data[i] = range_get(range, i);
+    }
+    
+    return list;
+}
+
+// Free range object
+void range_free(OrionRange* range) {
+    if (range) {
+        orion_free(range);
+    }
+}
