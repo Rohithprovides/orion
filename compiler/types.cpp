@@ -205,6 +205,17 @@ private:
             return inferBinaryType(*binExpr);
         }
         if (auto call = dynamic_cast<FunctionCall*>(&expr)) {
+            // Check for built-in type conversion functions
+            if (call->name == "str") {
+                return Type(TypeKind::STRING);
+            }
+            if (call->name == "int") {
+                return Type(TypeKind::INT32);
+            }
+            if (call->name == "flt") {
+                return Type(TypeKind::FLOAT32);
+            }
+            
             auto it = functions.find(call->name);
             if (it != functions.end()) {
                 return it->second->returnType;
@@ -446,6 +457,45 @@ public:
     }
     
     void visit(FunctionCall& node) override {
+        // Check for built-in type conversion functions first
+        if (node.name == "str" || node.name == "int" || node.name == "flt") {
+            // Built-in functions expect exactly one argument
+            if (node.arguments.size() != 1) {
+                addError("Built-in function " + node.name + "() expects 1 argument, got " +
+                        std::to_string(node.arguments.size()));
+                return;
+            }
+            
+            // Visit the argument for type checking
+            node.arguments[0]->accept(*this);
+            Type argType = inferType(*node.arguments[0]);
+            
+            // Validate argument types for each built-in function
+            if (node.name == "str") {
+                // str() accepts int, float, bool, or string
+                if (argType.kind != TypeKind::INT32 && argType.kind != TypeKind::INT64 &&
+                    argType.kind != TypeKind::FLOAT32 && argType.kind != TypeKind::FLOAT64 &&
+                    argType.kind != TypeKind::BOOL && argType.kind != TypeKind::STRING) {
+                    addError("str() cannot convert " + argType.toString() + " to string");
+                }
+            } else if (node.name == "int") {
+                // int() accepts int, float, bool, or string
+                if (argType.kind != TypeKind::INT32 && argType.kind != TypeKind::INT64 &&
+                    argType.kind != TypeKind::FLOAT32 && argType.kind != TypeKind::FLOAT64 &&
+                    argType.kind != TypeKind::BOOL && argType.kind != TypeKind::STRING) {
+                    addError("int() cannot convert " + argType.toString() + " to integer");
+                }
+            } else if (node.name == "flt") {
+                // flt() accepts int, float, bool, or string
+                if (argType.kind != TypeKind::INT32 && argType.kind != TypeKind::INT64 &&
+                    argType.kind != TypeKind::FLOAT32 && argType.kind != TypeKind::FLOAT64 &&
+                    argType.kind != TypeKind::BOOL && argType.kind != TypeKind::STRING) {
+                    addError("flt() cannot convert " + argType.toString() + " to float");
+                }
+            }
+            return;
+        }
+        
         auto it = functions.find(node.name);
         if (it == functions.end()) {
             addError("Undefined function: " + node.name);
