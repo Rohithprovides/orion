@@ -1,10 +1,19 @@
-# Orion Programming Language
+# Orion Programming Language Web IDE
 
 ## Overview
-This project is a web-based IDE for Orion, a pure compiled systems programming language. Orion aims to combine C's performance with Python's readability. The platform features a Flask web server, a native C++ compiler, and a responsive web frontend, enabling users to write, compile, and execute Orion code directly in the browser. The language emphasizes direct machine code generation, explicit type annotations, C-style control flow with Python-like readability, and manual memory management for performance-critical applications.
+This project is a web-based IDE for Orion, a pure compiled systems programming language. Orion aims to combine C's performance with Python's readability. The platform features a Flask web server, a native C++ compiler, and a responsive web frontend, enabling users to write, compile, and execute Orion code directly in the browser. 
+
+**Current Status**: Successfully configured for Replit environment with cleaned dependencies and proper deployment setup.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
+
+## Recent Changes (September 2025)
+- **Dependencies Cleanup**: Removed unused Flask-SQLAlchemy, psycopg2, and email-validator dependencies since the application doesn't use a database
+- **Project Configuration**: Updated project name to "orion-web-ide" and description for clarity
+- **Replit Setup**: Configured proper workflow with webview output type and port 5000 binding
+- **Deployment Configuration**: Set up autoscale deployment with gunicorn for production
+- **Workflow**: "Orion Web IDE" workflow running Flask development server on port 5000
 
 ## System Architecture
 ### Frontend Architecture
@@ -42,7 +51,25 @@ Orion is a pure compiled language designed for performance and readability:
 - **Feather Icons**: Lightweight icon library.
 
 ### Backend Dependencies
-- **Flask**: Python web framework.
-- **Flask-CORS**: Cross-Origin Resource Sharing extension.
-- **C++ Compiler**: Native g++ for building the Orion compiler.
-- **Gunicorn**: Production WSGI HTTP Server for Python web applications (for deployment).
+- **Flask**: Python web framework for serving the web interface.
+- **Flask-CORS**: Cross-Origin Resource Sharing extension for API endpoints.
+- **C++ Compiler**: Native g++ for building the Orion compiler (pre-compiled binary included).
+- **Gunicorn**: Production WSGI HTTP Server for deployment.
+
+## Environment Setup
+### Development Environment
+- **Python 3.11+** with UV package manager
+- **Workflow**: "Orion Web IDE" runs on port 5000 with webview output
+- **Host Configuration**: Bound to 0.0.0.0 for Replit proxy compatibility
+
+### Deployment Configuration  
+- **Target**: Autoscale deployment for stateless web application
+- **Command**: `gunicorn --bind 0.0.0.0:5000 --reuse-port main:app`
+- **Port**: 5000 (frontend web interface)
+
+### Key Files
+- `app.py`: Main Flask application with compilation endpoints
+- `main.py`: Application entry point for deployment
+- `index.html`: Web IDE frontend interface  
+- `compiler/orion`: Pre-built Orion language compiler executable
+- `examples/`: Sample Orion programs (hello.or, fibonacci.or)
