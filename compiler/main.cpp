@@ -58,6 +58,10 @@ private:
     }
     
     void setVariable(const std::string& varName, const std::string& valueRegister) {
+        setVariable(varName, valueRegister, "unknown");
+    }
+    
+    void setVariable(const std::string& varName, const std::string& valueRegister, const std::string& varType) {
         // Look up existing variable
         auto varInfo = lookupVariable(varName);
         
@@ -66,7 +70,7 @@ private:
             stackOffset += 8;
             VariableInfo newVarInfo;
             newVarInfo.stackOffset = stackOffset;
-            newVarInfo.type = "unknown";
+            newVarInfo.type = varType;
             newVarInfo.isConstant = false;
             
             if (inFunction && !declaredGlobal.count(varName)) {
@@ -80,10 +84,15 @@ private:
                 globalVariables[varName] = newVarInfo;
                 varInfo = &globalVariables[varName];
             }
+        } else {
+            // Update existing variable's type if specified
+            if (varType != "unknown") {
+                varInfo->type = varType;
+            }
         }
         
         // Store value from register to variable's stack slot
-        assembly << "    mov " << valueRegister << ", -" << varInfo->stackOffset << "(%rbp)  # " << varName << " = " << valueRegister << "\n";
+        assembly << "    mov " << valueRegister << ", -" << varInfo->stackOffset << "(%rbp)  # " << varName << " = " << valueRegister << " (type: " << varInfo->type << ")\n";
     }
     
     bool isFloatExpression(Expression* expr) {
@@ -267,7 +276,16 @@ public:
             }
         }
         
-        // Note: main() functions now only execute when explicitly called (Python-style behavior)
+        // Third pass: Auto-execute main() function if it exists in global scope
+        auto globalScopeIt = functionScopes.find("");
+        if (globalScopeIt != functionScopes.end()) {
+            auto mainFuncIt = globalScopeIt->second.functions.find("main");
+            if (mainFuncIt != globalScopeIt->second.functions.end()) {
+                assembly << "    # Auto-executing main() function\n";
+                std::vector<std::unique_ptr<Expression>> emptyArgs;
+                executeFunctionCall("main", emptyArgs);
+            }
+        }
     }
     
     void collectFunctions(const std::vector<std::unique_ptr<Statement>>& statements, const std::string& currentScope = "") {
@@ -705,14 +723,17 @@ public:
                         
                         if (it->type == "int") {
                             assembly << "    mov $format_int, %rdi\n";
+                            assembly << "    xor %rax, %rax\n";
                         } else if (it->type == "bool") {
                             assembly << "    mov $format_str, %rdi\n";
+                            assembly << "    xor %rax, %rax\n";
                         } else if (it->type == "float") {
                             assembly << "    movq -" << it->stackOffset << "(%rbp), %xmm0\n";  // Load float into XMM register  
                             assembly << "    mov $format_float, %rdi\n";
                             assembly << "    mov $1, %rax\n";  // Number of vector registers used
                         } else {
                             assembly << "    mov $format_str, %rdi\n";
+                            assembly << "    xor %rax, %rax\n";
                         }
                         
                         assembly << "    call printf\n";
@@ -1842,8 +1863,8 @@ public:
                 assembly << "    mov %r13, %rsi  # Index\n";
                 assembly << "    call range_get   # Get element at index\n";
                 
-                // Store current element in loop variable
-                setVariable(node.variable, "%rax");
+                // Store current element in loop variable (range elements are integers)
+                setVariable(node.variable, "%rax", "int");
                 
                 // Execute loop body
                 node.body->accept(*this);
@@ -1875,8 +1896,8 @@ public:
                 assembly << "    mov %r13, %rsi  # Index\n";
                 assembly << "    call list_get   # Get element at index\n";
                 
-                // Store current element in loop variable
-                setVariable(node.variable, "%rax");
+                // Store current element in loop variable (list elements can be any type, default to int)
+                setVariable(node.variable, "%rax", "int");
                 
                 // Execute loop body
                 node.body->accept(*this);
@@ -1909,8 +1930,8 @@ public:
             assembly << "    mov %r13, %rsi  # Index\n";
             assembly << "    call list_get   # Get element at index\n";
             
-            // Store current element in loop variable
-            setVariable(node.variable, "%rax");
+            // Store current element in loop variable (list elements can be any type, default to int)
+            setVariable(node.variable, "%rax", "int");
             
             // Execute loop body
             node.body->accept(*this);

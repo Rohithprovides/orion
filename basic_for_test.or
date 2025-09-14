@@ -1,0 +1,8 @@
+fn main() {
+    out("Testing basic for loop")
+    for i in range(3) {
+        out("Number: ")
+        out(i)
+    }
+    out("Done!")
+}

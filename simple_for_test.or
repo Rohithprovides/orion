@@ -1,0 +1,7 @@
+fn main() {
+    out("Testing simple for loop")
+    for i in range(3) {
+        out(str(i))
+    }
+    out("Done!")
+}
