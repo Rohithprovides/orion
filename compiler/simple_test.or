@@ -1,1 +1,2 @@
-fn main() { out("Hello World") }
+x=5
+out(x)

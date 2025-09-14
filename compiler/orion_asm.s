@@ -43,7 +43,34 @@ main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp
-    # Function 'main' defined in scope ''
+    # Variable: x
+    mov $0, %rax
+    mov %rax, -8(%rbp)  # store global x
+loop_0:
+    # Integer binary operation
+    mov -8(%rbp), %rax  # load global x
+    push %rax
+    mov $3, %rax
+    pop %rbx
+    cmp %rax, %rbx
+    setl %al
+    movzx %al, %rax
+    test %rax, %rax
+    jz end_loop_0
+    # Call out() with variable: x (type: int)
+    mov -8(%rbp), %rsi
+    mov $format_int, %rdi
+    call printf
+    # Variable: x
+    # Integer binary operation
+    mov -8(%rbp), %rax  # load global x
+    push %rax
+    mov $1, %rax
+    pop %rbx
+    add %rbx, %rax
+    mov %rax, -8(%rbp)  # store global x
+    jmp loop_0
+end_loop_0:
     mov $0, %rax
     add $64, %rsp
     pop %rbp
