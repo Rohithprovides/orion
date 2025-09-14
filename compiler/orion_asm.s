@@ -11,7 +11,12 @@ dtype_unknown: .string "datatype: unknown\n"
 str_true: .string "True\n"
 str_false: .string "False\n"
 str_index_error: .string "Index Error\n"
-float_0: .quad 4617878467915022336
+str_0: .string "Hello, Orion World!"
+str_1: .string "Welcome to the fast and readable programming language!"
+str_2: .string "Developer"
+str_3: .string "Hello, "
+str_4: .string "!"
+str_5: .string "Current year: "
 
 .section .text
 .global main
@@ -45,19 +50,53 @@ main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp
-    # Variable: a
-    # Float: 5.5
-    movq float_0(%rip), %rax
-    mov %rax, -8(%rbp)  # store global a
-    # Variable: b
-    # int() type conversion function call
-    mov -8(%rbp), %rax  # load global a
-    movq %rax, %xmm0  # float variable
-    call __orion_float_to_int
-    mov %rax, -16(%rbp)  # store global b
-    # Call out() with variable: b (type: string)
-    mov -16(%rbp), %rsi
+    # Function 'main' defined in scope ''
+    # Auto-executing main() function
+    # Executing function call: main
+    # Call out() with string
+    mov $str_0, %rsi
     mov $format_str, %rdi
+    xor %rax, %rax
+    call printf
+    # Call out() with string
+    mov $str_1, %rsi
+    mov $format_str, %rdi
+    xor %rax, %rax
+    call printf
+    # Variable: name
+    mov $str_2, %rax
+    mov %rax, -8(%rbp)  # store local name
+    # Integer binary operation
+    # Integer binary operation
+    mov $str_3, %rax
+    push %rax
+    mov -8(%rbp), %rax  # load local name
+    pop %rbx
+    add %rbx, %rax
+    push %rax
+    mov $str_4, %rax
+    pop %rbx
+    add %rbx, %rax
+    # Call out() with expression result
+    mov %rax, %rsi
+    mov $format_int, %rdi
+    xor %rax, %rax
+    call printf
+    # Variable: year
+    mov $2025, %rax
+    mov %rax, -16(%rbp)  # store local year
+    # Integer binary operation
+    mov $str_5, %rax
+    push %rax
+    # str() type conversion function call
+    mov -16(%rbp), %rax  # load local year
+    mov %rax, %rdi  # int variable
+    call __orion_int_to_string
+    pop %rbx
+    add %rbx, %rax
+    # Call out() with expression result
+    mov %rax, %rsi
+    mov $format_int, %rdi
     xor %rax, %rax
     call printf
     mov $0, %rax

@@ -11,17 +11,22 @@ dtype_unknown: .string "datatype: unknown\n"
 str_true: .string "True\n"
 str_false: .string "False\n"
 str_index_error: .string "Index Error\n"
-str_0: .string "Hello, World!\n"
-str_1: .string "Hello, World!\n"
+str_0: .string "Hello, Orion World!"
+str_1: .string "Welcome to the fast and readable programming language!"
+str_2: .string "Developer"
+str_3: .string "Hello, "
+str_4: .string "!"
+str_5: .string "Current year: "
 
 .section .text
 .global main
 .extern printf
-.extern malloc
-.extern free
+.extern orion_malloc
+.extern orion_free
 .extern exit
 .extern fmod
 .extern pow
+.extern strcmp
 .extern list_new
 .extern list_from_data
 .extern list_len
@@ -33,24 +38,65 @@ str_1: .string "Hello, World!\n"
 .extern list_concat
 .extern list_repeat
 .extern list_extend
+.extern orion_input
+.extern orion_input_prompt
+.extern int_to_string
+.extern float_to_string
+.extern bool_to_string
+.extern string_to_string
+.extern string_concat_parts
 
 main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp
-    # Function defined: main
-    # Explicit call to main()
+    # Function 'main' defined in scope ''
+    # Auto-executing main() function
     # Executing function call: main
     # Call out() with string
     mov $str_0, %rsi
     mov $format_str, %rdi
     xor %rax, %rax
     call printf
-    # Calling user-defined main() function
-    # Executing function call: main
     # Call out() with string
     mov $str_1, %rsi
     mov $format_str, %rdi
+    xor %rax, %rax
+    call printf
+    # Variable: name
+    mov $str_2, %rax
+    mov %rax, -8(%rbp)  # store local name
+    # Integer binary operation
+    # Integer binary operation
+    mov $str_3, %rax
+    push %rax
+    mov -8(%rbp), %rax  # load local name
+    pop %rbx
+    add %rbx, %rax
+    push %rax
+    mov $str_4, %rax
+    pop %rbx
+    add %rbx, %rax
+    # Call out() with expression result
+    mov %rax, %rsi
+    mov $format_int, %rdi
+    xor %rax, %rax
+    call printf
+    # Variable: year
+    mov $2025, %rax
+    mov %rax, -16(%rbp)  # store local year
+    # Integer binary operation
+    mov $str_5, %rax
+    push %rax
+    # str() type conversion function call
+    mov -16(%rbp), %rax  # load local year
+    mov %rax, %rdi  # int variable
+    call __orion_int_to_string
+    pop %rbx
+    add %rbx, %rax
+    # Call out() with expression result
+    mov %rax, %rsi
+    mov $format_int, %rdi
     xor %rax, %rax
     call printf
     mov $0, %rax
