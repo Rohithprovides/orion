@@ -407,19 +407,18 @@ private:
     }
     
     std::unique_ptr<Statement> parseForStatement() {
-        // Simplified for loop: for init; condition; update { body }
-        auto init = parseStatement();
+        // Only support Python-style for-in loops: for variable in iterable { body }
+        Token variable = consume(TokenType::IDENTIFIER, "Expected variable name after 'for' in for-in loop");
         
-        match({TokenType::SEMICOLON}); // Optional semicolon
-        auto condition = parseExpression();
+        if (!check(TokenType::IN)) {
+            throw std::runtime_error("Expected 'in' after variable in for-in loop. C-style for loops are not supported.");
+        }
+        advance(); // consume 'in'
         
-        match({TokenType::SEMICOLON}); // Optional semicolon
-        auto update = parseExpression();
-        
+        auto iterable = parseExpression();
         auto body = parseStatement();
         
-        return std::make_unique<ForStatement>(std::move(init), std::move(condition), 
-                                            std::move(update), std::move(body));
+        return std::make_unique<ForInStatement>(variable.value, std::move(iterable), std::move(body));
     }
     
     std::unique_ptr<Statement> parseReturnStatement() {

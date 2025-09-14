@@ -34,7 +34,7 @@ enum class TokenType {
     INCREMENT, DECREMENT,
     
     // Punctuation
-    SEMICOLON, COMMA, DOT,
+    SEMICOLON, COMMA, DOT, COLON,
     LPAREN, RPAREN,
     LBRACE, RBRACE,
     LBRACKET, RBRACKET,

@@ -67,6 +67,7 @@ std::string Token::typeToString() const {
         case TokenType::SEMICOLON: return "SEMICOLON";
         case TokenType::COMMA: return "COMMA";
         case TokenType::DOT: return "DOT";
+        case TokenType::COLON: return "COLON";
         case TokenType::LPAREN: return "LPAREN";
         case TokenType::RPAREN: return "RPAREN";
         case TokenType::LBRACE: return "LBRACE";
@@ -250,6 +251,7 @@ Token Lexer::nextToken() {
             case ';': return Token(TokenType::SEMICOLON, ";", tokenLine, tokenColumn);
             case ',': return Token(TokenType::COMMA, ",", tokenLine, tokenColumn);
             case '.': return Token(TokenType::DOT, ".", tokenLine, tokenColumn);
+            case ':': return Token(TokenType::COLON, ":", tokenLine, tokenColumn);
             case '(': return Token(TokenType::LPAREN, "(", tokenLine, tokenColumn);
             case ')': return Token(TokenType::RPAREN, ")", tokenLine, tokenColumn);
             case '{': return Token(TokenType::LBRACE, "{", tokenLine, tokenColumn);
