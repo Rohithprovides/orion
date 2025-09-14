@@ -1800,52 +1800,7 @@ public:
         continueLabels.pop();
     }
     
-    void visit(ForStatement& node) override {
-        std::string loopLabel = "for_loop_" + std::to_string(labelCounter);
-        std::string continueLabel = "for_continue_" + std::to_string(labelCounter);
-        std::string endLabel = "for_end_" + std::to_string(labelCounter);
-        labelCounter++;
-        
-        // Store current loop labels for break/continue
-        breakLabels.push(endLabel);
-        continueLabels.push(continueLabel);
-        
-        // Initialization
-        if (node.init) {
-            node.init->accept(*this);
-        }
-        
-        // Loop start
-        assembly << loopLabel << ":\n";
-        
-        // Condition check
-        if (node.condition) {
-            node.condition->accept(*this);
-            assembly << "    test %rax, %rax\n";
-            assembly << "    jz " << endLabel << "\n";
-        }
-        
-        // Loop body
-        node.body->accept(*this);
-        
-        // Continue point (for continue statements)
-        assembly << continueLabel << ":\n";
-        
-        // Update expression
-        if (node.update) {
-            node.update->accept(*this);
-        }
-        
-        // Jump back to condition check
-        assembly << "    jmp " << loopLabel << "\n";
-        
-        // Loop end
-        assembly << endLabel << ":\n";
-        
-        // Restore previous loop labels
-        breakLabels.pop();
-        continueLabels.pop();
-    }
+    // ForStatement removed - only ForInStatement is supported
     
     void visit(ForInStatement& node) override {
         std::string loopLabel = "forin_loop_" + std::to_string(labelCounter);

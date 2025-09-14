@@ -443,24 +443,7 @@ public:
     std::string toString(int indent = 0) const override;
 };
 
-// For statement
-class ForStatement : public Statement {
-public:
-    std::unique_ptr<Statement> init;
-    std::unique_ptr<Expression> condition;
-    std::unique_ptr<Expression> update;
-    std::unique_ptr<Statement> body;
-    
-    ForStatement(std::unique_ptr<Statement> init_stmt,
-                 std::unique_ptr<Expression> cond,
-                 std::unique_ptr<Expression> upd,
-                 std::unique_ptr<Statement> body_stmt)
-        : init(std::move(init_stmt)), condition(std::move(cond)), 
-          update(std::move(upd)), body(std::move(body_stmt)) {}
-    
-    void accept(ASTVisitor& visitor) override;
-    std::string toString(int indent = 0) const override;
-};
+// Note: C-style ForStatement removed - only ForInStatement is supported
 
 // Python-style for-in statement
 class ForInStatement : public Statement {
@@ -581,7 +564,6 @@ public:
     virtual void visit(ReturnStatement& node) = 0;
     virtual void visit(IfStatement& node) = 0;
     virtual void visit(WhileStatement& node) = 0;
-    virtual void visit(ForStatement& node) = 0;
     virtual void visit(ForInStatement& node) = 0;
     virtual void visit(BreakStatement& node) = 0;
     virtual void visit(ContinueStatement& node) = 0;

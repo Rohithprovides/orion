@@ -362,35 +362,7 @@ public:
         output << endLabel << ":\n";
     }
     
-    void visit(ForStatement& node) override {
-        std::string loopLabel = newLabel("for_loop");
-        std::string endLabel = newLabel("end_for");
-        
-        // Initialization
-        if (node.init) {
-            node.init->accept(*this);
-        }
-        
-        output << loopLabel << ":\n";
-        
-        // Condition
-        if (node.condition) {
-            node.condition->accept(*this);
-            output << "    test %rax, %rax\n";
-            output << "    jz " << endLabel << "\n";
-        }
-        
-        // Body
-        node.body->accept(*this);
-        
-        // Update
-        if (node.update) {
-            node.update->accept(*this);
-        }
-        
-        output << "    jmp " << loopLabel << "\n";
-        output << endLabel << ":\n";
-    }
+    // ForStatement removed - only ForInStatement is supported
     
     void visit(StructDeclaration& node) override {
         output << "    # Struct declaration: " << node.name << "\n";

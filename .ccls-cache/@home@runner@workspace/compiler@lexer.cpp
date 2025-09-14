@@ -38,6 +38,10 @@ std::string Token::typeToString() const {
         case TokenType::GLOBAL: return "GLOBAL";
         case TokenType::LOCAL: return "LOCAL";
         case TokenType::CONST: return "CONST";
+        case TokenType::BREAK: return "BREAK";
+        case TokenType::CONTINUE: return "CONTINUE";
+        case TokenType::PASS: return "PASS";
+        case TokenType::IN: return "IN";
         case TokenType::PLUS: return "PLUS";
         case TokenType::MINUS: return "MINUS";
         case TokenType::MULTIPLY: return "MULTIPLY";
@@ -409,6 +413,10 @@ std::unordered_map<std::string, TokenType> Lexer::keywords = {
     {"global", TokenType::GLOBAL},
     {"local", TokenType::LOCAL},
     {"const", TokenType::CONST},
+    {"break", TokenType::BREAK},
+    {"continue", TokenType::CONTINUE},
+    {"pass", TokenType::PASS},
+    {"in", TokenType::IN},
 };
 
 } // namespace orion

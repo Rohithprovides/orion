@@ -820,63 +820,23 @@ private:
     std::unique_ptr<Statement> parseForStatement() {
         advance(); // consume 'for'
         
-        // Check if this is a Python-style for-in loop
-        if (check(TokenType::IDENTIFIER)) {
-            // Look ahead to see if we have 'in' keyword
-            size_t lookahead = current + 1;
-            if (lookahead < tokens.size() && tokens[lookahead].type == TokenType::IN) {
-                // This is a for-in loop: for variable in iterable { ... }
-                std::string variable = advance().value; // consume variable name
-                advance(); // consume 'in'
-                
-                auto iterable = parseExpression();
-                
-                // Expect opening brace
-                if (!check(TokenType::LBRACE)) {
-                    throw std::runtime_error("Expected '{' after for-in clause");
-                }
-                advance(); // consume '{'
-                
-                // Parse body
-                auto body = std::make_unique<BlockStatement>();
-                while (!check(TokenType::RBRACE) && !isAtEnd()) {
-                    if (check(TokenType::NEWLINE)) {
-                        advance();
-                        continue;
-                    }
-                    
-                    auto stmt = parseStatement();
-                    if (stmt) {
-                        body->statements.push_back(std::move(stmt));
-                    }
-                }
-                
-                if (!check(TokenType::RBRACE)) {
-                    throw std::runtime_error("Expected '}' after for-in block");
-                }
-                advance(); // consume '}'
-                
-                return std::make_unique<ForInStatement>(variable, std::move(iterable), std::move(body));
-            }
+        // Only support Python-style for-in loops: for variable in iterable { ... }
+        if (!check(TokenType::IDENTIFIER)) {
+            throw std::runtime_error("Expected variable name after 'for' in for-in loop");
         }
         
-        // If not a for-in loop, fall back to traditional C-style for loop
-        // for init; condition; update { body }
-        auto init = parseStatement();
+        std::string variable = advance().value; // consume variable name
         
-        if (check(TokenType::SEMICOLON)) {
-            advance(); // consume ';'
+        if (!check(TokenType::IN)) {
+            throw std::runtime_error("Expected 'in' after variable in for-in loop. C-style for loops are not supported.");
         }
-        auto condition = parseExpression();
+        advance(); // consume 'in'
         
-        if (check(TokenType::SEMICOLON)) {
-            advance(); // consume ';'
-        }
-        auto update = parseExpression();
+        auto iterable = parseExpression();
         
         // Expect opening brace
         if (!check(TokenType::LBRACE)) {
-            throw std::runtime_error("Expected '{' after for clause");
+            throw std::runtime_error("Expected '{' after for-in clause");
         }
         advance(); // consume '{'
         
@@ -895,12 +855,11 @@ private:
         }
         
         if (!check(TokenType::RBRACE)) {
-            throw std::runtime_error("Expected '}' after for block");
+            throw std::runtime_error("Expected '}' after for-in block");
         }
         advance(); // consume '}'
         
-        return std::make_unique<ForStatement>(std::move(init), std::move(condition), 
-                                            std::move(update), std::move(body));
+        return std::make_unique<ForInStatement>(variable, std::move(iterable), std::move(body));
     }
 };
 
