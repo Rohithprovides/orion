@@ -53,7 +53,16 @@ add:
     push %rax
     mov -16(%rbp), %rax  # load local b
     pop %rbx
-    add %rbx, %rax
+    mov %rbx, %rcx  # base
+    mov %rax, %rdx  # exponent
+    mov $1, %rax    # result = 1
+power_loop:
+    test %rdx, %rdx
+    jz power_done
+    imul %rcx, %rax
+    dec %rdx
+    jmp power_loop
+power_done:
     # Call out() with expression result
     mov %rax, %rsi
     mov $format_int, %rdi
@@ -69,10 +78,10 @@ main:
     # Function 'add' defined in scope ''
     # User-defined function call: add
     # Preparing argument 0
-    mov $6, %rax
+    mov $2, %rax
     mov %rax, %rdi  # Arg 0 to %rdi
     # Preparing argument 1
-    mov $6, %rax
+    mov $2, %rax
     mov %rax, %rsi  # Arg 1 to %rsi
     call add
     mov $0, %rax
