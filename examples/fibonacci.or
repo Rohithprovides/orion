@@ -13,7 +13,7 @@ fibonacci_iterative(n) {
     a = 0
     b = 1
     
-    for i = 2; i <= n; i++ {
+    for i in range(2, n + 1) {
         temp = a + b
         a = b
         b = temp
@@ -26,7 +26,7 @@ fibonacci_iterative(n) {
 print_fibonacci(count, use_recursive) {
     out("Fibonacci sequence (" + (use_recursive ? "recursive" : "iterative") + "):")
     
-    for i = 0; i < count; i++ {
+    for i in range(count) {
         result = 0  # Automatic type detection
         
         if use_recursive {
@@ -93,7 +93,7 @@ init_cache() {
     cache.size = 0
     
     # Initialize cache with -1 (uncomputed)
-    for i = 0; i < 100; i++ {
+    for i in range(100) {
         cache.cache[i] = -1
     }
     

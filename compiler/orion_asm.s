@@ -11,10 +11,8 @@ dtype_unknown: .string "datatype: unknown\n"
 str_true: .string "True\n"
 str_false: .string "False\n"
 str_index_error: .string "Index Error\n"
-str_0: .string "Testing range variants:"
-str_1: .string "range(3):"
-str_2: .string "range(2, 5):"
-str_3: .string "range(0, 6, 2):"
+str_0: .string "Testing simple range:"
+str_1: .string "Done!"
 
 .section .text
 .global main
@@ -56,11 +54,6 @@ main:
     mov $format_str, %rdi
     xor %rax, %rax
     call printf
-    # Call out() with string
-    mov $str_1, %rsi
-    mov $format_str, %rdi
-    xor %rax, %rax
-    call printf
     # range() function call
     mov $3, %rax
     mov %rax, %rdi  # Stop value as argument
@@ -87,77 +80,10 @@ forin_loop_0:
     jmp forin_loop_0
 forin_end_0:
     # Call out() with string
-    mov $str_2, %rsi
+    mov $str_1, %rsi
     mov $format_str, %rdi
     xor %rax, %rax
     call printf
-    # range() function call
-    mov $2, %rax
-    mov %rax, %rdi  # Start value as first argument
-    push %rdi  # Save start value
-    mov $5, %rax
-    mov %rax, %rsi  # Stop value as second argument
-    pop %rdi  # Restore start value
-    call range_new_start_stop  # Create range with start and stop
-    mov %rax, %r12  # Store iterable pointer
-    mov $0, %r13    # Initialize index
-    # For-in loop over range object
-    mov %r12, %rdi  # Range pointer
-    call range_len  # Get range length
-    mov %rax, %r14  # Store range length
-forin_loop_1:
-    cmp %r14, %r13
-    jge forin_end_1
-    mov %r12, %rdi  # Range pointer
-    mov %r13, %rsi  # Index
-    call range_get   # Get element at index
-    mov %rax, -8(%rbp)  # i = %rax (type: int)
-    # Call out() with variable: i (type: int)
-    mov -8(%rbp), %rsi
-    mov $format_int, %rdi
-    xor %rax, %rax
-    call printf
-    inc %r13
-    jmp forin_loop_1
-forin_end_1:
-    # Call out() with string
-    mov $str_3, %rsi
-    mov $format_str, %rdi
-    xor %rax, %rax
-    call printf
-    # range() function call
-    mov $0, %rax
-    mov %rax, %rdi  # Start value as first argument
-    push %rdi  # Save start value
-    mov $6, %rax
-    mov %rax, %rsi  # Stop value as second argument
-    push %rsi  # Save stop value
-    mov $2, %rax
-    mov %rax, %rdx  # Step value as third argument
-    pop %rsi  # Restore stop value
-    pop %rdi  # Restore start value
-    call range_new  # Create range with start, stop, and step
-    mov %rax, %r12  # Store iterable pointer
-    mov $0, %r13    # Initialize index
-    # For-in loop over range object
-    mov %r12, %rdi  # Range pointer
-    call range_len  # Get range length
-    mov %rax, %r14  # Store range length
-forin_loop_2:
-    cmp %r14, %r13
-    jge forin_end_2
-    mov %r12, %rdi  # Range pointer
-    mov %r13, %rsi  # Index
-    call range_get   # Get element at index
-    mov %rax, -8(%rbp)  # i = %rax (type: int)
-    # Call out() with variable: i (type: int)
-    mov -8(%rbp), %rsi
-    mov $format_int, %rdi
-    xor %rax, %rax
-    call printf
-    inc %r13
-    jmp forin_loop_2
-forin_end_2:
     mov $0, %rax
     add $64, %rsp
     pop %rbp
