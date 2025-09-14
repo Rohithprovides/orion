@@ -555,6 +555,148 @@ public:
     }
     
     void visit(FunctionCall& node) override {
+        // Handle built-in type conversion functions
+        if (node.name == "str") {
+            if (node.arguments.size() != 1) {
+                throw std::runtime_error("str() function requires exactly 1 argument");
+            }
+            assembly << "    # str() type conversion function call\n";
+            
+            // Evaluate the argument
+            node.arguments[0]->accept(*this);
+            
+            // Determine the type of the argument and call appropriate runtime helper
+            auto argExpr = node.arguments[0].get();
+            if (auto intLit = dynamic_cast<IntLiteral*>(argExpr)) {
+                assembly << "    mov %rax, %rdi  # int argument\n";
+                assembly << "    call __orion_int_to_string\n";
+            } else if (auto floatLit = dynamic_cast<FloatLiteral*>(argExpr)) {
+                assembly << "    movq %rax, %xmm0  # float argument\n";
+                assembly << "    call __orion_float_to_string\n";
+            } else if (auto boolLit = dynamic_cast<BoolLiteral*>(argExpr)) {
+                assembly << "    mov %rax, %rdi  # bool argument\n";
+                assembly << "    call __orion_bool_to_string\n";
+            } else if (auto strLit = dynamic_cast<StringLiteral*>(argExpr)) {
+                // String to string is identity - result already in %rax
+                assembly << "    # String to string conversion (identity)\n";
+            } else if (auto id = dynamic_cast<Identifier*>(argExpr)) {
+                // Variable - determine type from variable info
+                auto varInfo = lookupVariable(id->name);
+                if (varInfo) {
+                    if (varInfo->type == "int") {
+                        assembly << "    mov %rax, %rdi  # int variable\n";
+                        assembly << "    call __orion_int_to_string\n";
+                    } else if (varInfo->type == "float") {
+                        assembly << "    movq %rax, %xmm0  # float variable\n";
+                        assembly << "    call __orion_float_to_string\n";
+                    } else if (varInfo->type == "bool") {
+                        assembly << "    mov %rax, %rdi  # bool variable\n";
+                        assembly << "    call __orion_bool_to_string\n";
+                    } else if (varInfo->type == "string") {
+                        // String to string is identity
+                        assembly << "    # String variable to string conversion (identity)\n";
+                    }
+                }
+            } else {
+                // For complex expressions, we'll need to infer the type at runtime
+                assembly << "    mov %rax, %rdi  # complex expression argument\n";
+                assembly << "    call __orion_int_to_string  # Default to int conversion\n";
+            }
+            return;
+        } else if (node.name == "int") {
+            if (node.arguments.size() != 1) {
+                throw std::runtime_error("int() function requires exactly 1 argument");
+            }
+            assembly << "    # int() type conversion function call\n";
+            
+            // Evaluate the argument
+            node.arguments[0]->accept(*this);
+            
+            // Determine the type of the argument and call appropriate runtime helper
+            auto argExpr = node.arguments[0].get();
+            if (auto intLit = dynamic_cast<IntLiteral*>(argExpr)) {
+                // Int to int is identity - result already in %rax
+                assembly << "    # Int to int conversion (identity)\n";
+            } else if (auto floatLit = dynamic_cast<FloatLiteral*>(argExpr)) {
+                assembly << "    movq %rax, %xmm0  # float argument\n";
+                assembly << "    call __orion_float_to_int\n";
+            } else if (auto boolLit = dynamic_cast<BoolLiteral*>(argExpr)) {
+                assembly << "    mov %rax, %rdi  # bool argument\n";
+                assembly << "    call __orion_bool_to_int\n";
+            } else if (auto strLit = dynamic_cast<StringLiteral*>(argExpr)) {
+                assembly << "    mov %rax, %rdi  # string argument\n";
+                assembly << "    call __orion_string_to_int\n";
+            } else if (auto id = dynamic_cast<Identifier*>(argExpr)) {
+                // Variable - determine type from variable info
+                auto varInfo = lookupVariable(id->name);
+                if (varInfo) {
+                    if (varInfo->type == "int") {
+                        assembly << "    # Int variable to int conversion (identity)\n";
+                    } else if (varInfo->type == "float") {
+                        assembly << "    movq %rax, %xmm0  # float variable\n";
+                        assembly << "    call __orion_float_to_int\n";
+                    } else if (varInfo->type == "bool") {
+                        assembly << "    mov %rax, %rdi  # bool variable\n";
+                        assembly << "    call __orion_bool_to_int\n";
+                    } else if (varInfo->type == "string") {
+                        assembly << "    mov %rax, %rdi  # string variable\n";
+                        assembly << "    call __orion_string_to_int\n";
+                    }
+                }
+            } else {
+                // For complex expressions, default to int conversion
+                assembly << "    mov %rax, %rdi  # complex expression argument\n";
+                assembly << "    call __orion_int_to_int  # Default to int identity\n";
+            }
+            return;
+        } else if (node.name == "flt") {
+            if (node.arguments.size() != 1) {
+                throw std::runtime_error("flt() function requires exactly 1 argument");
+            }
+            assembly << "    # flt() type conversion function call\n";
+            
+            // Evaluate the argument
+            node.arguments[0]->accept(*this);
+            
+            // Determine the type of the argument and call appropriate runtime helper
+            auto argExpr = node.arguments[0].get();
+            if (auto intLit = dynamic_cast<IntLiteral*>(argExpr)) {
+                assembly << "    mov %rax, %rdi  # int argument\n";
+                assembly << "    call __orion_int_to_float\n";
+            } else if (auto floatLit = dynamic_cast<FloatLiteral*>(argExpr)) {
+                // Float to float is identity - result already in %rax
+                assembly << "    # Float to float conversion (identity)\n";
+            } else if (auto boolLit = dynamic_cast<BoolLiteral*>(argExpr)) {
+                assembly << "    mov %rax, %rdi  # bool argument\n";
+                assembly << "    call __orion_bool_to_float\n";
+            } else if (auto strLit = dynamic_cast<StringLiteral*>(argExpr)) {
+                assembly << "    mov %rax, %rdi  # string argument\n";
+                assembly << "    call __orion_string_to_float\n";
+            } else if (auto id = dynamic_cast<Identifier*>(argExpr)) {
+                // Variable - determine type from variable info
+                auto varInfo = lookupVariable(id->name);
+                if (varInfo) {
+                    if (varInfo->type == "int") {
+                        assembly << "    mov %rax, %rdi  # int variable\n";
+                        assembly << "    call __orion_int_to_float\n";
+                    } else if (varInfo->type == "float") {
+                        assembly << "    # Float variable to float conversion (identity)\n";
+                    } else if (varInfo->type == "bool") {
+                        assembly << "    mov %rax, %rdi  # bool variable\n";
+                        assembly << "    call __orion_bool_to_float\n";
+                    } else if (varInfo->type == "string") {
+                        assembly << "    mov %rax, %rdi  # string variable\n";
+                        assembly << "    call __orion_string_to_float\n";
+                    }
+                }
+            } else {
+                // For complex expressions, default to int to float conversion
+                assembly << "    mov %rax, %rdi  # complex expression argument\n";
+                assembly << "    call __orion_int_to_float  # Default to int to float\n";
+            }
+            return;
+        }
+        
         // Handle built-in list functions
         if (node.name == "len") {
             if (node.arguments.size() != 1) {
