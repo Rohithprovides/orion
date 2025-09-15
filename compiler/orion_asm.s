@@ -42,13 +42,13 @@ str_0: .string "enter "
 .extern string_concat_parts
 
 
-fn_main:
+maints:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp  # Allocate stack space for local variables
-    # Setting up function parameters for main
+    # Setting up function parameters for maints
     mov %rdi, -8(%rbp)  # Parameter a
-    # Call out() with variable: a (type: unknown)
+    # Call out() with variable: a (type: struct str)
     mov -8(%rbp), %rsi
     mov $format_str, %rdi
     xor %rax, %rax
@@ -60,15 +60,18 @@ main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp
-    # Function 'main' defined in scope ''
+    # Function 'maints' defined in scope ''
     # Variable: a
     # input() function call
     mov $str_0, %rdi  # Prompt string
     call orion_input_prompt  # Display prompt and read input
     # String address returned in %rax
     mov %rax, -8(%rbp)  # store global a
-    # Call user main function
-    call fn_main
+    # User-defined function call: maints
+    # Preparing argument 0
+    mov -8(%rbp), %rax  # load global a
+    mov %rax, %rdi  # Arg 0 to %rdi
+    call maints
     mov $0, %rax
     add $64, %rsp
     pop %rbp
