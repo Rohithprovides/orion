@@ -42,11 +42,11 @@ str_0: .string "enter "
 .extern string_concat_parts
 
 
-mains:
+fn_main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp  # Allocate stack space for local variables
-    # Setting up function parameters for mains
+    # Setting up function parameters for main
     mov %rdi, -8(%rbp)  # Parameter a (type: string)
     # Call out(dtype(a))
     mov $dtype_string, %rsi
@@ -60,18 +60,18 @@ main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp
-    # Function 'mains' defined in scope ''
+    # Function 'main' defined in scope ''
     # Variable: a
     # input() function call
     mov $str_0, %rdi  # Prompt string
     call orion_input_prompt  # Display prompt and read input
     # String address returned in %rax
     mov %rax, -8(%rbp)  # store global a
-    # User-defined function call: mains
+    # User-defined function call: main
     # Preparing argument 0
     mov -8(%rbp), %rax  # load global a
     mov %rax, %rdi  # Arg 0 to %rdi
-    call mains
+    call fn_main
     mov $0, %rax
     add $64, %rsp
     pop %rbp

@@ -260,15 +260,8 @@ public:
         // Program code (top-level statements and calls)
         fullAssembly << assembly.str();
         
-        // Call user main function if it exists
-        auto globalScope = functionScopes.find("");
-        if (globalScope != functionScopes.end()) {
-            auto mainFunc = globalScope->second.functions.find("main");
-            if (mainFunc != globalScope->second.functions.end()) {
-                fullAssembly << "    # Call user main function\n";
-                fullAssembly << "    call fn_main\n";
-            }
-        }
+        // Note: User main function should be called explicitly by user code
+        // Don't auto-call main function to allow main() to be used like any other function
         
         // Return 0
         fullAssembly << "    mov $0, %rax\n";
