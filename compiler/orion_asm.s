@@ -11,12 +11,7 @@ dtype_unknown: .string "datatype: unknown\n"
 str_true: .string "True\n"
 str_false: .string "False\n"
 str_index_error: .string "Index Error\n"
-str_0: .string "Hello, Orion World!"
-str_1: .string "Welcome to the fast and readable programming language!"
-str_2: .string "Developer"
-str_3: .string "Hello, "
-str_4: .string "!"
-str_5: .string "Current year: "
+str_0: .string "enter "
 
 .section .text
 .global main
@@ -52,50 +47,10 @@ fn_main:
     mov %rsp, %rbp
     sub $64, %rsp  # Allocate stack space for local variables
     # Setting up function parameters for main
-    # Call out() with string
-    mov $str_0, %rsi
+    mov %rdi, -8(%rbp)  # Parameter a
+    # Call out() with variable: a (type: unknown)
+    mov -8(%rbp), %rsi
     mov $format_str, %rdi
-    xor %rax, %rax
-    call printf
-    # Call out() with string
-    mov $str_1, %rsi
-    mov $format_str, %rdi
-    xor %rax, %rax
-    call printf
-    # Variable: name
-    mov $str_2, %rax
-    mov %rax, -8(%rbp)  # store local name
-    # Integer binary operation
-    # Integer binary operation
-    mov $str_3, %rax
-    push %rax
-    mov -8(%rbp), %rax  # load local name
-    pop %rbx
-    add %rbx, %rax
-    push %rax
-    mov $str_4, %rax
-    pop %rbx
-    add %rbx, %rax
-    # Call out() with expression result
-    mov %rax, %rsi
-    mov $format_int, %rdi
-    xor %rax, %rax
-    call printf
-    # Variable: year
-    mov $2025, %rax
-    mov %rax, -16(%rbp)  # store local year
-    # Integer binary operation
-    mov $str_5, %rax
-    push %rax
-    # str() type conversion function call
-    mov -16(%rbp), %rax  # load local year
-    mov %rax, %rdi  # int variable
-    call __orion_int_to_string
-    pop %rbx
-    add %rbx, %rax
-    # Call out() with expression result
-    mov %rax, %rsi
-    mov $format_int, %rdi
     xor %rax, %rax
     call printf
     add $64, %rsp  # Restore stack space
@@ -106,6 +61,12 @@ main:
     mov %rsp, %rbp
     sub $64, %rsp
     # Function 'main' defined in scope ''
+    # Variable: a
+    # input() function call
+    mov $str_0, %rdi  # Prompt string
+    call orion_input_prompt  # Display prompt and read input
+    # String address returned in %rax
+    mov %rax, -8(%rbp)  # store global a
     # Call user main function
     call fn_main
     mov $0, %rax
