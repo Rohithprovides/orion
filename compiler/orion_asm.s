@@ -11,6 +11,12 @@ dtype_unknown: .string "datatype: unknown\n"
 str_true: .string "True\n"
 str_false: .string "False\n"
 str_index_error: .string "Index Error\n"
+str_0: .string "Hello, Orion World!"
+str_1: .string "Welcome to the fast and readable programming language!"
+str_2: .string "Developer"
+str_3: .string "Hello, "
+str_4: .string "!"
+str_5: .string "Current year: "
 
 .section .text
 .global main
@@ -41,28 +47,52 @@ str_index_error: .string "Index Error\n"
 .extern string_concat_parts
 
 
-add:
+fn_main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp  # Allocate stack space for local variables
-    # Setting up function parameters for add
-    mov %rdi, -8(%rbp)  # Parameter a
-    mov %rsi, -16(%rbp)  # Parameter b
+    # Setting up function parameters for main
+    # Call out() with string
+    mov $str_0, %rsi
+    mov $format_str, %rdi
+    xor %rax, %rax
+    call printf
+    # Call out() with string
+    mov $str_1, %rsi
+    mov $format_str, %rdi
+    xor %rax, %rax
+    call printf
+    # Variable: name
+    mov $str_2, %rax
+    mov %rax, -8(%rbp)  # store local name
     # Integer binary operation
-    mov -8(%rbp), %rax  # load local a
+    # Integer binary operation
+    mov $str_3, %rax
     push %rax
-    mov -16(%rbp), %rax  # load local b
+    mov -8(%rbp), %rax  # load local name
     pop %rbx
-    mov %rbx, %rcx  # base
-    mov %rax, %rdx  # exponent
-    mov $1, %rax    # result = 1
-power_loop:
-    test %rdx, %rdx
-    jz power_done
-    imul %rcx, %rax
-    dec %rdx
-    jmp power_loop
-power_done:
+    add %rbx, %rax
+    push %rax
+    mov $str_4, %rax
+    pop %rbx
+    add %rbx, %rax
+    # Call out() with expression result
+    mov %rax, %rsi
+    mov $format_int, %rdi
+    xor %rax, %rax
+    call printf
+    # Variable: year
+    mov $2025, %rax
+    mov %rax, -16(%rbp)  # store local year
+    # Integer binary operation
+    mov $str_5, %rax
+    push %rax
+    # str() type conversion function call
+    mov -16(%rbp), %rax  # load local year
+    mov %rax, %rdi  # int variable
+    call __orion_int_to_string
+    pop %rbx
+    add %rbx, %rax
     # Call out() with expression result
     mov %rax, %rsi
     mov $format_int, %rdi
@@ -75,15 +105,9 @@ main:
     push %rbp
     mov %rsp, %rbp
     sub $64, %rsp
-    # Function 'add' defined in scope ''
-    # User-defined function call: add
-    # Preparing argument 0
-    mov $2, %rax
-    mov %rax, %rdi  # Arg 0 to %rdi
-    # Preparing argument 1
-    mov $2, %rax
-    mov %rax, %rsi  # Arg 1 to %rsi
-    call add
+    # Function 'main' defined in scope ''
+    # Call user main function
+    call fn_main
     mov $0, %rax
     add $64, %rsp
     pop %rbp
