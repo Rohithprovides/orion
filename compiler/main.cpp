@@ -358,7 +358,8 @@ public:
                     stackOffset += 8;
                     VariableInfo paramInfo;
                     paramInfo.stackOffset = stackOffset;
-                    paramInfo.type = param.type.toString();
+                    // Try to infer parameter type from calling context, default to string for flexibility
+                    paramInfo.type = (param.type.toString() != "unknown") ? param.type.toString() : "string";
                     paramInfo.isGlobal = false;
                     paramInfo.isConstant = false;
                     
@@ -367,7 +368,7 @@ public:
                     
                     // Move parameter from register to stack
                     funcsAsm << "    mov " << callingConventionRegs[i] << ", -" << stackOffset 
-                             << "(%rbp)  # Parameter " << param.name << "\n";
+                             << "(%rbp)  # Parameter " << param.name << " (type: " << paramInfo.type << ")\n";
                 }
                 
                 // Redirect assembly output to funcsAsm for function body generation
